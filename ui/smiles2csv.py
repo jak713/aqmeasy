@@ -9,7 +9,7 @@ import csv
 import subprocess
 import tempfile
 
-from PySide6.QtWidgets import QMainWindow, QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QTextEdit, QCheckBox, QInputDialog, QMessageBox, QSizePolicy, QFileDialog, QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox
+from PySide6.QtWidgets import QMainWindow, QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QTextEdit, QCheckBox, QInputDialog, QMessageBox, QSizePolicy, QFileDialog, QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon
 
@@ -96,7 +96,7 @@ class smiles_to_csv(QWidget):
         # self.smiles_input.textChanged.connect(self.CHECK_SOMETHING()) # possibly need something for resetting constraints etc when structure changes
         self.smiles_input.textChanged.connect(lambda: self.handle_smiles_change())
 
-        self.show_numbered_atoms_toggle = QCheckBox("Display atom labels", self)
+        self.show_numbered_atoms_toggle = QCheckBox("Show atom labels", self)
         self.show_numbered_atoms_toggle.setChecked(False)
         self.show_numbered_atoms_toggle.stateChanged.connect(lambda: self.display_molecule(self.show_numbered_atoms_toggle.isChecked()))
         self.control2_layout.addWidget(self.show_numbered_atoms_toggle)
@@ -106,6 +106,14 @@ class smiles_to_csv(QWidget):
         self.search_pubchem_input.returnPressed.connect(lambda: (logging.debug("at search_pubchem_input >>> find_smiles_from_PubChem called"), self.find_smiles_from_PubChem()))
         self.control2_layout.addWidget(self.search_pubchem_input)
 
+        self.search_pubchem_advanced_button = QPushButton(self)
+        self.search_pubchem_advanced_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView))
+        # this is for Getting a full results list for common compound names (https://pubchempy.readthedocs.io/en/latest/guide/searching.html)
+        # probs wont incorporate advanced search types but idk yet
+        # might also add searching for SIDs along with name and CID IDK yet need to ask Juanvi
+        self.search_pubchem_advanced_button.setToolTip("Advanced PubChem Search")
+        self.control2_layout.addWidget(self.search_pubchem_advanced_button)
+
         self.right_layout.addLayout(self.control2_layout)
         self.right_layout.addLayout(self.control3_layout)
 
@@ -114,11 +122,14 @@ class smiles_to_csv(QWidget):
         self.control3_layout.addWidget(self.delete_button)
 
         self.previous_button = QPushButton("Previous", self)
+        self.previous_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_ArrowLeft))
         self.previous_button.clicked.connect(lambda: (logging.debug("at previous_button >>> self.previous_molecule"), self.previous_molecule()))
         QShortcut(QKeySequence(Qt.Key_Left), self, self.previous_molecule)
         self.control3_layout.addWidget(self.previous_button)
 
-        self.next_button = QPushButton("Next", self)
+        self.next_button = QPushButton("Next ", self)
+        self.next_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_ArrowRight))
+        self.next_button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.next_button.clicked.connect(lambda: (logging.debug("at next_button >>> self.next_molecule"), self.next_molecule()))
         QShortcut(QKeySequence(Qt.Key_Right), self, self.next_molecule)
         self.control3_layout.addWidget(self.next_button)
@@ -138,6 +149,7 @@ class smiles_to_csv(QWidget):
 
         self.is_programmatic_update = False
         self.update_properties()
+        logging.debug("at __init__ >>> self.update_properties()")
         self.properties_table.itemChanged.connect(lambda item: (
             logging.debug("at properties_table >>> handle_property_change"),
             self.handle_property_change(item) if not self.is_programmatic_update 
@@ -221,6 +233,9 @@ class smiles_to_csv(QWidget):
             widget.setPalette(palette)
 
 
+
+
+
     def handle_smiles_change(self):
         # logging.debug("at smiles_input >>> handling SMILES text change")
         smiles = self.smiles_input.toPlainText()
@@ -229,7 +244,7 @@ class smiles_to_csv(QWidget):
         # logging.debug("at handle_smiles_change >>> calling display_molecule") 
         self.display_molecule(self.show_numbered_atoms_toggle.isChecked())
         # logging.debug("at handle_smiles_change >>> calling update_smiles_csv")
-        self.update_smiles_csv()
+        self.update_smiles_csv(smiles)
         self.find_metal_atom()
 
 # CSV RELATED FUNCTIONS
@@ -298,17 +313,17 @@ class smiles_to_csv(QWidget):
                 self.user_defined_multiplicity = {}
             self.user_defined_multiplicity[self.current_index] = item.text()
 
-    def update_smiles_csv(self):
+    def update_smiles_csv(self, smiles):
         """Update the csv_dictionary with the current SMILES string.
         If constraints are present, update the csv_dictionary["SMILES"] with the enumerated SMILES string."""
         logging.debug("at update_smiles_csv >>> updating csv_dictionary with current SMILES") 
-        current_smiles = self.smiles_input.toPlainText()
-        if not current_smiles:
+        if not smiles:
+            self.smiles_output.setText("Please enter SMILES in the box above.")
             return
 
-        enumerated_smiles = self.enumerate_smiles(current_smiles)
+        enumerated_smiles = self.enumerate_smiles(smiles)
         if enumerated_smiles is None:
-            enumerated_smiles = current_smiles
+            enumerated_smiles = smiles
 
         if self.csv_dictionary["SMILES"][self.current_index - 1] != "" and self.csv_dictionary["SMILES"][self.current_index - 1] == enumerated_smiles:
             print("at update_smiles_csv: SMILES already present, not updating. ATM not sure how to actually remove the constraints without deleting the whole row.")
@@ -324,17 +339,24 @@ class smiles_to_csv(QWidget):
             self.csv_dictionary["SMILES"][self.current_index - 1] = enumerated_smiles
             print("at update_smiles_csv: constraints_dihedral present, updating SMILES with enumerated_smiles")
         else:
-            self.csv_dictionary["SMILES"][self.current_index - 1] = current_smiles
+            self.csv_dictionary["SMILES"][self.current_index - 1] = smiles
 
 # SMILES HANDILING FUNCTIONS
     def find_smiles_from_PubChem(self):
         """Searches PubChem for a compound using its CID or name and inserts the canonical SMILES into the input box."""
         search_text = self.search_pubchem_input.text().strip()
         if not search_text:
-            QMessageBox.warning(self, "Error", "Please enter a valid CID or compound name.")
+            QMessageBox.warning(self, "Error", "Please enter a valid CID, CAS or compound name.")
             return
         try:
-            if search_text.isdigit():
+            if "-" in search_text:
+                compounds = pcp.get_compounds(search_text, 'name')
+                if compounds:
+                    cid = compounds[0].cid
+                    compound = pcp.get_compounds(cid, 'cid')[0]
+                else:
+                    raise ValueError("No CID match for the given CAS.")
+            elif search_text.isdigit():
                 compound = pcp.get_compounds(int(search_text), 'cid')[0]
             else:
                 compound = pcp.get_compounds(search_text, 'name')[0]
@@ -350,6 +372,7 @@ class smiles_to_csv(QWidget):
             if not self.csv_dictionary["code_name"][self.current_index - 1]:
                 self.csv_dictionary["code_name"][self.current_index - 1] = search_text
             self.update_properties()
+            logging.debug("at find_smiles_from_PubChem >>> updating properties")
             self.search_pubchem_input.clear()
 
         except IndexError:
@@ -357,27 +380,26 @@ class smiles_to_csv(QWidget):
         except Exception as e:
             QMessageBox.warning(self, "Error", f"An error occurred: {str(e)}")
 
-    def enumerate_smiles(self, smiles_string):
+    def enumerate_smiles(self, smiles):
         """Enumerate all possible SMILES strings for a molecule."""
-        if not smiles_string:
+        if not smiles:
             return
-        elif smiles_string == "":
+        elif smiles == "":
             return
-        else:
         # if not self.smiles_input or self.smiles_input.toPlainText() == "":
         #     self.smiles_output.setText("Please enter SMILES in the box above.")
         #     return
             
-            try:
-                mol = Chem.MolFromSmiles(smiles_string)
-                mol = Chem.AddHs(mol)
-                for i, atom in enumerate(mol.GetAtoms()):
-                    atom.SetAtomMapNum(i + 1)
-                enumerated_smiles = Chem.MolToSmiles(mol)
-                self.smiles_output.setText(Chem.MolToSmiles(mol))
-                return enumerated_smiles
-            except Exception as e:
-                self.smiles_output.setText("") # error here
+        try:
+            mol = Chem.MolFromSmiles(smiles)
+            mol = Chem.AddHs(mol)
+            for i, atom in enumerate(mol.GetAtoms()):
+                atom.SetAtomMapNum(i + 1)
+            enumerated_smiles = Chem.MolToSmiles(mol)
+            self.smiles_output.setText(enumerated_smiles)                
+            return enumerated_smiles
+        except Exception as e:
+            self.smiles_output.setText("") # error here
 
     def resizeEvent(self, event):
         """Handle window resize events to refresh the molecule display."""
@@ -435,7 +457,7 @@ class smiles_to_csv(QWidget):
             if self.molecule_label is not None:
                 self.molecule_label.setText(f"Error displaying molecule: {str(e)}")
         
-        self.update_properties()
+        # self.update_properties()
         self.atom_electron_label.setText(f" Electrons: {self.get_number_electrons()}\n Atoms: {self.get_number_atoms()}")
 
     def mousePressEvent(self, event: QMouseEvent):
@@ -592,8 +614,18 @@ class smiles_to_csv(QWidget):
             "complex_type",
             "geom" assigned to the current smiles index displayed. These values are stored in the csv_dictionary."""
         self.code_name = self.csv_dictionary["code_name"][self.current_index - 1]
-        self.charge = self.csv_dictionary["charge"][self.current_index - 1]
-        self.multiplicity = self.csv_dictionary["multiplicity"][self.current_index - 1]
+        self.charge = (
+            self.csv_dictionary["charge"][self.current_index - 1]
+            if self.csv_dictionary["charge"][self.current_index - 1] != ""
+            else self.get_charge()
+        )
+        print(self.charge, self.get_charge())
+        self.multiplicity = (
+            self.csv_dictionary["multiplicity"][self.current_index - 1]
+            if self.csv_dictionary["multiplicity"][self.current_index - 1] != ""
+            else self.get_multiplicity()
+        )
+        print(self.multiplicity, self.get_multiplicity())
         self.constraints_atoms = self.csv_dictionary["constraints_atoms"][self.current_index - 1]
         self.constraints_dist = self.csv_dictionary["constraints_dist"][self.current_index - 1]
         self.constraints_angle = self.csv_dictionary["constraints_angle"][self.current_index - 1]
@@ -647,7 +679,8 @@ class smiles_to_csv(QWidget):
         """Calculate and set multiplicity if not manually set by user."""
         logging.debug("at get_multiplicity >>> calculating multiplicity")
         if self.csv_dictionary["SMILES"][self.current_index - 1] == "":
-            return
+            print("at get_multiplicity: no SMILES present")
+            return ""
         
         if not hasattr(self, 'user_defined_multiplicity'):
             self.user_defined_multiplicity = {}
@@ -661,6 +694,7 @@ class smiles_to_csv(QWidget):
             if mol is not None:
                 mult = Descriptors.NumRadicalElectrons(mol) + 1 
                 self.csv_dictionary["multiplicity"][self.current_index - 1] = mult
+            return mult
         except Exception:
             return
 
@@ -668,7 +702,8 @@ class smiles_to_csv(QWidget):
         """Calculate and set charge if not manually set by user."""
         logging.debug("at get_charge >>> calculating charge")
         if self.csv_dictionary["SMILES"][self.current_index - 1] == "":
-            return
+            print("at get_charge: no SMILES present")
+            return ""
         
         if not hasattr(self, 'user_defined_charge'):
             self.user_defined_charge = {}
@@ -683,6 +718,7 @@ class smiles_to_csv(QWidget):
                 mol = Chem.AddHs(mol)
                 charge = Chem.GetFormalCharge(mol)
                 self.csv_dictionary["charge"][self.current_index - 1] = charge
+            return charge
         except Exception:
             return
 
@@ -702,8 +738,10 @@ class smiles_to_csv(QWidget):
         """Electrons counted using RDKit Chem module:
         electrons = sum of atomic numbers - formal charge"""
         logging.debug("at get_number_electrons >>> getting number of electrons")
-        if self.smiles_input.toPlainText() == "":
-                return 0
+        smiles = self.csv_dictionary["SMILES"][self.current_index - 1] if self.csv_dictionary["SMILES"][self.current_index - 1] != "" else self.smiles_input.toPlainText()
+        if not smiles:
+            print("at get_number_electrons: no SMILES present")
+            return 0
         try:
             mol = Chem.MolFromSmiles(self.smiles_input.toPlainText())
             mol = Chem.AddHs(mol)
@@ -743,7 +781,9 @@ class smiles_to_csv(QWidget):
     def delete_molecule(self):
         """Delete the current molecule and all associated data (including constraints) from the csv dictionary and update the display."""
         if self.total_index == 1:
-            self.smiles_input.clear()
+            for key, value in self.csv_dictionary.items():
+                value.pop(self.current_index - 1)
+            self.new_molecule()
             return
 
         # Remove the molecule entry from the CSV dictionary
@@ -779,12 +819,14 @@ class smiles_to_csv(QWidget):
         logging.debug("at update_display >>> updating smiles_input")
         self.index_and_total_label_update()
         logging.debug("at update_display >>> updating index_and_total_label")
-        self.get_multiplicity()
-        logging.debug("at update_display >>> updating multiplicity")
-        self.get_charge()
-        logging.debug("at update_display >>> updating charge")
+        # self.get_multiplicity()
+        # logging.debug("at update_display >>> updating multiplicity")
+        # self.get_charge()
+        # logging.debug("at update_display >>> updating charge")
+        self.atom_electron_label.setText(f" Electrons: {self.get_number_electrons()}\n Atoms: {self.get_number_atoms()}")
         self.update_properties()
         logging.debug("at update_display >>> updating properties")
+        # self.smiles_output.clear()
 
     def clear_focus_on_inputs(self):
         self.smiles_input.clearFocus()
