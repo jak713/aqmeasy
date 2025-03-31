@@ -5,29 +5,29 @@ from ui.smiles2csv import smiles_to_csv
 from PySide6.QtCore import Qt, QUrl
 
 class MainWindow(QMainWindow):
-
+#FE6253 coral
+#84A1FD light blue
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("AQMEasy v1.0")
-        self.resize(400, 400)
+        self.setWindowTitle("aqmeasy 1.0")
+        self.resize(400, 500)
         self.create_menu()
         self.move(0, 0)
-
 
         central_widget = QWidget(self)
         layout = QVBoxLayout(central_widget)
         self.logo = QLabel(self)
-        logo = QPixmap("/Users/user/Documents/aqme/aqmeasy/ui/resources/aqmeasy_logo.png")
+        logo = QPixmap("/Users/user/Documents/aqme/aqmeasy/ui/resources/aqme-logo-grey-transparent.svg")
         if not logo.isNull():
             self.logo.setPixmap(logo)
         else:
             self.logo.setText("Logo not found")
-        layout.addWidget(self.logo, alignment=Qt.AlignCenter)
+        layout.addWidget(self.logo,2, alignment=Qt.AlignCenter)
 
         readthedocs_label = QLabel(self)
         readthedocs_icon = QPixmap("/Users/user/Documents/aqme/aqmeasy/ui/resources/readthedocs_logo.png")
         if not readthedocs_icon.isNull():
-            readthedocs_icon = readthedocs_icon.scaled(self.logo.pixmap().size() * 0.5, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            readthedocs_icon = readthedocs_icon.scaled(self.logo.pixmap().size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
             readthedocs_label.setPixmap(readthedocs_icon)
         else:
             readthedocs_label.setText('<a href="https://aqme.readthedocs.io/en/latest/">Docs</a>')
@@ -35,32 +35,54 @@ class MainWindow(QMainWindow):
             readthedocs_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
             readthedocs_label.setOpenExternalLinks(True)
         readthedocs_label.mousePressEvent = lambda event: QDesktopServices.openUrl(QUrl("https://aqme.readthedocs.io/en/latest/"))
-        layout.addWidget(readthedocs_label, alignment=Qt.AlignCenter)
+        layout.addWidget(readthedocs_label,1, alignment=Qt.AlignCenter)
 
         self.setCentralWidget(central_widget)
 
         self.smiles2csv_list = []
+        label_layout = QHBoxLayout()
         button_layout = QHBoxLayout()
-        button_for_csv = QPushButton("New csv")
-        button_for_csv.setFixedHeight(50)
-        button_for_csv.clicked.connect(self.new_smiles2csv_window)
-        button_layout.addWidget(button_for_csv)
-        
-        button_for_descriptors = QPushButton("Descriptors")
-        button_for_descriptors.setFixedHeight(50)
-        button_for_descriptors.clicked.connect(self.new_descriptors_widget)
-        button_layout.addWidget(button_for_descriptors)
-        
-        button_for_analysis = QPushButton("Analysis")
-        button_for_analysis.setFixedHeight(50)
-        button_for_analysis.clicked.connect(self.new_analysis_widget)
-        button_layout.addWidget(button_for_analysis)
 
-        button_for_secret = QPushButton("GoodVibes")
-        button_for_secret.setFixedHeight(50)
-        button_for_secret.clicked.connect(self.new_secret_widget)
-        button_layout.addWidget(button_for_secret)
+        label_for_csearch = QLabel("Conformational\nSearch:")
+        label_layout.addWidget(label_for_csearch)
+        button_for_csearch = QPushButton("CSEARCH")
+        button_for_csearch.setFixedHeight(50)
+        button_for_csearch.clicked.connect(self.new_smiles2csv_window)
+        button_layout.addWidget(button_for_csearch)
+        
+        label_for_qprep = QLabel("Quantum\nPreprocessing:")
+        label_layout.addWidget(label_for_qprep)
+        button_for_qprep = QPushButton("QPREP")
+        button_for_qprep.setFixedHeight(50)
+        button_for_qprep.clicked.connect(self.new_qprep_widget)
+        button_layout.addWidget(button_for_qprep)
+        
+        label_for_qcorr = QLabel("Quantum\nCorrections:")
+        label_layout.addWidget(label_for_qcorr)
+        button_for_qcorr = QPushButton("QCORR")
+        button_for_qcorr.setFixedHeight(50)
+        button_for_qcorr.clicked.connect(self.new_qcorr_widget)
+        button_layout.addWidget(button_for_qcorr)
 
+        label_for_qdescp = QLabel("Quantum\nDescriptors:")
+        label_layout.addWidget(label_for_qdescp)
+        button_for_qdescp = QPushButton("QDESCP")
+        button_for_qdescp.setFixedHeight(50)
+        button_for_qdescp.clicked.connect(self.new_qdescp_widget)
+        button_layout.addWidget(button_for_qdescp)
+        
+        labels = [label_for_csearch, label_for_qprep, label_for_qcorr, label_for_qdescp]
+        label_font = labels[0].font()
+        label_font.setPointSize(10)
+        label_font.setBold(True)
+
+        for label in labels:
+            label.setFont(label_font)
+            label.setAlignment(Qt.AlignCenter)
+            label.setStyleSheet(f"color: {self.palette().color(self.foregroundRole()).name()};")
+
+        layout.addStretch()  
+        layout.addLayout(label_layout)  
         layout.addLayout(button_layout)
 
 
@@ -97,18 +119,17 @@ class MainWindow(QMainWindow):
         new_smiles2csv = smiles_to_csv()
         self.smiles2csv_list.append(new_smiles2csv)
         new_smiles2csv.destroyed.connect(lambda obj: self.smiles2csv_list.remove(new_smiles2csv))
-        print(f"Number of smiles2csv windows running: {len(self.smiles2csv_list)}")
         new_smiles2csv.show()
 
-    def new_descriptors_widget(self):
-        """Opens a new window for selecting descriptors"""
+    def new_qprep_widget(self):
+        """Opens a new window for qprep"""
         pass
 
-    def new_analysis_widget(self):
-        """Opens a new window for analysing results"""
+    def new_qcorr_widget(self):
+        """Opens a new window for qcorr"""
         pass
 
-    def new_secret_widget(self):
+    def new_qdescp_widget(self):
         """Opens a new window for secret stuff"""
         pass
 
