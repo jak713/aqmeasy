@@ -9,9 +9,9 @@ import csv
 import subprocess
 import tempfile
 
-from PySide6.QtWidgets import QMainWindow, QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QTextEdit, QCheckBox, QInputDialog, QMessageBox, QSizePolicy, QFileDialog, QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon
+from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QTextEdit, QCheckBox, QInputDialog, QMessageBox, QSizePolicy, QFileDialog, QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem, QFrame, QGridLayout, QDoubleSpinBox
+from PySide6.QtCore import Qt, QProcess
+from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, QDoubleValidator
 
 from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors
@@ -71,6 +71,7 @@ class smiles_to_csv(QWidget):
         self.show_all_button.clicked.connect(lambda: (logging.debug("at show_all_button >>> self.show_csv()"), self.show_csv()))
         self.control1_layout.addWidget(self.show_all_button)
 
+        # THIS IS WHERE THE MOLECULE IS DISPLAYED
         self.molecule_label = QLabel("Enter SMILES in the box on the right...", self)
         self.molecule_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.molecule_label.setStyleSheet("background-color: #f8f8f8; border: 1px solid black; color: black; font-size: 12px;")
@@ -83,7 +84,7 @@ class smiles_to_csv(QWidget):
         self.atom_electron_label.setStyleSheet("background-color: rgba(255, 255, 255, 0); border: none; font-size: 10px; color: black;")
 
         self.log_box_label = QLabel(self.molecule_label)
-        self.log_box_label.setFixedSize(500, 20)
+        self.log_box_label.setFixedSize(550, 20)
         self.log_box_label.setStyleSheet("background-color: rgba(255, 255, 255, 0); border: none; font-size: 10px; color: black;")
         self.molecule_label.resizeEvent = lambda event: self.log_box_label.move(5, self.molecule_label.height() - self.log_box_label.height())
 
@@ -180,52 +181,64 @@ class smiles_to_csv(QWidget):
         self.shell_output.setStyleSheet("background-color: black; color: white; padding: 10px; border: 1px solid #444;")
         self.shell_output.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.shell_output.setReadOnly(True)
-        self.bottom_layout.addWidget(self.shell_output)
-        
-        # aqme setup options 
-        self.aqme_setup_labels_layout = QVBoxLayout()
-        self.bottom_layout.addLayout(self.aqme_setup_labels_layout)
-        self.aqme_setup_layout = QVBoxLayout()
-        self.bottom_layout.addLayout(self.aqme_setup_layout)
+        self.bottom_layout.addWidget(self.shell_output, 2)
+    
+        # AQME SETUP
+        self.aqme_setup_grid = QGridLayout()
+        self.bottom_layout.addLayout(self.aqme_setup_grid, 1)
 
-        self.program_label = QLabel("Select AQME program:", self)
-        self.program_label.setStyleSheet("font-size: 11px; color: black;")
-        self.aqme_setup_labels_layout.addWidget(self.program_label)
-
+        # Row 0 - Program selection
+        self.program_label = QLabel("Select CSEARCH program:", self)
+        self.program_label.setStyleSheet("font-size: 12px; color: black;")
+        self.aqme_setup_grid.addWidget(self.program_label, 0, 0)
         self.program_combo = QComboBox(self)
         self.program_combo.addItems(["RDKit", "CREST", "GOAT*"])
-        self.aqme_setup_layout.addWidget(self.program_combo)
+        self.program_combo.setStyleSheet("font-size: 12px; color: black;")
+        self.aqme_setup_grid.addWidget(self.program_combo, 0, 1)
 
+        # Row 1 - Number of processors
         self.nprocs_label = QLabel("Number of processors:", self)
-        self.nprocs_label.setStyleSheet("font-size: 11px; color: black;")
-        self.aqme_setup_labels_layout.addWidget(self.nprocs_label)
-
+        self.nprocs_label.setStyleSheet("font-size: 12px; color: black;")
+        self.aqme_setup_grid.addWidget(self.nprocs_label, 1, 0)
         self.nprocs_input = QSpinBox(self)
         self.nprocs_input.setRange(1, 40)
-        self.nprocs_input.setValue(4)
-        self.aqme_setup_layout.addWidget(self.nprocs_input)
-        self.nprocs_input.setStyleSheet("font-size: 11px; color: black;")
+        self.nprocs_input.setValue(8)
+        self.nprocs_input.setStyleSheet("font-size: 12px; color: black;")
+        self.nprocs_input.setToolTip("Number of processors to use for the calculation.\nOnly relevant for CREST and GOAT*.")
+        self.nprocs_input.setEnabled(self.program_combo.currentText() == "CREST")
+        self.aqme_setup_grid.addWidget(self.nprocs_input, 1, 1)
+        self.program_combo.currentTextChanged.connect(lambda text: self.nprocs_input.setEnabled(text == "CREST"))
 
+        # Row 2 - Stack size
         self.stacksize_label = QLabel("Stack size (GB):", self)
-        self.stacksize_label.setStyleSheet("font-size: 11px; color: black;")
-        self.aqme_setup_labels_layout.addWidget(self.stacksize_label)
-
+        self.stacksize_label.setStyleSheet("font-size: 12px; color: black;")
+        self.aqme_setup_grid.addWidget(self.stacksize_label, 2, 0)
         self.stacksize_input = QSpinBox(self)
         self.stacksize_input.setRange(1, 8)
         self.stacksize_input.setValue(1)
-        self.aqme_setup_layout.addWidget(self.stacksize_input)
-        self.stacksize_input.setStyleSheet("font-size: 11px; color: black;")
+        self.stacksize_input.setStyleSheet("font-size: 12px; color: black;")
+        self.aqme_setup_grid.addWidget(self.stacksize_input, 2, 1)
 
-        # CREST specific options
+        # Row 3 - Output directory
+        self.output_dir_label = QLabel("Output directory:", self)
+        self.output_dir_label.setStyleSheet("font-size: 12px; color: black;")
+        self.aqme_setup_grid.addWidget(self.output_dir_label, 3, 0)
+        self.output_dir_input = QLineEdit(self)
+        self.output_dir_input.setPlaceholderText("Select output directory...")
+        self.output_dir_button = QPushButton(self)
+        dir_icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon)
+        self.output_dir_button.setIcon(dir_icon)
+        self.output_dir_button.clicked.connect(self.select_output_directory)
+        output_dir_layout = QHBoxLayout()
+        output_dir_layout.addWidget(self.output_dir_input)
+        output_dir_layout.addWidget(self.output_dir_button)
+        self.aqme_setup_grid.addLayout(output_dir_layout, 3, 1)
 
-        
-        self.aqme_run_layout = QVBoxLayout()
-
+        # Row 4 - Run button
         self.run_button = QPushButton("Run AQME", self)
         self.run_button.clicked.connect(lambda: (logging.debug("at run_button >>> self.run_aqme()"), self.run_aqme()))
-        self.aqme_run_layout.addWidget(self.run_button)
-        self.aqme_run_layout.addStretch()
-        self.bottom_layout.addLayout(self.aqme_run_layout)
+        self.run_button.setStyleSheet("font-size: 12px; color: black; background-color: lightblue;")
+        self.aqme_setup_grid.addWidget(self.run_button, 4, 1)
 
         for widget in [self.smiles_input, self.smiles_output, self.properties_table,  self.shell_output, self.molecule_label, self.atom_electron_label]:
             palette = widget.palette()
@@ -233,8 +246,108 @@ class smiles_to_csv(QWidget):
             widget.setPalette(palette)
 
 
+        # ADVANCED SETTINGS 
+        self.advanced_settings_button = QPushButton("Show Advanced Settings", self)
+        self.advanced_settings_button.setCheckable(True)
+        self.advanced_settings_button.clicked.connect(lambda: (logging.debug("at advanced_settings_button >>> toggle_panel"), self.toggle_panel()))
+        self.advanced_settings_button.setStyleSheet("font-size: 12px; color: black;")
+        self.aqme_setup_grid.addWidget(self.advanced_settings_button, 4, 0)
+
+        self.advanced_panel = QFrame()
+        self.advanced_panel.setFixedHeight(0)
+        self.main_layout.addWidget(self.advanced_panel)
+
+        advanced_layout = QGridLayout()
+        self.advanced_panel.setLayout(advanced_layout)
+
+        self.sample_size_label = QLabel("Sample size:", self)
+        self.sample_size_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.sample_size_label, 0, 0)
+        self.sample_size_input = QSpinBox(self)
+        self.sample_size_input.setRange(1, 500)
+        self.sample_size_input.setValue(25)
+        self.sample_size_input.setStyleSheet("font-size: 12px; color: black;")
+        self.sample_size_input.setToolTip("Number of conformers to keep after the initial RDKit sampling.\nThey are selected using a combination of RDKit energies and Butina clustering.")
+        advanced_layout.addWidget(self.sample_size_input, 0, 1)
+
+        self.auto_sample_label = QLabel("Auto sample level:", self)
+        self.auto_sample_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.auto_sample_label, 1, 0)
+        self.auto_sample_combo = QComboBox(self)
+        self.auto_sample_combo.addItems(["low", "mid", "high", "false"])
+        self.auto_sample_combo.setCurrentText("mid")
+        self.auto_sample_combo.setStyleSheet("font-size: 12px; color: black;")
+        self.auto_sample_combo.setToolTip("Apply automatic calculation of the number of conformers generated initially with RDKit. \nThis number of conformers is initially generated and then reduced to the number specified in --sample with different filters. \nOptions:\n• Low: Base multiplier = 5, max confs = 100\n• Mid: Base multiplier = 10, max confs = 250\n• High: Base multiplier = 20, max confs = 500\n• False: Use the number specified in --sample")
+        advanced_layout.addWidget(self.auto_sample_combo, 1, 1)
+
+        self.energy_window_label = QLabel("Energy window (kcal/mol):", self)
+        self.energy_window_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.energy_window_label, 2, 0)
+        self.energy_window_input = QDoubleSpinBox(self)
+        self.energy_window_input.setRange(1.0, 50.0)
+        self.energy_window_input.setValue(5.0)
+        self.energy_window_input.setStyleSheet("font-size: 12px; color: black;")
+        self.energy_window_input.setToolTip("Energy window in kcal/mol to discard conformers\n(i.e. if a conformer is more than the E window compared to the most stable conformer).")
+        advanced_layout.addWidget(self.energy_window_input, 2, 1)
+
+        self.initial_energy_threshold_label = QLabel("Initial E threshold (kcal/mol):", self)
+        self.initial_energy_threshold_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.initial_energy_threshold_label, 3, 0)
+        self.initial_energy_threshold_input = QLineEdit(self)
+        self.initial_energy_threshold_input.setText("0.0001")
+        self.initial_energy_threshold_input.setValidator(QDoubleValidator())
+        self.initial_energy_threshold_input.setStyleSheet("font-size: 12px; color: black;")
+        self.initial_energy_threshold_input.setToolTip("Energy difference in kcal/mol between unique conformers for the first filter of only E.")
+        advanced_layout.addWidget(self.initial_energy_threshold_input, 3, 1)
+
+        self.energy_threshold_label = QLabel("Energy threshold (kcal/mol):", self)
+        self.energy_threshold_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.energy_threshold_label, 4, 0)
+
+        self.energy_threshold_input = QLineEdit(self)
+        self.energy_threshold_input.setText("0.25")
+        self.energy_threshold_input.setValidator(QDoubleValidator())
+        self.energy_threshold_input.setStyleSheet("font-size: 12px; color: black;")
+        self.energy_threshold_input.setToolTip("Energy difference in kcal/mol between unique conformers for the second filter of E + RMS")
+        advanced_layout.addWidget(self.energy_threshold_input, 4, 1)
+
+        self.rms_threshold_label = QLabel("RMS threshold:", self) #(kcal/mol)?
+        self.rms_threshold_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.rms_threshold_label, 0, 3)
+
+        self.rms_threshold_input = QLineEdit(self)
+        self.rms_threshold_input.setText("0.25")
+        self.rms_threshold_input.setValidator(QDoubleValidator())
+        self.rms_threshold_input.setStyleSheet("font-size: 12px; color: black;")
+        self.rms_threshold_input.setToolTip("RMS difference between unique conformers for the second filter of E + RMS")
+        advanced_layout.addWidget(self.rms_threshold_input, 0, 4)
+
+        self.opt_steps_rdkit_label = QLabel("RDKit opt steps:", self)
+        self.opt_steps_rdkit_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.opt_steps_rdkit_label, 1, 3)
+
+        self.opt_steps_rdkit_input = QSpinBox(self)
+        self.opt_steps_rdkit_input.setRange(1, 10000)
+        self.opt_steps_rdkit_input.setValue(1000)
+        self.opt_steps_rdkit_input.setStyleSheet("font-size: 12px; color: black;")
+        self.opt_steps_rdkit_input.setToolTip("Max cycles used in RDKit optimizations. ")
+        advanced_layout.addWidget(self.opt_steps_rdkit_input, 1, 4)
 
 
+
+
+
+    def toggle_panel(self):
+        expanded_height = 130
+        if self.advanced_settings_button.isChecked():
+            self.advanced_panel.setFixedHeight(expanded_height)
+            self.resize(self.width(), self.height() + expanded_height)
+            self.advanced_settings_button.setText("Hide Advanced Settings")
+        else:
+            self.advanced_panel.setFixedHeight(0)
+            self.resize(self.width(), self.height() - expanded_height)
+            self.advanced_settings_button.setText("Show Advanced Settings")
+        
 
     def handle_smiles_change(self):
         # logging.debug("at smiles_input >>> handling SMILES text change")
@@ -543,16 +656,19 @@ class smiles_to_csv(QWidget):
             if ok:
                 if distance <= 0:
                     QMessageBox.warning(self, "Invalid Distance", "Distance must be greater than 0.", QMessageBox.StandardButton.Ok, QMessageBox.StandardButton.Ok)
-                    return self.add_distance_constraints()
+                    return  self.add_distance_constraints()
                 
-            if not hasattr(self, 'each_dist'):
-                self.each_dist = {self.current_index: []}
-            if self.current_index not in self.each_dist:
-                self.each_dist[self.current_index] = []
-            self.each_dist[self.current_index].append([atom1, atom2, distance])
-            self.csv_dictionary["constraints_dist"][self.current_index - 1] = str(self.each_dist[self.current_index])
-            self.update_properties()
-            self.selected_atoms = []
+                if not hasattr(self, 'each_dist'):
+                    self.each_dist = {self.current_index: []}
+                if self.current_index not in self.each_dist:
+                    self.each_dist[self.current_index] = []
+                self.each_dist[self.current_index].append([atom1, atom2, distance])
+                self.csv_dictionary["constraints_dist"][self.current_index - 1] = str(self.each_dist[self.current_index])
+                self.update_properties()
+                self.selected_atoms = []
+            else:
+                self.selected_atoms = []
+                return
 
     def add_angle_constraints(self):
         """Add angle constraints between three selected atoms."""
@@ -568,14 +684,17 @@ class smiles_to_csv(QWidget):
                 if angle <= 0 or angle >= 360:
                     QMessageBox.warning(self, "Invalid Angle", "Angle must be between 0 and 360 degrees.", QMessageBox.StandardButton.Ok, QMessageBox.StandardButton.Ok)
                     return self.addAngleConstraints()
-            if not hasattr(self, 'each_angle'):
-                self.each_angle = {self.current_index: []}
-            if self.current_index not in self.each_angle:
-                self.each_angle[self.current_index] = []
-            self.each_angle[self.current_index].append([atom1, atom2, atom3, angle])
-            self.csv_dictionary["constraints_angle"][self.current_index - 1] = str(self.each_angle[self.current_index])
-            self.update_properties()
-            self.selected_atoms = []
+                if not hasattr(self, 'each_angle'):
+                    self.each_angle = {self.current_index: []}
+                if self.current_index not in self.each_angle:
+                    self.each_angle[self.current_index] = []
+                self.each_angle[self.current_index].append([atom1, atom2, atom3, angle])
+                self.csv_dictionary["constraints_angle"][self.current_index - 1] = str(self.each_angle[self.current_index])
+                self.update_properties()
+                self.selected_atoms = []
+            else:
+                self.selected_atoms = []
+                return
 
     def add_dihedral_constraints(self):
         """Add dihedral constraints between four selected atoms."""
@@ -592,14 +711,17 @@ class smiles_to_csv(QWidget):
                 if dihedral < -180 or dihedral > 180:
                     QMessageBox.warning(self, "Invalid Dihedral", "Dihedral angle must be between -180 and 180 degrees.", QMessageBox.StandardButton.Ok, QMessageBox.StandardButton.Ok)
                     return self.addDihedralConstraints()
-            if not hasattr(self, 'each_dihedral'):
-                self.each_dihedral = {self.current_index: []}
-            if self.current_index not in self.each_dihedral:
-                self.each_dihedral[self.current_index] = []
-            self.each_dihedral[self.current_index].append([atom1, atom2, atom3, atom4, dihedral])
-            self.csv_dictionary["constraints_dihedral"][self.current_index - 1] = str(self.each_dihedral[self.current_index])
-            self.update_properties()
-            self.selected_atoms = []
+                if not hasattr(self, 'each_dihedral'):
+                    self.each_dihedral = {self.current_index: []}
+                if self.current_index not in self.each_dihedral:
+                    self.each_dihedral[self.current_index] = []
+                self.each_dihedral[self.current_index].append([atom1, atom2, atom3, atom4, dihedral])
+                self.csv_dictionary["constraints_dihedral"][self.current_index - 1] = str(self.each_dihedral[self.current_index])
+                self.update_properties()
+                self.selected_atoms = []
+            else:
+                self.selected_atoms = []
+                return
 
 # PROPERTIES FUNCTIONS
     def update_properties(self):
@@ -617,15 +739,11 @@ class smiles_to_csv(QWidget):
         self.charge = (
             self.csv_dictionary["charge"][self.current_index - 1]
             if self.csv_dictionary["charge"][self.current_index - 1] != ""
-            else self.get_charge()
-        )
-        print(self.charge, self.get_charge())
+            else self.get_charge())
         self.multiplicity = (
             self.csv_dictionary["multiplicity"][self.current_index - 1]
             if self.csv_dictionary["multiplicity"][self.current_index - 1] != ""
-            else self.get_multiplicity()
-        )
-        print(self.multiplicity, self.get_multiplicity())
+            else self.get_multiplicity())
         self.constraints_atoms = self.csv_dictionary["constraints_atoms"][self.current_index - 1]
         self.constraints_dist = self.csv_dictionary["constraints_dist"][self.current_index - 1]
         self.constraints_angle = self.csv_dictionary["constraints_angle"][self.current_index - 1]
@@ -633,7 +751,6 @@ class smiles_to_csv(QWidget):
         self.complex_type = self.csv_dictionary["complex_type"][self.current_index - 1]
         self.geom = self.csv_dictionary["geom"][self.current_index - 1]
 
-        # Set flag to indicate programmatic update
         old_value = self.is_programmatic_update
         self.is_programmatic_update = True
         
@@ -671,7 +788,7 @@ class smiles_to_csv(QWidget):
                         item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                         
             self.properties_table.blockSignals(False)
-            self.file_name = None  # Reset file name to indicate unsaved changes
+            self.file_name = None  # Reset file name to indicate unsaved changes idk if this works as intended tho 
         finally:
             self.is_programmatic_update = old_value
 
@@ -750,6 +867,26 @@ class smiles_to_csv(QWidget):
             return electrons
         except Exception:
             return 
+
+    def find_metal_atom(self):
+        """Find metal atoms in the SMILES string, display a statement in the log box and 
+        enable complex_type option if any are found."""
+        smiles = self.smiles_input.toPlainText()
+        mol = Chem.MolFromSmiles(smiles)
+        metal_atoms = [] # for batch jobs such as CSV inputs with many SMILES
+        transition_metals = ['Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Y', 'Zr', 'Nb', 'Mo',
+                            'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au',
+                            'Hg', 'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds', 'Rg', 'Cn', 'Nh', 'Fl', 'Mc', 'Lv', 'Ts', 'Og']
+        for atom in mol.GetAtoms():
+            if atom.GetSymbol() in transition_metals:
+                metal_atoms.append(atom.GetSymbol())
+        if len(metal_atoms) > 0:
+            self.log_box_label.setText(f"Transition metal atoms detected in SMILES: {metal_atoms}. Select complex_type. Check charge and multiplicity!")
+            # self.complex_type_combobox.setEnabled(True)
+        else:
+            self.log_box_label.setText("")
+            # self.complex_type_combobox.setEnabled(False)
+        return 
 
 # NAVIGATION FUNCTIONS
     def next_molecule(self):
@@ -986,23 +1123,85 @@ class smiles_to_csv(QWidget):
 
 # AQME RUN SETUP FUNCTIONS
 
+    def select_output_directory(self):
+        """Select the output directory for AQME results."""
+        self.output_directory = QFileDialog.getExistingDirectory(self, "Select Output Directory")
+        if self.output_directory:
+            self.output_dir_input.setText(f"{self.output_directory}")
+        else:
+            return
+
 # AQME RUN FUNCTIONS
 
     def run_aqme(self):
-        """Run AQME with the generated command in shell in the directory of file_name."""
+        """Run AQME with the generated command using QProcess in the file_name directory."""
         if self.file_name is None:
             self.save_csv_file()
         command = self.aqme_rungen()
         file_directory = os.path.dirname(self.file_name)
-        process = subprocess.Popen(command, shell=True, cwd=file_directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        
-        for line in process.stdout:
-            self.shell_output.append(line.strip())
-        for line in process.stderr:
-            self.shell_output.append(f"Error: {line.strip()}")
-        process.wait()
-        if process.returncode == 0:
-            self.shell_output.append("AQME run completed successfully.")
+
+        self.shell_output.clear()
+        self.process = QProcess(self)
+        self.process.setWorkingDirectory(file_directory)
+
+        self.process.readyReadStandardOutput.connect(self.handle_stdout)
+        self.process.readyReadStandardError.connect(self.handle_stderr)
+        self.process.stateChanged.connect(self.handle_state)
+        self.process.finished.connect(self.process_finished)
+
+        # Start the process using shell interpretation
+        # On Unix-based systems, set shell=True behavior by using "bash -c <command>"
+        # Adjust command start if needed per your OS
+        if os.name == 'posix':
+            self.process.start("bash", ["-c", f"{command}"])
+        else:
+            self.process.start(command)
+
+    def handle_stdout(self):
+        """Append standard output from the process to the shell_output."""
+        output = bytes(self.process.readAllStandardOutput()).decode("utf8")
+        if output:
+            self.shell_output.append(output.strip())
+
+    def handle_stderr(self):
+        """Append standard error from the process to the shell_output."""
+        error = bytes(self.process.readAllStandardError()).decode("utf8")
+        if error:
+            self.shell_output.append(f"Error: {error.strip()}")
+
+    def handle_state(self, state):
+        """Handle the state change of the process."""
+        if state == QProcess.ProcessState.NotRunning:
+            self.shell_output.append("AQME process finished.")
+            self.run_button.setText("Run AQME")
+            self.run_button.setStyleSheet("font-size: 12px; color: black; background-color: lightblue;")
+            self.run_button.clicked.disconnect()
+            self.run_button.clicked.connect(self.run_aqme)
+        elif state == QProcess.ProcessState.Running:
+            self.shell_output.append("AQME process running...")
+            self.run_button.setText("Stop AQME")
+            self.run_button.setStyleSheet("font-size: 12px; color: black; background-color: #E06666;")
+            self.run_button.clicked.disconnect()
+            self.run_button.clicked.connect(self.stop_aqme)
+        elif state == QProcess.ProcessState.Starting:
+            self.shell_output.append("AQME process starting...")
+
+    def stop_aqme(self):
+        """Stop the AQME process if it is running."""
+        if self.process and self.process.state() == QProcess.ProcessState.Running:
+            self.process.kill()
+            self.shell_output.append("AQME process stopped.")
+            self.run_button.setText("Run AQME")
+            self.run_button.setStyleSheet("font-size: 12px; color: black; background-color: lightblue;")
+            self.run_button.clicked.disconnect()
+            self.run_button.clicked.connect(self.run_aqme)
+        else:
+            self.shell_output.append("AQME process is not running.")
+
+
+    def process_finished(self, exitCode, exitStatus):
+        """Handle the process finish event and display a message box."""
+        if exitCode == 0:
             pixmap = QPixmap(green_icon_path)
             icon = QIcon(pixmap)
             msgBox = QMessageBox(self)
@@ -1013,7 +1212,6 @@ class smiles_to_csv(QWidget):
             msgBox.setStandardButtons(QMessageBox.Ok)
             msgBox.exec()
         else:
-            self.shell_output.append("AQME run failed.")
             pixmap = QPixmap(red_icon_path)
             icon = QIcon(pixmap)
             msgBox = QMessageBox(self)
@@ -1026,34 +1224,30 @@ class smiles_to_csv(QWidget):
 
     def aqme_rungen(self):
         """Update command w/ csv file."""
-        program = "rdkit"
-        nprocs = 4
-        aqme_rungen = f'python3 -m aqme --csearch --program {program} --nprocs {nprocs} --input {self.file_name} '
+        program = self.program_combo.currentText()
+        aqme_rungen = f'python -u -m aqme --csearch --program {program} --input {self.file_name} '
+        if self.output_dir_input == "":
+            aqme_rungen += f'--destination {self.output_dir_input.text()} '
+        if self.nprocs_input:
+            aqme_rungen += f'--nprocs {int(self.nprocs_input.text())} '
+        if self.stacksize_input:
+            aqme_rungen += f'--stacksize {int(self.stacksize_input.text())}GB '
+        if self.sample_size_input:
+            aqme_rungen += f'--sample {int(self.sample_size_input.text())} '
+        if self.auto_sample_combo:
+            aqme_rungen += f'--auto_sample {self.auto_sample_combo.currentText()} '
+        if self.energy_window_input:
+            aqme_rungen += f'--ewin_csearch {float(self.energy_window_input.text())} '
+        if self.initial_energy_threshold_input:
+            aqme_rungen += f'--initial_energy_threshold {float(self.initial_energy_threshold_input.text())} '
+        if self.energy_threshold_input:
+            aqme_rungen += f'--energy_threshold {float(self.energy_threshold_input.text())} '
+        if self.rms_threshold_input:
+            aqme_rungen += f'--rms_threshold {float(self.rms_threshold_input.text())} '
+        if self.opt_steps_rdkit_input:
+            aqme_rungen += f'--opt_steps_rdkit {int(self.opt_steps_rdkit_input.text())} '
+        print(aqme_rungen)
         return aqme_rungen
-
-# MISC FUNCTIONS
-    def find_metal_atom(self):
-            """Find metal atoms in the SMILES string, display a statement in the log box and 
-            enable complex_type option if any are found."""
-            smiles = self.smiles_input.toPlainText()
-            mol = Chem.MolFromSmiles(smiles)
-            metal_atoms = [] # for batch jobs such as CSV inputs with many SMILES
-            transition_metals = ['Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Y', 'Zr', 'Nb', 'Mo',
-                                'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au',
-                                'Hg', 'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds', 'Rg', 'Cn', 'Nh', 'Fl', 'Mc', 'Lv', 'Ts', 'Og']
-            for atom in mol.GetAtoms():
-                if atom.GetSymbol() in transition_metals:
-                    metal_atoms.append(atom.GetSymbol())
-            if len(metal_atoms) > 0:
-                self.log_box_label.setText(f"Transition metal atoms detected in SMILES: {metal_atoms}. Select complex_type.")
-                # self.complex_type_combobox.setEnabled(True)
-            else:
-                self.log_box_label.setText("")
-                # self.complex_type_combobox.setEnabled(False)
-            return 
-
-
-
 
 # FOR LATER
 
@@ -1062,3 +1256,12 @@ class smiles_to_csv(QWidget):
         clipboard = QApplication.clipboard()
         clipboard.setText(self.command_line.text())
         QMessageBox.information(self, "Command Copied", "Command copied to clipboard.")
+
+# To do:
+# - Add a button to copy the command to the clipboard !
+# - Add all the parameters to the actual command ... !!!!!
+# - Add the complex_type option when TM is found !
+# - Fix run aqme command  !!!!
+# - expand the pubchem search  ... !
+# - add the option to read in a csv file with the aqmeasy input format !
+# charge and multiplicity still broken oh man........

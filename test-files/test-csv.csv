@@ -1,7 +1,0 @@
-SMILES,code_name,charge,multiplicity,constraints_atoms,constraints_dist,constraints_angle,constraints_dihedral,complex_type,geom
-COc1cc(C2=C3C=CC4=N3->[Co]35<-N6=C(C=CC6=C(c6cc(OC)c(OC)c(OC)c6)c6ccc2n63)C(c2cc(OC)c(OC)c(OC)c2)=c2ccc(n25)=C4c2cc(OC)c(OC)c(OC)c2)cc(OC)c1OC,,0,1,,,,,,
-C1=CCCC=C1,,0,1,,,,,,
-*1C=CCCC1,,0,1,,,,,,
-O=C1CC[CH+]C2=C(O1)c1ccc(Cl)cc1C2,,1,1,,,,,,
-N#Cc1ccc(-c2cc(-c3ccc(C#N)cc3)c(-c3ccc(C#N)cc3)cc2-c2ccc(C#N)cc2)cc1,,0,1,,,,,,
-[N]=O,,0,2,,,,,,
