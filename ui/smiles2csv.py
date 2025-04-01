@@ -348,7 +348,6 @@ class smiles_to_csv(QWidget):
             self.resize(self.width(), self.height() - expanded_height)
             self.advanced_settings_button.setText("Show Advanced Settings")
         
-
     def handle_smiles_change(self):
         # logging.debug("at smiles_input >>> handling SMILES text change")
         smiles = self.smiles_input.toPlainText()
@@ -466,6 +465,19 @@ class smiles_to_csv(QWidget):
             print("at update_smiles_csv: constraints_dihedral present, updating SMILES with enumerated_smiles")
         else:
             self.csv_dictionary["SMILES"][self.current_index - 1] = smiles
+
+    def turn_smiles_into_picture(self, smiles):
+        """Convert SMILES to a picture using RDKit."""
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            raise ValueError("Invalid SMILES string.")
+        drawer = rdMolDraw2D.MolDraw2DCairo(300, 300)
+        drawer.DrawMolecule(mol)
+        drawer.FinishDrawing()
+        drawer.WriteDrawingText("/tmp/molecule.png")
+        pixmap = QPixmap("/tmp/molecule.png")
+        pixmap = pixmap.scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        return pixmap
 
 # SMILES HANDILING FUNCTIONS
     def find_smiles_from_PubChem(self):
@@ -1133,6 +1145,12 @@ class smiles_to_csv(QWidget):
                         self.csv_dictionary[key].append("")
                     self.csv_dictionary["SMILES"][-1] = smiles
             self.total_index = len(self.csv_dictionary["SMILES"])
+
+            for index in range(self.total_index):
+                self.csv_dictionary["code_name"][index] = f"mol_{index + 1}"
+                self.current_index = index 
+                self.update_properties()
+
             self.update_display()
 
         except ImportError as e:
@@ -1143,6 +1161,19 @@ class smiles_to_csv(QWidget):
             print(f"An unexpected error occurred: {e}")
 
 # AQME RUN SETUP FUNCTIONS
+
+    def copy_command_to_clipboard(self):
+        """Copy the generated AQME command to the clipboard."""
+        clipboard = QApplication.clipboard()
+        clipboard.setText(self.aqme_rungen)
+        pixmap = QPixmap(green_icon_path)
+        icon = QIcon(pixmap)
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Command Copied")
+        msg.setText("Command copied to clipboard.")
+        msg.setWindowIcon(icon)
+        msg.setIconPixmap(pixmap)
+        msg.exec()
 
     def select_output_directory(self):
         """Select the output directory for AQME results."""
@@ -1272,24 +1303,8 @@ class smiles_to_csv(QWidget):
 
 # FOR LATER
 
-    def turn_smiles_into_picture(self, smiles):
-        """Convert SMILES to a picture using RDKit."""
-        mol = Chem.MolFromSmiles(smiles)
-        if mol is None:
-            raise ValueError("Invalid SMILES string.")
-        drawer = rdMolDraw2D.MolDraw2DCairo(300, 300)
-        drawer.DrawMolecule(mol)
-        drawer.FinishDrawing()
-        drawer.WriteDrawingText("/tmp/molecule.png")
-        pixmap = QPixmap("/tmp/molecule.png")
-        pixmap = pixmap.scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        return pixmap
 
-    def copy_command_to_clipboard(self):
-        """Copy the generated AQME command to the clipboard."""
-        clipboard = QApplication.clipboard()
-        clipboard.setText(self.command_line.text())
-        QMessageBox.information(self, "Command Copied", "Command copied to clipboard.")
+
 
 # To do:
 # - Add a button to copy the command to the clipboard !
@@ -1304,5 +1319,7 @@ class smiles_to_csv(QWidget):
 
 # add constraints something
 # add intermedaite plus transition state option
-# make csv pictures rather than smiles (or both
+######  make csv pictures rather than smiles (or both
 # fix aqme promp to save the file (runs anyway, should not)
+
+# fucking dark mode man !!!!
