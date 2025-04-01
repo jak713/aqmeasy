@@ -14,7 +14,7 @@ from PySide6.QtCore import Qt, QProcess
 from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, QDoubleValidator
 
 from rdkit import Chem
-from rdkit.Chem import AllChem, Descriptors
+from rdkit.Chem import AllChem, Descriptors,Draw
 from rdkit.Chem.Draw import rdMolDraw2D, rdDepictor
 import rdkit.rdBase
 
@@ -389,11 +389,24 @@ class smiles_to_csv(QWidget):
         self.table_widget.setRowCount(len(self.csv_dictionary["SMILES"]))
         self.table_widget.setColumnCount(len(self.csv_dictionary.keys()))
         self.table_widget.setHorizontalHeaderLabels(self.csv_dictionary.keys())
+        self.table_widget.verticalHeader().setDefaultSectionSize(120)
+        self.table_widget.horizontalHeader().setDefaultSectionSize(120)
 
         for row in range(len(self.csv_dictionary["SMILES"])):
             for col, key in enumerate(self.csv_dictionary.keys()):
-                item = QTableWidgetItem(str(self.csv_dictionary[key][row]))
-                self.table_widget.setItem(row, col, item)
+                if key == "SMILES":
+                    pixmap = QPixmap(self.turn_smiles_into_picture(self.csv_dictionary[key][row]))
+                    item = QTableWidgetItem()
+                    item.setData(Qt.DecorationRole, pixmap)
+                    self.table_widget.setItem(row, col, item)
+                else:
+                    item = QTableWidgetItem(str(self.csv_dictionary[key][row]))
+                    self.table_widget.setItem(row, col, item)
+            
+        for row in range(self.table_widget.rowCount()):
+            item = self.table_widget.item(row, 0)
+            if item:
+                item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
 
         self.table_widget.itemChanged.connect(lambda: (logging.debug("at table_widget >>> update_csv_dictionary called"), self.update_csv_dictionary))
         self.csv_table_layout.addWidget(self.table_widget)
@@ -1032,6 +1045,14 @@ class smiles_to_csv(QWidget):
 # CHEMDRAW FUNCTIONS
     def import_file(self):
         """Import an SDF or ChemDraw file, extract SMILES, and display them."""
+        # if path.endswith('.cdxml'):
+        #         try:
+        #             mols = MolsFromCDXMLFile(path, sanitize=True, removeHs=True)
+        #             return [mol for mol in mols if mol is not None]
+        #         except Exception as e:
+        #             QMessageBox.critical(self, "CDXML Read Error", f"Failed to read {path}:\n{str(e)}")
+        #             return []
+
         self.initialize_csv_dictionary()
         file_name, _ = QFileDialog.getOpenFileName(self, "Import File", "", "ChemDraw Files (*.cdx);;SDF Files (*.sdf);;CSV files (*.csv)")
         if not file_name:
@@ -1251,6 +1272,19 @@ class smiles_to_csv(QWidget):
 
 # FOR LATER
 
+    def turn_smiles_into_picture(self, smiles):
+        """Convert SMILES to a picture using RDKit."""
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            raise ValueError("Invalid SMILES string.")
+        drawer = rdMolDraw2D.MolDraw2DCairo(300, 300)
+        drawer.DrawMolecule(mol)
+        drawer.FinishDrawing()
+        drawer.WriteDrawingText("/tmp/molecule.png")
+        pixmap = QPixmap("/tmp/molecule.png")
+        pixmap = pixmap.scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        return pixmap
+
     def copy_command_to_clipboard(self):
         """Copy the generated AQME command to the clipboard."""
         clipboard = QApplication.clipboard()
@@ -1265,3 +1299,10 @@ class smiles_to_csv(QWidget):
 # - expand the pubchem search  ... !
 # - add the option to read in a csv file with the aqmeasy input format !
 # charge and multiplicity still broken oh man........
+# add a button to save the csv too
+# warning for metals ... charge and multiplicity
+
+# add constraints something
+# add intermedaite plus transition state option
+# make csv pictures rather than smiles (or both
+# fix aqme promp to save the file (runs anyway, should not)
