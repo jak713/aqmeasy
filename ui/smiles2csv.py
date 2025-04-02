@@ -1074,16 +1074,8 @@ class smiles_to_csv(QWidget):
 # CHEMDRAW FUNCTIONS
     def import_file(self):
         """Import an SDF or ChemDraw file, extract SMILES, and display them."""
-        # if path.endswith('.cdxml'):
-        #         try:
-        #             mols = MolsFromCDXMLFile(path, sanitize=True, removeHs=True)
-        #             return [mol for mol in mols if mol is not None]
-        #         except Exception as e:
-        #             QMessageBox.critical(self, "CDXML Read Error", f"Failed to read {path}:\n{str(e)}")
-        #             return []
-
         self.initialize_csv_dictionary()
-        file_name, _ = QFileDialog.getOpenFileName(self, "Import File", "", "ChemDraw Files (*.cdx);;SDF Files (*.sdf);;CSV files (*.csv)")
+        file_name, _ = QFileDialog.getOpenFileName(self, "Import File", "", "ChemDraw Files (*.cdx *.cdxml);;SDF Files (*.sdf);;CSV files (*.csv)")
         if not file_name:
             return
 
@@ -1097,19 +1089,7 @@ class smiles_to_csv(QWidget):
                         smiles = Chem.MolToSmiles(mol)
                         smiles_list.append(smiles)
 
-            elif file_name.endswith(".cdx"): # there is little to no support for cdxml files in obabel
-                
-                # This does not seem to work and is a known (?) issue with pybel as far as my research goes.
-                # mol = next(pb.readfile("cdx", file_name))
-                # with tempfile.NamedTemporaryFile(suffix='.sdf', delete=False) as temp_sdf:
-                #     sdf_path = temp_sdf.name
-                # mol.write("sdf", sdf_path, overwrite=True)
-
-                # if not os.path.exists(sdf_path):
-                #     print(f"Failed to write SDF file to {sdf_path}")
-                #     return
-
-
+            elif file_name.endswith(".cdx"): 
                 with tempfile.NamedTemporaryFile(suffix=".sdf", delete=False) as temp_sdf:
                     temp_sdf_path = temp_sdf.name 
 
@@ -1130,22 +1110,40 @@ class smiles_to_csv(QWidget):
                 if os.path.exists(temp_sdf_path):
                     os.remove(temp_sdf_path)
 
+            elif file_name.endswith(".cdxml"):
+                try:
+                    mols = Chem.MolsFromCDXMLFile(file_name, sanitize=True, removeHs=True)
+                    for mol in mols:
+                        if mol is not None:
+                            smiles = Chem.MolToSmiles(mol)
+                            smiles_list.append(smiles)
+                except Exception as e:
+                    QMessageBox.critical(self, "CDXML Read Error", f"Failed to read {file_name}:\n{str(e)}")
+
             elif file_name.endswith(".csv"):
+                # fuckass solution but it works for now i guess (TODO: make it better)
+                for key in self.csv_dictionary.keys():
+                    self.csv_dictionary[key].pop(0) 
                 with open(file_name, 'r') as csvfile:
                     reader = csv.DictReader(csvfile)
-                    for row in reader:
-                        smiles = row["SMILES"]
-                        # code_name = row["code_name"] CBA TO DO THIS RN
-                        # charge = row["charge"]
-                        # multiplicity = row["multiplicity"]
-                        # constraints_atoms = row["constraints_atoms"]
-                        # constraints_dist = row["constraints_dist"]
-                        # constraints_angle = row["constraints_angle"]
-                        # constraints_dihedral = row["constraints_dihedral"]
-                        # complex_type = row["complex_type"]
-                        # geom = row["geom"]
-                        if smiles:
-                            smiles_list.append(smiles)
+                    for row in reader: 
+                        self.csv_dictionary["SMILES"].append(row["SMILES"])
+                        self.csv_dictionary["code_name"].append(row["code_name"])
+                        self.csv_dictionary["charge"].append(row["charge"])
+                        self.csv_dictionary["multiplicity"].append(row["multiplicity"])
+                        self.csv_dictionary["constraints_atoms"].append(row["constraints_atoms"])
+                        self.csv_dictionary["constraints_dist"].append(row["constraints_dist"])
+                        self.csv_dictionary["constraints_angle"].append(row["constraints_angle"])
+                        self.csv_dictionary["constraints_dihedral"].append(row["constraints_dihedral"])
+                        self.csv_dictionary["complex_type"].append(row["complex_type"])
+                        self.csv_dictionary["geom"].append(row["geom"])
+                    
+                self.total_index = len(self.csv_dictionary["SMILES"])
+                if self.total_index > 0:
+                    self.current_index = 1  # assuming indices start from 1
+                    self.update_properties()
+                    self.update_display()
+                return
 
             else:
                 QMessageBox.warning(self, "Error", "Unsupported file format. Please select a ChemDraw, SDF, or CSV file.")
@@ -1325,20 +1323,15 @@ class smiles_to_csv(QWidget):
 
 
 # To do:
-# - Add a button to copy the command to the clipboard !
 # - Add all the parameters to the actual command ... !!!!!
 # - Add the complex_type option when TM is found !
 # - Fix run aqme command  !!!!
 # - expand the pubchem search  ... !
 # - add the option to read in a csv file with the aqmeasy input format !
-# add a button to save the csv too
 
-# add constraints something
-# add intermedaite plus transition state option
-######  make csv pictures rather than smiles (or both
+# add constraints something ??? OH like select atoms to add constraints yes
+# add intermedaite plus transition state option in the show all 
 # fix aqme promp to save the file (runs anyway, should not) # warning for metals ... charge and multiplicity (POSSIBLY SIMPLY COMBINE THESE?)
 
-
 # fucking dark mode man !!!!
-
-# add cdxml combatibility
+# importing broken if you dont actually import
