@@ -60,6 +60,7 @@ class smiles_to_csv(QWidget):
         self.control1_layout.addWidget(self.index_and_total_label)
 
         self.import_button = QPushButton("Import", self)
+        self.import_button.setFixedWidth(65)
         self.import_button.clicked.connect(lambda: (logging.debug("at import_button >>> self.import_file()"), self.import_file()))
         self.control1_layout.addWidget(self.import_button)
 
@@ -68,8 +69,16 @@ class smiles_to_csv(QWidget):
         self.control1_layout.addWidget(self.new_molecule_button)
 
         self.show_all_button = QPushButton("Show All", self)
+        self.show_all_button.setFixedWidth(65)
         self.show_all_button.clicked.connect(lambda: (logging.debug("at show_all_button >>> self.show_csv()"), self.show_csv()))
         self.control1_layout.addWidget(self.show_all_button)
+
+        self.save_csv_button = QPushButton(self)
+        self.save_csv_button.setToolTip("Save CSV file")
+        self.save_csv_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton))
+        self.save_csv_button.setStyleSheet("font-size: 12px; color: black;")
+        self.save_csv_button.clicked.connect(lambda: (logging.debug("at save_csv_button >>> save_csv"), self.save_csv_file()))
+        self.control1_layout.addWidget(self.save_csv_button)
 
         # THIS IS WHERE THE MOLECULE IS DISPLAYED
         self.molecule_label = QLabel("Enter SMILES in the box on the right...", self)
@@ -234,24 +243,32 @@ class smiles_to_csv(QWidget):
         output_dir_layout.addWidget(self.output_dir_button)
         self.aqme_setup_grid.addLayout(output_dir_layout, 3, 1)
 
-        # Row 4 - Run button
+        # Row 4 - copy command/save csv
+        self.copy_command_button = QPushButton("Copy Command", self)
+        self.copy_command_button.setStyleSheet("font-size: 12px; color: black;")
+        self.copy_command_button.clicked.connect(lambda: (logging.debug("at copy_command_button >>> copy_command"), self.copy_command_to_clipboard()))
+        self.aqme_setup_grid.addWidget(self.copy_command_button, 4,0)
+
+        # Row 5 - Run button
         self.run_button = QPushButton("Run AQME", self)
-        self.run_button.clicked.connect(lambda: (logging.debug("at run_button >>> self.run_aqme()"), self.run_aqme()))
         self.run_button.setStyleSheet("font-size: 12px; color: black; background-color: lightblue;")
-        self.aqme_setup_grid.addWidget(self.run_button, 4, 1)
+        self.run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+        self.run_button.setFixedHeight(55)
+        self.run_button.clicked.connect(lambda: (logging.debug("at run_button >>> self.run_aqme()"), self.run_aqme()))
+        self.aqme_setup_grid.addWidget(self.run_button, 4, 1, 2, 1)
 
         for widget in [self.smiles_input, self.smiles_output, self.properties_table,  self.shell_output, self.molecule_label, self.atom_electron_label]:
             palette = widget.palette()
             palette.setColor(widget.backgroundRole(), self.palette().color(self.backgroundRole()))
             widget.setPalette(palette)
 
-
         # ADVANCED SETTINGS 
+
         self.advanced_settings_button = QPushButton("Show Advanced Settings", self)
         self.advanced_settings_button.setCheckable(True)
         self.advanced_settings_button.clicked.connect(lambda: (logging.debug("at advanced_settings_button >>> toggle_panel"), self.toggle_panel()))
         self.advanced_settings_button.setStyleSheet("font-size: 12px; color: black;")
-        self.aqme_setup_grid.addWidget(self.advanced_settings_button, 4, 0)
+        self.aqme_setup_grid.addWidget(self.advanced_settings_button, 5, 0)
 
         self.advanced_panel = QFrame()
         self.advanced_panel.setFixedHeight(0)
@@ -1183,7 +1200,7 @@ class smiles_to_csv(QWidget):
         else:
             return
 
-# AQME RUN FUNCTIONS
+# AQME RUN FUNCTIONS (still under construction, based almnost solely on the pyside6 book example)
 
     def run_aqme(self):
         """Run AQME with the generated command using QProcess in the file_name directory."""
@@ -1192,7 +1209,7 @@ class smiles_to_csv(QWidget):
         command = self.aqme_rungen()
         file_directory = os.path.dirname(self.file_name)
 
-        self.shell_output.clear()
+        # self.shell_output.clear()
         self.process = QProcess(self)
         self.process.setWorkingDirectory(file_directory)
 
@@ -1226,12 +1243,14 @@ class smiles_to_csv(QWidget):
         if state == QProcess.ProcessState.NotRunning:
             self.shell_output.append("AQME process finished.")
             self.run_button.setText("Run AQME")
+            self.run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
             self.run_button.setStyleSheet("font-size: 12px; color: black; background-color: lightblue;")
             self.run_button.clicked.disconnect()
             self.run_button.clicked.connect(self.run_aqme)
         elif state == QProcess.ProcessState.Running:
             self.shell_output.append("AQME process running...")
             self.run_button.setText("Stop AQME")
+            self.run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaStop))
             self.run_button.setStyleSheet("font-size: 12px; color: black; background-color: #E06666;")
             self.run_button.clicked.disconnect()
             self.run_button.clicked.connect(self.stop_aqme)
@@ -1249,7 +1268,6 @@ class smiles_to_csv(QWidget):
             self.run_button.clicked.connect(self.run_aqme)
         else:
             self.shell_output.append("AQME process is not running.")
-
 
     def process_finished(self, exitCode, exitStatus):
         """Handle the process finish event and display a message box."""
@@ -1313,13 +1331,14 @@ class smiles_to_csv(QWidget):
 # - Fix run aqme command  !!!!
 # - expand the pubchem search  ... !
 # - add the option to read in a csv file with the aqmeasy input format !
-# charge and multiplicity still broken oh man........
 # add a button to save the csv too
-# warning for metals ... charge and multiplicity
 
 # add constraints something
 # add intermedaite plus transition state option
 ######  make csv pictures rather than smiles (or both
-# fix aqme promp to save the file (runs anyway, should not)
+# fix aqme promp to save the file (runs anyway, should not) # warning for metals ... charge and multiplicity (POSSIBLY SIMPLY COMBINE THESE?)
+
 
 # fucking dark mode man !!!!
+
+# add cdxml combatibility
