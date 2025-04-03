@@ -160,6 +160,7 @@ class smiles_to_csv(QWidget):
         self.is_programmatic_update = False
         self.update_properties()
         logging.debug("at __init__ >>> self.update_properties()")
+        
         self.properties_table.itemChanged.connect(lambda item: (
             logging.debug("at properties_table >>> handle_property_change"),
             self.handle_property_change(item) if not self.is_programmatic_update 
@@ -349,8 +350,6 @@ class smiles_to_csv(QWidget):
         self.opt_steps_rdkit_input.setStyleSheet("font-size: 12px; color: black;")
         self.opt_steps_rdkit_input.setToolTip("Max cycles used in RDKit optimizations. ")
         advanced_layout.addWidget(self.opt_steps_rdkit_input, 1, 4)
-
-
 
 
 
@@ -915,7 +914,8 @@ class smiles_to_csv(QWidget):
         enable complex_type option if any are found."""
         smiles = self.smiles_input.toPlainText()
         mol = Chem.MolFromSmiles(smiles)
-        metal_atoms = [] # for batch jobs such as CSV inputs with many SMILES
+        metal_atoms = [] 
+        self.smiles_w_metal = []
         transition_metals = ['Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Y', 'Zr', 'Nb', 'Mo',
                             'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au',
                             'Hg', 'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds', 'Rg', 'Cn', 'Nh', 'Fl', 'Mc', 'Lv', 'Ts', 'Og']
@@ -923,6 +923,8 @@ class smiles_to_csv(QWidget):
             if atom.GetSymbol() in transition_metals:
                 metal_atoms.append(atom.GetSymbol())
         if len(metal_atoms) > 0:
+            self.smiles_w_metal.append(self.current_index)
+            print(self.smiles_w_metal)
             self.log_box_label.setText(f"Transition metal atoms detected in SMILES: {metal_atoms}. Select complex_type. Check charge and multiplicity!")
             # self.complex_type_combobox.setEnabled(True)
         else:
@@ -1056,6 +1058,7 @@ class smiles_to_csv(QWidget):
         file_name, _ = QFileDialog.getSaveFileName(self, "Save CSV File", "", "CSV Files (*.csv)")
         self.file_name = file_name 
         if not self.file_name:
+            self.file_name = None
             return False  # for the closing event
         with open(self.file_name, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
@@ -1121,7 +1124,7 @@ class smiles_to_csv(QWidget):
                     QMessageBox.critical(self, "CDXML Read Error", f"Failed to read {file_name}:\n{str(e)}")
 
             elif file_name.endswith(".csv"):
-                # fuckass solution but it works for now i guess (TODO: make it better)
+                # fuckass solution but it works for now i guess (TODO: make it better) also idk how to handle rows i did not anticipate as of rn
                 for key in self.csv_dictionary.keys():
                     self.csv_dictionary[key].pop(0) 
                 with open(file_name, 'r') as csvfile:
@@ -1180,7 +1183,8 @@ class smiles_to_csv(QWidget):
     def copy_command_to_clipboard(self):
         """Copy the generated AQME command to the clipboard."""
         clipboard = QApplication.clipboard()
-        clipboard.setText(self.aqme_rungen)
+        command = self.aqme_rungen()
+        clipboard.setText(command)
         pixmap = QPixmap(green_icon_path)
         icon = QIcon(pixmap)
         msg = QMessageBox(self)
@@ -1202,8 +1206,32 @@ class smiles_to_csv(QWidget):
 
     def run_aqme(self):
         """Run AQME with the generated command using QProcess in the file_name directory."""
+        # not sure if this works as of rn
+        changed_charge_multiplicity = []
+        if hasattr(self, 'user_defined_charge'):
+            for key in self.user_defined_charge.keys():
+                changed_charge_multiplicity.append(key)
+        if hasattr(self, 'user_defined_multiplicity'):
+            for key in self.user_defined_multiplicity.keys():
+                changed_charge_multiplicity.append(key)
+        if not hasattr(self, 'smiles_w_metal') or not self.smiles_w_metal:
+            pass
+        for index in self.smiles_w_metal:
+            if index not in changed_charge_multiplicity:
+                msgBox = QMessageBox(self)
+                msgBox.setIconPixmap(QPixmap(red_icon_path))
+                msgBox.setWindowTitle("Warning")
+                msgBox.setText(f"Please check the charge and multiplicity for the transition metal complex(es): {', '.join([self.csv_dictionary['code_name'][idx - 1] for idx in self.smiles_w_metal])}.")
+                msgBox.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                msgBox.setButtonText(QMessageBox.StandardButton.Yes, "Proceed Anyway")
+                msgBox.setButtonText(QMessageBox.StandardButton.No, "Go Back")
+                result = msgBox.exec()
+                if result == QMessageBox.StandardButton.No:
+                    return
         if self.file_name is None:
-            self.save_csv_file()
+            self.save_csv_file() 
+            if not self.file_name:
+                return
         command = self.aqme_rungen()
         file_directory = os.path.dirname(self.file_name)
 
@@ -1216,9 +1244,6 @@ class smiles_to_csv(QWidget):
         self.process.stateChanged.connect(self.handle_state)
         self.process.finished.connect(self.process_finished)
 
-        # Start the process using shell interpretation
-        # On Unix-based systems, set shell=True behavior by using "bash -c <command>"
-        # Adjust command start if needed per your OS
         if os.name == 'posix':
             self.process.start("bash", ["-c", f"{command}"])
         else:
@@ -1319,19 +1344,17 @@ class smiles_to_csv(QWidget):
 
 # FOR LATER
 
-
-
-
 # To do:
 # - Add all the parameters to the actual command ... !!!!!
 # - Add the complex_type option when TM is found !
 # - Fix run aqme command  !!!!
 # - expand the pubchem search  ... !
-# - add the option to read in a csv file with the aqmeasy input format !
 
 # add constraints something ??? OH like select atoms to add constraints yes
+
 # add intermedaite plus transition state option in the show all 
-# fix aqme promp to save the file (runs anyway, should not) # warning for metals ... charge and multiplicity (POSSIBLY SIMPLY COMBINE THESE?)
+
+###### fix aqme promp to save the file (runs anyway, should not) # warning for metals ... charge and multiplicity (POSSIBLY SIMPLY COMBINE THESE?)  
 
 # fucking dark mode man !!!!
 # importing broken if you dont actually import
