@@ -1077,12 +1077,11 @@ class smiles_to_csv(QWidget):
 # CHEMDRAW FUNCTIONS
     def import_file(self):
         """Import an SDF or ChemDraw file, extract SMILES, and display them."""
-        self.initialize_csv_dictionary()
         file_name, _ = QFileDialog.getOpenFileName(self, "Import File", "", "ChemDraw Files (*.cdx *.cdxml);;SDF Files (*.sdf);;CSV files (*.csv)")
         if not file_name:
             return
-
         try:
+            self.initialize_csv_dictionary()
             smiles_list = []
 
             if file_name.endswith(".sdf"):
@@ -1353,8 +1352,6 @@ class smiles_to_csv(QWidget):
 # add constraints something ??? OH like select atoms to add constraints yes
 
 # add intermedaite plus transition state option in the show all 
-
-###### fix aqme promp to save the file (runs anyway, should not) # warning for metals ... charge and multiplicity (POSSIBLY SIMPLY COMBINE THESE?)  
 
 # fucking dark mode man !!!!
 # importing broken if you dont actually import
