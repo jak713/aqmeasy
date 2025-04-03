@@ -80,7 +80,12 @@ class smiles_to_csv(QWidget):
         self.save_csv_button.clicked.connect(lambda: (logging.debug("at save_csv_button >>> save_csv"), self.save_csv_file()))
         self.control1_layout.addWidget(self.save_csv_button)
 
-        # THIS IS WHERE THE MOLECULE IS DISPLAYED
+        self.how_to_label = QLabel("Click to select atoms and add constraints, click again to deselect.", self)
+        self.how_to_label.setStyleSheet("background-color: rgba(255, 255, 255, 0); border: none; font-size: 10px; color: black;")
+        self.how_to_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.left_layout.addWidget(self.how_to_label)
+
+    # THIS IS WHERE THE MOLECULE IS DISPLAYED
         self.molecule_label = QLabel("Enter SMILES in the box on the right...", self)
         self.molecule_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.molecule_label.setStyleSheet("background-color: #f8f8f8; border: 1px solid black; color: black; font-size: 12px;")
@@ -97,6 +102,7 @@ class smiles_to_csv(QWidget):
         self.log_box_label.setStyleSheet("background-color: rgba(255, 255, 255, 0); border: none; font-size: 10px; color: black;")
         self.molecule_label.resizeEvent = lambda event: self.log_box_label.move(5, self.molecule_label.height() - self.log_box_label.height())
 
+    # VARIOUS INPUTS
         self.smiles_input = QTextEdit(self)
         self.smiles_input.setPlaceholderText("Enter SMILES here or search PubChem below...")
         self.smiles_input.setStyleSheet("border: 1px solid #dcdcdc;")
@@ -127,6 +133,7 @@ class smiles_to_csv(QWidget):
         self.right_layout.addLayout(self.control2_layout)
         self.right_layout.addLayout(self.control3_layout)
 
+    # CONTROL BUTTONS
         self.delete_button = QPushButton("Delete", self)
         self.delete_button.clicked.connect(self.delete_molecule)
         self.control3_layout.addWidget(self.delete_button)
@@ -144,6 +151,7 @@ class smiles_to_csv(QWidget):
         QShortcut(QKeySequence(Qt.Key_Right), self, self.next_molecule)
         self.control3_layout.addWidget(self.next_button)
 
+    # OUTPUTS
         self.smiles_output = QTextBrowser(self)
         self.smiles_output.setStyleSheet("border: 1px solid #dcdcdc;")
         self.smiles_output.setAutoFillBackground(True)
@@ -376,7 +384,6 @@ class smiles_to_csv(QWidget):
         self.find_metal_atom()
 
 # CSV RELATED FUNCTIONS
-
     def initialize_csv_dictionary(self):
         """Initialize the dictionary that will be used to create the CSV file, as per what aqme can read in. Key values are columns, values are lists where each index corresponds to a row (molecule)."""
         self.csv_dictionary = {
@@ -1049,7 +1056,7 @@ class smiles_to_csv(QWidget):
             if self.csv_dictionary["code_name"][index] == "":
                 msgBox = QMessageBox(self)
                 msgBox.setWindowTitle("Error")
-                msgBox.setText("Please enter a code name for each molecule.")
+                msgBox.setText("Please enter a code name for all molecules before saving.")
                 msgBox.setWindowIcon(error_icon)
                 msgBox.setIconPixmap(error_pixmap)
                 msgBox.setStandardButtons(QMessageBox.Ok)
@@ -1178,7 +1185,6 @@ class smiles_to_csv(QWidget):
             print(f"An unexpected error occurred: {e}")
 
 # AQME RUN SETUP FUNCTIONS
-
     def copy_command_to_clipboard(self):
         """Copy the generated AQME command to the clipboard."""
         clipboard = QApplication.clipboard()
@@ -1202,7 +1208,6 @@ class smiles_to_csv(QWidget):
             return
 
 # AQME RUN FUNCTIONS (still under construction, based almnost solely on the pyside6 book example)
-
     def run_aqme(self):
         """Run AQME with the generated command using QProcess in the file_name directory."""
         # not sure if this works as of rn
@@ -1213,20 +1218,30 @@ class smiles_to_csv(QWidget):
         if hasattr(self, 'user_defined_multiplicity'):
             for key in self.user_defined_multiplicity.keys():
                 changed_charge_multiplicity.append(key)
-        if not hasattr(self, 'smiles_w_metal') or not self.smiles_w_metal:
+        if not hasattr(self, 'smiles_w_metal'):
             pass
-        for index in self.smiles_w_metal:
-            if index not in changed_charge_multiplicity:
+        else:
+            for index in self.smiles_w_metal:
+                if index not in changed_charge_multiplicity:
+                    msgBox = QMessageBox(self)
+                    msgBox.setIconPixmap(QPixmap(red_icon_path))
+                    msgBox.setWindowTitle("Warning")
+                    msgBox.setText(f"Please check the charge and multiplicity for the transition metal complex(es): {', '.join([self.csv_dictionary['code_name'][idx - 1] for idx in self.smiles_w_metal])}.")
+                    msgBox.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                    msgBox.setButtonText(QMessageBox.StandardButton.Yes, "Proceed Anyway")
+                    msgBox.setButtonText(QMessageBox.StandardButton.No, "Go Back")
+                    result = msgBox.exec()
+                    if result == QMessageBox.StandardButton.No:
+                        return
+        for value in self.csv_dictionary["SMILES"]:
+            if value == "":
                 msgBox = QMessageBox(self)
                 msgBox.setIconPixmap(QPixmap(red_icon_path))
                 msgBox.setWindowTitle("Warning")
-                msgBox.setText(f"Please check the charge and multiplicity for the transition metal complex(es): {', '.join([self.csv_dictionary['code_name'][idx - 1] for idx in self.smiles_w_metal])}.")
-                msgBox.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-                msgBox.setButtonText(QMessageBox.StandardButton.Yes, "Proceed Anyway")
-                msgBox.setButtonText(QMessageBox.StandardButton.No, "Go Back")
-                result = msgBox.exec()
-                if result == QMessageBox.StandardButton.No:
-                    return
+                msgBox.setText("No SMILES found. Please enter a SMILES string.")
+                msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
+                msgBox.exec()
+                return
         if self.file_name is None:
             self.save_csv_file() 
             if not self.file_name:
@@ -1349,9 +1364,6 @@ class smiles_to_csv(QWidget):
 # - Fix run aqme command  !!!!
 # - expand the pubchem search  ... !
 
-# add constraints something ??? OH like select atoms to add constraints yes
-
 # add intermedaite plus transition state option in the show all 
 
 # fucking dark mode man !!!!
-# importing broken if you dont actually import
