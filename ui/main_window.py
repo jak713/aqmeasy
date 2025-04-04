@@ -102,10 +102,12 @@ class MainWindow(QMainWindow):
 
     def showAboutDialog(self):
         about_text = """
-        <h3>Automated Quantum Mechanical Environments</h3>
-        <p>Code <a href="https://github.com/jvalegre/aqme">here</a> (Github)</p>
-        <p>ReadTheDocs <a href="https://aqme.readthedocs.io/en/latest/">here</a></p>
-        <p>Citation: Alegre-Requena JV, Sowndarya S. V. S, Pérez-Soto R, Alturaifi TM, Paton RS. AQME: Automated quantum mechanical environments for researchers and educators. WIREs Comput Mol Sci. 2023; 13(5):e1663. https://doi.org/10.1002/wcms.1663</p>
+        <div style="font-size:10pt;">
+            <h3>Automated Quantum Mechanical Environments</h3>
+            <p>Code <a href="https://github.com/jvalegre/aqme">here</a> (Github)</p>
+            <p>ReadTheDocs <a href="https://aqme.readthedocs.io/en/latest/">here</a></p>
+            <p>Citation: Alegre-Requena JV, Sowndarya S. V. S, Pérez-Soto R, Alturaifi TM, Paton RS. AQME: Automated quantum mechanical environments for researchers and educators. WIREs Comput Mol Sci. 2023; 13(5):e1663. https://doi.org/10.1002/wcms.1663</p>
+        </div>
         """
         QMessageBox.about(self, "About AQMEasy", about_text)
 

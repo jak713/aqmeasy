@@ -979,8 +979,6 @@ class smiles_to_csv(QWidget):
 
 
 
-
-
 # UI ELEMENTS UPDATE FUNCTIONS (This will definitely stay but might need to rewrite quite heavily)
     def index_and_total_label_update(self):
         self.index_and_total_label.setText(f"{self.current_index}/{self.total_index}")
@@ -1201,29 +1199,6 @@ class smiles_to_csv(QWidget):
 # AQME RUN FUNCTIONS (still under construction, based almnost solely on the pyside6 book example)
     def run_aqme(self):
         """Run AQME with the generated command using QProcess in the file_name directory."""
-        # not sure if this works as of rn
-        changed_charge_multiplicity = []
-        if hasattr(self, 'user_defined_charge'):
-            for key in self.user_defined_charge.keys():
-                changed_charge_multiplicity.append(key)
-        if hasattr(self, 'user_defined_multiplicity'):
-            for key in self.user_defined_multiplicity.keys():
-                changed_charge_multiplicity.append(key)
-        if not hasattr(self, 'smiles_w_metal'):
-            pass
-        else:
-            for index in self.smiles_w_metal:
-                if index not in changed_charge_multiplicity:
-                    msgBox = QMessageBox(self)
-                    msgBox.setIconPixmap(QPixmap(icons.red_path))
-                    msgBox.setWindowTitle("Warning")
-                    msgBox.setText(f"Please check the charge and multiplicity for the transition metal complex(es): {', '.join(sorted(set(self.csv_dictionary['code_name'][idx - 1] for idx in self.smiles_w_metal)))}.")
-                    msgBox.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-                    msgBox.setButtonText(QMessageBox.StandardButton.Yes, "Proceed Anyway")
-                    msgBox.setButtonText(QMessageBox.StandardButton.No, "Go Back")
-                    result = msgBox.exec()
-                    if result == QMessageBox.StandardButton.No:
-                        return
         for value in self.csv_dictionary["SMILES"]:
             if value == "":
                 msgBox = QMessageBox(self)
@@ -1233,6 +1208,35 @@ class smiles_to_csv(QWidget):
                 msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
                 msgBox.exec()
                 return
+            else:
+                pass
+
+        changed_charge_multiplicity = []
+        if hasattr(self, 'user_defined_multiplicity'):
+            for key in self.user_defined_charge.keys():
+                changed_charge_multiplicity.append(key)
+        if hasattr(self, 'user_defined_charge'):
+            for key in self.user_defined_multiplicity.keys():
+                changed_charge_multiplicity.append(key)
+        if not self.smiles_w_metal:
+            pass
+        else:
+            for index in self.smiles_w_metal:
+                if index not in changed_charge_multiplicity:
+                    continue
+            msgBox = QMessageBox(self)
+            msgBox.setIconPixmap(QPixmap(icons.red_path))
+            msgBox.setWindowTitle("Warning")
+            msgBox.setText(f"Please check the charge and multiplicity for the transition metal complex(es).")
+            msgBox.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            msgBox.setButtonText(QMessageBox.StandardButton.Yes, "Proceed Anyway")
+            msgBox.setButtonText(QMessageBox.StandardButton.No, "Go Back")
+            result = msgBox.exec()
+            if result == QMessageBox.StandardButton.No:
+                return
+            else:
+                pass
+
         if self.file_name is None:
             self.save_csv_file() 
             if not self.file_name:
@@ -1297,7 +1301,7 @@ class smiles_to_csv(QWidget):
         else:
             self.shell_output.append("AQME process is not running.")
 
-    def process_finished(self, exitCode, exitStatus):
+    def process_finished(self, exitCode):
         """Handle the process finish event and display a message box."""
         if exitCode == 0:
             pixmap = QPixmap(icons.green_path)
