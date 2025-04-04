@@ -41,3 +41,18 @@ def pubchem2smiles(search_text):
         raise ValueError("No SMILES found for the given input.")
 
     return smiles
+
+def smiles2enumerate(smiles):
+    if not smiles:
+        return
+    elif smiles == "":
+        return
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+        mol = Chem.AddHs(mol)
+        for i, atom in enumerate(mol.GetAtoms()):
+            atom.SetAtomMapNum(i + 1)
+        enumerated_smiles = Chem.MolToSmiles(mol)                
+        return enumerated_smiles
+    except Exception:
+        return

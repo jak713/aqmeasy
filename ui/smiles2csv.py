@@ -9,7 +9,7 @@ import csv
 import subprocess
 import tempfile
 
-from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QTextEdit, QCheckBox, QInputDialog, QMessageBox, QSizePolicy, QFileDialog, QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem, QFrame, QGridLayout, QDoubleSpinBox
+from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QTextEdit, QCheckBox, QInputDialog, QMessageBox, QSizePolicy, QFileDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem, QFrame, QGridLayout, QDoubleSpinBox
 from PySide6.QtCore import Qt, QProcess
 from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, QDoubleValidator
 
@@ -18,8 +18,17 @@ from rdkit.Chem import AllChem, Descriptors,Draw
 from rdkit.Chem.Draw import rdMolDraw2D, rdDepictor
 import rdkit.rdBase
 
-from utils import smiles2pixmap, pubchem2smiles
+from utils import  pubchem2smiles, smiles2enumerate
 import ui.resources.icons as icons
+
+from models.smiles2csv_model import csv_dictionary as csv_model
+from models.smiles2csv_command import (
+    general_command_dictionary as gen_command,
+    summ_command_dictionary as summ_command,
+    fullmonte_command_dictionary as fullmonte_command,
+    crest_command_dictionary as crest_command
+    )
+from controllers.smiles2csv_controller import csv_controller as control
 
 class smiles_to_csv(QWidget):
     def __init__(self):
@@ -28,11 +37,9 @@ class smiles_to_csv(QWidget):
         self.resize(900,800)
         self.setWindowTitle("smiles2csv")
         QShortcut(QKeySequence(Qt.Key_Escape), self, lambda: self.clear_focus_on_inputs())
-
-        self.initialise_csv_dictionary()
         self.current_index = 1
         self.file_name = None
-        self.total_index = len(self.csv_dictionary["SMILES"])  
+        self.total_index = len(csv_model["SMILES"]) 
         self.smiles_w_metal = [] 
 
         self.top_layout = QHBoxLayout()
@@ -67,7 +74,7 @@ class smiles_to_csv(QWidget):
 
         self.show_all_button = QPushButton("Show All", self)
         self.show_all_button.setFixedWidth(65)
-        self.show_all_button.clicked.connect(lambda: (logging.debug("at show_all_button >>> self.show_csv()"), self.show_csv()))
+        self.show_all_button.clicked.connect(control.show_csv)
         self.control1_layout.addWidget(self.show_all_button)
 
         self.save_csv_button = QPushButton(self)
@@ -357,8 +364,8 @@ class smiles_to_csv(QWidget):
         advanced_layout.addWidget(self.opt_steps_rdkit_input, 1, 4)
 
 
-
-
+        csv_model.signals.updated.connect(self.update_ui)
+        self.update_ui()
 
 
     def toggle_panel(self):
@@ -371,123 +378,56 @@ class smiles_to_csv(QWidget):
             self.advanced_panel.setFixedHeight(0)
             self.resize(self.width(), self.height() - expanded_height)
             self.advanced_settings_button.setText("Show Advanced Settings")
-        
+
+
+
+
     def handle_smiles_change(self):
         # logging.debug("at smiles_input >>> handling SMILES text change")
         smiles = self.smiles_input.toPlainText()
-        # logging.debug("at handle_smiles_change >>> calling enumerate_smiles")
-        self.enumerate_smiles(smiles)
+
+        enumerated_smiles = smiles2enumerate(smiles)
+        if enumerated_smiles is not None:
+            self.smiles_output.setText(enumerated_smiles)
         # logging.debug("at handle_smiles_change >>> calling display_molecule") 
         self.display_molecule(self.show_numbered_atoms_toggle.isChecked())
         # logging.debug("at handle_smiles_change >>> calling update_smiles_csv")
-        self.update_smiles_csv(smiles)
+        control.update_smiles_csv(self=None,smiles=smiles, index=self.current_index)
         self.find_metal_atom()
 
-# CSV RELATED FUNCTIONS
-    def initialise_csv_dictionary(self):
-        """initialise the dictionary that will be used to create the CSV file, as per what aqme can read in. Key values are columns, values are lists where each index corresponds to a row (molecule)."""
-        self.csv_dictionary = {
-                "SMILES": [""],
-                "code_name": [""],
-                "charge": [""],
-                "multiplicity": [""],
-                "constraints_atoms": [""],
-                "constraints_dist": [""],
-                "constraints_angle": [""],
-                "constraints_dihedral": [""],
-                "complex_type": [""],
-                "geom": [""]
-        }
 
-    def show_csv(self):
-        """Display the csv_dictionary in table format in a new popup window. The user can edit the file, which automatically saves."""
-        self.csv_table = QDialog(self)
-        self.csv_table.setWindowTitle("CSV Data")
-        self.csv_table.resize(1000, 500)
-        self.csv_table_layout = QVBoxLayout()
-        self.csv_table.setLayout(self.csv_table_layout)
 
-        self.table_widget = QTableWidget(self)
-        self.table_widget.setRowCount(len(self.csv_dictionary["SMILES"]))
-        self.table_widget.setColumnCount(len(self.csv_dictionary.keys()))
-        self.table_widget.setHorizontalHeaderLabels(self.csv_dictionary.keys())
-        self.table_widget.verticalHeader().setDefaultSectionSize(120)
-        self.table_widget.horizontalHeader().setDefaultSectionSize(120)
+    # def update_csv_dictionary(self, item):
+    #     """Update the csv_dictionary when the user edits the table."""   
+    #     logging.debug("at update_csv_dictionary >>> updating csv_dictionary")
+    #     row = item.row()
+    #     col = item.column()
+    #     key = list(csv_model.keys())[col]
+    #     csv_model[key][row] = item.text()
+    #     self.file_name = None  # Reset file name to indicate unsaved changes
 
-        for row in range(len(self.csv_dictionary["SMILES"])):
-            for col, key in enumerate(self.csv_dictionary.keys()):
-                if key == "SMILES":
-                    pixmap = smiles2pixmap(self.csv_dictionary[key][row])
-                    item = QTableWidgetItem()
-                    item.setData(Qt.DecorationRole, pixmap)
-                    self.table_widget.setItem(row, col, item)
-                else:
-                    item = QTableWidgetItem(str(self.csv_dictionary[key][row]))
-                    self.table_widget.setItem(row, col, item)
-            
-        for row in range(self.table_widget.rowCount()):
-            item = self.table_widget.item(row, 0)
-            if item:
-                item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+    # def handle_property_change(self, item):
+    #     """Handle changes to editable properties and update the csv_dictionary."""
+    #     logging.debug("at handle_property_change >>> handling property change")
+    #     if item.row() == 0:  
+    #         csv_model["code_name"][self.current_index - 1] = item.text()
+    #     elif item.row() == 1:  
+    #         csv_model["charge"][self.current_index - 1] = item.text()
+    #         # Track user-defined charge
+    #         if not hasattr(self, 'user_defined_charge'):
+    #             self.user_defined_charge = {}
+    #         self.user_defined_charge[self.current_index] = item.text()
+    #     elif item.row() == 2:  
+    #         csv_model["multiplicity"][self.current_index - 1] = item.text()
+    #         # Track user-defined multiplicity
+    #         if not hasattr(self, 'user_defined_multiplicity'):
+    #             self.user_defined_multiplicity = {}
+    #         self.user_defined_multiplicity[self.current_index] = item.text()
 
-        self.table_widget.itemChanged.connect(lambda: (logging.debug("at table_widget >>> update_csv_dictionary called"), self.update_csv_dictionary))
-        self.csv_table_layout.addWidget(self.table_widget)
-        self.csv_table.exec()
 
-    def update_csv_dictionary(self, item):
-        """Update the csv_dictionary when the user edits the table."""   
-        logging.debug("at update_csv_dictionary >>> updating csv_dictionary")
-        row = item.row()
-        col = item.column()
-        key = list(self.csv_dictionary.keys())[col]
-        self.csv_dictionary[key][row] = item.text()
-        self.file_name = None  # Reset file name to indicate unsaved changes
 
-    def handle_property_change(self, item):
-        """Handle changes to editable properties and update the csv_dictionary."""
-        logging.debug("at handle_property_change >>> handling property change")
-        if item.row() == 0:  
-            self.csv_dictionary["code_name"][self.current_index - 1] = item.text()
-        elif item.row() == 1:  
-            self.csv_dictionary["charge"][self.current_index - 1] = item.text()
-            # Track user-defined charge
-            if not hasattr(self, 'user_defined_charge'):
-                self.user_defined_charge = {}
-            self.user_defined_charge[self.current_index] = item.text()
-        elif item.row() == 2:  
-            self.csv_dictionary["multiplicity"][self.current_index - 1] = item.text()
-            # Track user-defined multiplicity
-            if not hasattr(self, 'user_defined_multiplicity'):
-                self.user_defined_multiplicity = {}
-            self.user_defined_multiplicity[self.current_index] = item.text()
 
-    def update_smiles_csv(self, smiles):
-        """Update the csv_dictionary with the current SMILES string.
-        If constraints are present, update the csv_dictionary["SMILES"] with the enumerated SMILES string."""
-        logging.debug("at update_smiles_csv >>> updating csv_dictionary with current SMILES") 
-        if not smiles:
-            self.smiles_output.setText("Please enter SMILES in the box above.")
-            return
 
-        enumerated_smiles = self.enumerate_smiles(smiles)
-        if enumerated_smiles is None:
-            enumerated_smiles = smiles
-
-        if self.csv_dictionary["SMILES"][self.current_index - 1] != "" and self.csv_dictionary["SMILES"][self.current_index - 1] == enumerated_smiles:
-            print("at update_smiles_csv: SMILES already present, not updating. ATM not sure how to actually remove the constraints without deleting the whole row.")
-            return
-
-        if self.csv_dictionary["constraints_dist"][self.current_index - 1] != "":
-            self.csv_dictionary["SMILES"][self.current_index - 1] = enumerated_smiles
-            print("at update_smiles_csv: constraints_dist present, updating SMILES with enumerated_smiles")
-        elif self.csv_dictionary["constraints_angle"][self.current_index - 1] != "":
-            self.csv_dictionary["SMILES"][self.current_index - 1] = enumerated_smiles
-            print("at update_smiles_csv: constraints_angle present, updating SMILES with enumerated_smiles")
-        elif self.csv_dictionary["constraints_dihedral"][self.current_index - 1] != "":
-            self.csv_dictionary["SMILES"][self.current_index - 1] = enumerated_smiles
-            print("at update_smiles_csv: constraints_dihedral present, updating SMILES with enumerated_smiles")
-        else:
-            self.csv_dictionary["SMILES"][self.current_index - 1] = smiles
 
 
 
@@ -509,31 +449,10 @@ class smiles_to_csv(QWidget):
         new_text = f"{current_text}.{smiles}" if current_text else smiles
         self.smiles_input.setText(new_text)
 
-        if not self.csv_dictionary["code_name"][self.current_index - 1]:
-            self.csv_dictionary["code_name"][self.current_index - 1] = code_name
+        if not csv_model["code_name"][self.current_index - 1]:
+            csv_model["code_name"][self.current_index - 1] = code_name
         self.update_properties()
         self.search_pubchem_input.clear()
-
-    def enumerate_smiles(self, smiles):
-        """Enumerate all possible SMILES strings for a molecule."""
-        if not smiles:
-            return
-        elif smiles == "":
-            return
-        # if not self.smiles_input or self.smiles_input.toPlainText() == "":
-        #     self.smiles_output.setText("Please enter SMILES in the box above.")
-        #     return
-            
-        try:
-            mol = Chem.MolFromSmiles(smiles)
-            mol = Chem.AddHs(mol)
-            for i, atom in enumerate(mol.GetAtoms()):
-                atom.SetAtomMapNum(i + 1)
-            enumerated_smiles = Chem.MolToSmiles(mol)
-            self.smiles_output.setText(enumerated_smiles)                
-            return enumerated_smiles
-        except Exception as e:
-            self.smiles_output.setText("") # error here
 
     def resizeEvent(self, event):
         """Handle window resize events to refresh the molecule display."""
@@ -684,7 +603,7 @@ class smiles_to_csv(QWidget):
                 if self.current_index not in self.each_dist:
                     self.each_dist[self.current_index] = []
                 self.each_dist[self.current_index].append([atom1, atom2, distance])
-                self.csv_dictionary["constraints_dist"][self.current_index - 1] = str(self.each_dist[self.current_index])
+                csv_model["constraints_dist"][self.current_index - 1] = str(self.each_dist[self.current_index])
                 self.update_properties()
                 self.selected_atoms = []
             else:
@@ -710,7 +629,7 @@ class smiles_to_csv(QWidget):
                 if self.current_index not in self.each_angle:
                     self.each_angle[self.current_index] = []
                 self.each_angle[self.current_index].append([atom1, atom2, atom3, angle])
-                self.csv_dictionary["constraints_angle"][self.current_index - 1] = str(self.each_angle[self.current_index])
+                csv_model["constraints_angle"][self.current_index - 1] = str(self.each_angle[self.current_index])
                 self.update_properties()
                 self.selected_atoms = []
             else:
@@ -737,7 +656,7 @@ class smiles_to_csv(QWidget):
                 if self.current_index not in self.each_dihedral:
                     self.each_dihedral[self.current_index] = []
                 self.each_dihedral[self.current_index].append([atom1, atom2, atom3, atom4, dihedral])
-                self.csv_dictionary["constraints_dihedral"][self.current_index - 1] = str(self.each_dihedral[self.current_index])
+                csv_model["constraints_dihedral"][self.current_index - 1] = str(self.each_dihedral[self.current_index])
                 self.update_properties()
                 self.selected_atoms = []
             else:
@@ -761,21 +680,21 @@ class smiles_to_csv(QWidget):
             "constraints_dihedral",
             "complex_type",
             "geom" assigned to the current smiles index displayed. These values are stored in the csv_dictionary."""
-        self.code_name = self.csv_dictionary["code_name"][self.current_index - 1]
+        self.code_name = csv_model["code_name"][self.current_index - 1]
         self.charge = (
-            self.csv_dictionary["charge"][self.current_index - 1]
-            if self.csv_dictionary["charge"][self.current_index - 1] != ""
+            csv_model["charge"][self.current_index - 1]
+            if csv_model["charge"][self.current_index - 1] != ""
             else self.get_charge())
         self.multiplicity = (
-            self.csv_dictionary["multiplicity"][self.current_index - 1]
-            if self.csv_dictionary["multiplicity"][self.current_index - 1] != ""
+            csv_model["multiplicity"][self.current_index - 1]
+            if csv_model["multiplicity"][self.current_index - 1] != ""
             else self.get_multiplicity())
-        self.constraints_atoms = self.csv_dictionary["constraints_atoms"][self.current_index - 1]
-        self.constraints_dist = self.csv_dictionary["constraints_dist"][self.current_index - 1]
-        self.constraints_angle = self.csv_dictionary["constraints_angle"][self.current_index - 1]
-        self.constraints_dihedral = self.csv_dictionary["constraints_dihedral"][self.current_index - 1]
-        self.complex_type = self.csv_dictionary["complex_type"][self.current_index - 1]
-        self.geom = self.csv_dictionary["geom"][self.current_index - 1]
+        self.constraints_atoms = csv_model["constraints_atoms"][self.current_index - 1]
+        self.constraints_dist = csv_model["constraints_dist"][self.current_index - 1]
+        self.constraints_angle = csv_model["constraints_angle"][self.current_index - 1]
+        self.constraints_dihedral = csv_model["constraints_dihedral"][self.current_index - 1]
+        self.complex_type = csv_model["complex_type"][self.current_index - 1]
+        self.geom = csv_model["geom"][self.current_index - 1]
 
         old_value = self.is_programmatic_update
         self.is_programmatic_update = True
@@ -821,7 +740,7 @@ class smiles_to_csv(QWidget):
     def get_multiplicity(self):
         """Calculate and set multiplicity if not manually set by user."""
         logging.debug("at get_multiplicity >>> calculating multiplicity")
-        if self.csv_dictionary["SMILES"][self.current_index - 1] == "":
+        if csv_model["SMILES"][self.current_index - 1] == "":
             print("at get_multiplicity: no SMILES present")
             return ""
         
@@ -832,11 +751,11 @@ class smiles_to_csv(QWidget):
             return
         
         try:
-            smiles = self.csv_dictionary["SMILES"][self.current_index - 1]
+            smiles = csv_model["SMILES"][self.current_index - 1]
             mol = Chem.MolFromSmiles(smiles)
             if mol is not None:
                 mult = Descriptors.NumRadicalElectrons(mol) + 1 
-                self.csv_dictionary["multiplicity"][self.current_index - 1] = mult
+                csv_model["multiplicity"][self.current_index - 1] = mult
             return mult
         except Exception:
             return
@@ -844,7 +763,7 @@ class smiles_to_csv(QWidget):
     def get_charge(self):
         """Calculate and set charge if not manually set by user."""
         logging.debug("at get_charge >>> calculating charge")
-        if self.csv_dictionary["SMILES"][self.current_index - 1] == "":
+        if csv_model["SMILES"][self.current_index - 1] == "":
             print("at get_charge: no SMILES present")
             return ""
         
@@ -855,12 +774,12 @@ class smiles_to_csv(QWidget):
             return
         
         try:
-            smiles = self.csv_dictionary["SMILES"][self.current_index - 1]
+            smiles = csv_model["SMILES"][self.current_index - 1]
             mol = Chem.MolFromSmiles(smiles)
             if mol is not None:
                 mol = Chem.AddHs(mol)
                 charge = Chem.GetFormalCharge(mol)
-                self.csv_dictionary["charge"][self.current_index - 1] = charge
+                csv_model["charge"][self.current_index - 1] = charge
             return charge
         except Exception:
             return
@@ -881,7 +800,7 @@ class smiles_to_csv(QWidget):
         """Electrons counted using RDKit Chem module:
         electrons = sum of atomic numbers - formal charge"""
         logging.debug("at get_number_electrons >>> getting number of electrons")
-        smiles = self.csv_dictionary["SMILES"][self.current_index - 1] if self.csv_dictionary["SMILES"][self.current_index - 1] != "" else self.smiles_input.toPlainText()
+        smiles = csv_model["SMILES"][self.current_index - 1] if csv_model["SMILES"][self.current_index - 1] != "" else self.smiles_input.toPlainText()
         if not smiles:
             print("at get_number_electrons: no SMILES present")
             return 0
@@ -918,44 +837,49 @@ class smiles_to_csv(QWidget):
 
 
 
+
+
+
+
+
 # NAVIGATION FUNCTIONS 
     def next_molecule(self):
         """Move to the next index in csv dictionary and update display."""
         if self.current_index == self.total_index == 1:
             return
-        self.current_index = (self.current_index + 1) % (len(self.csv_dictionary["SMILES"]) +1)
+        self.current_index = (self.current_index + 1) % (len(csv_model["SMILES"]) +1)
         if self.current_index == 0:
             self.current_index = 1
-        self.update_display()
+        self.update_ui()
 
     def previous_molecule(self):
         """Move to the previous molecule and update display."""
         if self.current_index == self.total_index == 1:
             return
-        self.current_index = (self.current_index - 1) % (len(self.csv_dictionary["SMILES"])+1)
+        self.current_index = (self.current_index - 1) % (len(csv_model["SMILES"])+1)
         if self.current_index == 0:
-            self.current_index = len(self.csv_dictionary["SMILES"])
-        self.update_display()
+            self.current_index = len(csv_model["SMILES"])
+        self.update_ui()
 
     def new_molecule(self):
         """Create a new empty molecule entry in the csv dictionary and update the display."""
-        for key in self.csv_dictionary.keys():
-            self.csv_dictionary[key].append("")
-        self.current_index = len(self.csv_dictionary["SMILES"])  
-        self.total_index = len(self.csv_dictionary["SMILES"])
-        self.update_display()
+        for key in csv_model.keys():
+            csv_model[key].append("")
+        self.current_index = len(csv_model["SMILES"])  
+        self.total_index = len(csv_model["SMILES"])
+        self.update_ui()
 
     def delete_molecule(self):
         """Delete the current molecule and all associated data (including constraints) from the csv dictionary and update the display."""
         if self.total_index == 1:
-            for key, value in self.csv_dictionary.items():
+            for key, value in csv_model.items():
                 value.pop(self.current_index - 1)
             self.new_molecule()
             return
 
         # Remove the molecule entry from the CSV dictionary
-        for key in self.csv_dictionary.keys():
-            self.csv_dictionary[key].pop(self.current_index - 1)
+        for key in csv_model.keys():
+            csv_model[key].pop(self.current_index - 1)
 
         # Delete constraints associated with the current molecule
         for constraint in ['each_dist', 'each_angle', 'each_dihedral']:
@@ -969,12 +893,12 @@ class smiles_to_csv(QWidget):
             self.selected_atoms = []
 
         # Update indices and display
-        self.total_index = len(self.csv_dictionary["SMILES"])
+        self.total_index = len(csv_model["SMILES"])
         self.current_index = (self.current_index - 1) % (self.total_index + 1)
         if self.current_index == 0:
             self.current_index = 1
 
-        self.update_display()
+        self.update_ui()
 
 
 
@@ -983,19 +907,19 @@ class smiles_to_csv(QWidget):
     def index_and_total_label_update(self):
         self.index_and_total_label.setText(f"{self.current_index}/{self.total_index}")
 
-    def update_display(self):
+    def update_ui(self):
         """Update all UI elements to reflect the current molecule's data."""
-        self.smiles_input.setText(self.csv_dictionary["SMILES"][self.current_index - 1])
-        logging.debug("at update_display >>> updating smiles_input")
+        self.smiles_input.setText(csv_model["SMILES"][self.current_index - 1])
+        # logging.debug("at update_ui >>> updating smiles_input")
         self.index_and_total_label_update()
-        logging.debug("at update_display >>> updating index_and_total_label")
+        # logging.debug("at update_ui >>> updating index_and_total_label")
         # self.get_multiplicity()
-        # logging.debug("at update_display >>> updating multiplicity")
+        # logging.debug("at update_ui >>> updating multiplicity")
         # self.get_charge()
-        # logging.debug("at update_display >>> updating charge")
+        # logging.debug("at update_ui >>> updating charge")
         self.atom_electron_label.setText(f" Electrons: {self.get_number_electrons()}\n Atoms: {self.get_number_atoms()}")
         self.update_properties()
-        logging.debug("at update_display >>> updating properties")
+        # logging.debug("at update_ui >>> updating properties")
         # self.smiles_output.clear()
 
     def clear_focus_on_inputs(self):
@@ -1034,8 +958,8 @@ class smiles_to_csv(QWidget):
         error_icon = QIcon(error_pixmap)
         success_pixmap = QPixmap(icons.green_path)
         success_icon = QIcon(success_pixmap)
-        for index in range(len(self.csv_dictionary["code_name"])):
-            if self.csv_dictionary["code_name"][index] == "":
+        for index in range(len(csv_model["code_name"])):
+            if csv_model["code_name"][index] == "":
                 msgBox = QMessageBox(self)
                 msgBox.setWindowTitle("Error")
                 msgBox.setText("Please enter a code name for all molecules before saving.")
@@ -1051,9 +975,9 @@ class smiles_to_csv(QWidget):
             return False  # for the closing event
         with open(self.file_name, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(self.csv_dictionary.keys())
-            for i in range(len(self.csv_dictionary["SMILES"])):
-                writer.writerow([self.csv_dictionary[key][i] for key in self.csv_dictionary.keys()])   
+            writer.writerow(csv_model.keys())
+            for i in range(len(csv_model["SMILES"])):
+                writer.writerow([csv_model[key][i] for key in csv_model.keys()])   
         msgBox = QMessageBox(self)
         msgBox.setWindowTitle("File Saved")
         msgBox.setText("CSV file saved successfully.")
@@ -1077,7 +1001,8 @@ class smiles_to_csv(QWidget):
         if not file_name:
             return
         try:
-            self.initialise_csv_dictionary()
+            for key in csv_model.keys():
+                csv_model[key].clear()
             smiles_list = []
 
             if file_name.endswith(".sdf"):
@@ -1120,27 +1045,27 @@ class smiles_to_csv(QWidget):
 
             elif file_name.endswith(".csv"):
                 # fuckass solution but it works for now i guess (TODO: make it better) also idk how to handle rows i did not anticipate as of rn
-                for key in self.csv_dictionary.keys():
-                    self.csv_dictionary[key].pop(0) 
+                for key in csv_model.keys():
+                    csv_model[key].pop(0) 
                 with open(file_name, 'r') as csvfile:
                     reader = csv.DictReader(csvfile)
                     for row in reader: 
-                        self.csv_dictionary["SMILES"].append(row["SMILES"])
-                        self.csv_dictionary["code_name"].append(row["code_name"])
-                        self.csv_dictionary["charge"].append(row["charge"])
-                        self.csv_dictionary["multiplicity"].append(row["multiplicity"])
-                        self.csv_dictionary["constraints_atoms"].append(row["constraints_atoms"])
-                        self.csv_dictionary["constraints_dist"].append(row["constraints_dist"])
-                        self.csv_dictionary["constraints_angle"].append(row["constraints_angle"])
-                        self.csv_dictionary["constraints_dihedral"].append(row["constraints_dihedral"])
-                        self.csv_dictionary["complex_type"].append(row["complex_type"])
-                        self.csv_dictionary["geom"].append(row["geom"])
+                        csv_model["SMILES"].append(row["SMILES"])
+                        csv_model["code_name"].append(row["code_name"])
+                        csv_model["charge"].append(row["charge"])
+                        csv_model["multiplicity"].append(row["multiplicity"])
+                        csv_model["constraints_atoms"].append(row["constraints_atoms"])
+                        csv_model["constraints_dist"].append(row["constraints_dist"])
+                        csv_model["constraints_angle"].append(row["constraints_angle"])
+                        csv_model["constraints_dihedral"].append(row["constraints_dihedral"])
+                        csv_model["complex_type"].append(row["complex_type"])
+                        csv_model["geom"].append(row["geom"])
                     
-                self.total_index = len(self.csv_dictionary["SMILES"])
+                self.total_index = len(csv_model["SMILES"])
                 if self.total_index > 0:
                     self.current_index = 1  # assuming indices start from 1
                     self.update_properties()
-                    self.update_display()
+                    self.update_ui()
                 return
 
             else:
@@ -1151,20 +1076,20 @@ class smiles_to_csv(QWidget):
                 return
 
             for index, smiles in enumerate(smiles_list):
-                if index < len(self.csv_dictionary["SMILES"]):
-                    self.csv_dictionary["SMILES"][index] = smiles
+                if index < len(csv_model["SMILES"]):
+                    csv_model["SMILES"][index] = smiles
                 else:
-                    for key in self.csv_dictionary.keys():
-                        self.csv_dictionary[key].append("")
-                    self.csv_dictionary["SMILES"][-1] = smiles
-            self.total_index = len(self.csv_dictionary["SMILES"])
+                    for key in csv_model.keys():
+                        csv_model[key].append("")
+                    csv_model["SMILES"][-1] = smiles
+            self.total_index = len(csv_model["SMILES"])
 
             for index in range(self.total_index):
-                self.csv_dictionary["code_name"][index] = f"mol_{index + 1}"
+                csv_model["code_name"][index] = f"mol_{index + 1}"
                 self.current_index = index 
                 self.update_properties()
 
-            self.update_display()
+            self.update_ui()
 
         except ImportError as e:
             print(f"Error importing required module: {e}")
@@ -1199,7 +1124,7 @@ class smiles_to_csv(QWidget):
 # AQME RUN FUNCTIONS (still under construction, based almnost solely on the pyside6 book example)
     def run_aqme(self):
         """Run AQME with the generated command using QProcess in the file_name directory."""
-        for value in self.csv_dictionary["SMILES"]:
+        for value in csv_model["SMILES"]:
             if value == "":
                 msgBox = QMessageBox(self)
                 msgBox.setIconPixmap(QPixmap(icons.red_path))

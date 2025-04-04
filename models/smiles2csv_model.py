@@ -1,6 +1,5 @@
 from collections import UserDict
-from PySide6.QtWidgets import QObject
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, QObject
 
 class csv_model_signals(QObject):
     updated = Signal()
@@ -11,6 +10,7 @@ class csv_model(UserDict):
     def __init__(self, *args, **kwargs):
         self.signals = csv_model_signals()
         super().__init__(*args, **kwargs)
+        self.current_index = 1
 
     def __setitem__(self, key, value):
         prev_value = self.get(key)
@@ -32,4 +32,3 @@ csv_dictionary = csv_model(
     complex_type = [""],
     geom = [""],
 )
-
