@@ -18,12 +18,8 @@ from rdkit.Chem import AllChem, Descriptors,Draw
 from rdkit.Chem.Draw import rdMolDraw2D, rdDepictor
 import rdkit.rdBase
 
-import pubchempy as pcp
-# from openbabel import pybel as pb
-
-red_icon_path = "/Users/user/Documents/aqme/aqmeasy/ui/resources/aqme-icon-red_512@2x.png"
-blue_icon_path = "/Users/user/Documents/aqme/aqmeasy/ui/resources/aqme-icon-blue_512@2x.png"
-green_icon_path = "/Users/user/Documents/aqme/aqmeasy/ui/resources/aqme-icon-green_512@2x.png"
+from utils import smiles2pixmap, pubchem2smiles
+import ui.resources.icons as icons
 
 class smiles_to_csv(QWidget):
     def __init__(self):
@@ -33,10 +29,11 @@ class smiles_to_csv(QWidget):
         self.setWindowTitle("smiles2csv")
         QShortcut(QKeySequence(Qt.Key_Escape), self, lambda: self.clear_focus_on_inputs())
 
-        self.initialize_csv_dictionary()
+        self.initialise_csv_dictionary()
         self.current_index = 1
         self.file_name = None
-        self.total_index = len(self.csv_dictionary["SMILES"])   
+        self.total_index = len(self.csv_dictionary["SMILES"])  
+        self.smiles_w_metal = [] 
 
         self.top_layout = QHBoxLayout()
         self.left_layout = QVBoxLayout()
@@ -119,7 +116,7 @@ class smiles_to_csv(QWidget):
 
         self.search_pubchem_input = QLineEdit(self)
         self.search_pubchem_input.setPlaceholderText("Search PubChem...")
-        self.search_pubchem_input.returnPressed.connect(lambda: (logging.debug("at search_pubchem_input >>> find_smiles_from_PubChem called"), self.find_smiles_from_PubChem()))
+        self.search_pubchem_input.returnPressed.connect(self.smiles_from_pubchem)
         self.control2_layout.addWidget(self.search_pubchem_input)
 
         self.search_pubchem_advanced_button = QPushButton(self)
@@ -361,6 +358,9 @@ class smiles_to_csv(QWidget):
 
 
 
+
+
+
     def toggle_panel(self):
         expanded_height = 130
         if self.advanced_settings_button.isChecked():
@@ -384,8 +384,8 @@ class smiles_to_csv(QWidget):
         self.find_metal_atom()
 
 # CSV RELATED FUNCTIONS
-    def initialize_csv_dictionary(self):
-        """Initialize the dictionary that will be used to create the CSV file, as per what aqme can read in. Key values are columns, values are lists where each index corresponds to a row (molecule)."""
+    def initialise_csv_dictionary(self):
+        """initialise the dictionary that will be used to create the CSV file, as per what aqme can read in. Key values are columns, values are lists where each index corresponds to a row (molecule)."""
         self.csv_dictionary = {
                 "SMILES": [""],
                 "code_name": [""],
@@ -417,7 +417,7 @@ class smiles_to_csv(QWidget):
         for row in range(len(self.csv_dictionary["SMILES"])):
             for col, key in enumerate(self.csv_dictionary.keys()):
                 if key == "SMILES":
-                    pixmap = QPixmap(self.turn_smiles_into_picture(self.csv_dictionary[key][row]))
+                    pixmap = smiles2pixmap(self.csv_dictionary[key][row])
                     item = QTableWidgetItem()
                     item.setData(Qt.DecorationRole, pixmap)
                     self.table_widget.setItem(row, col, item)
@@ -489,57 +489,30 @@ class smiles_to_csv(QWidget):
         else:
             self.csv_dictionary["SMILES"][self.current_index - 1] = smiles
 
-    def turn_smiles_into_picture(self, smiles):
-        """Convert SMILES to a picture using RDKit."""
-        mol = Chem.MolFromSmiles(smiles)
-        if mol is None:
-            raise ValueError("Invalid SMILES string.")
-        drawer = rdMolDraw2D.MolDraw2DCairo(300, 300)
-        drawer.DrawMolecule(mol)
-        drawer.FinishDrawing()
-        drawer.WriteDrawingText("/tmp/molecule.png")
-        pixmap = QPixmap("/tmp/molecule.png")
-        pixmap = pixmap.scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        return pixmap
 
-# SMILES HANDILING FUNCTIONS
-    def find_smiles_from_PubChem(self):
+
+
+# SMILES HANDILING FUNCTIONS (this to certain extent is also UI handling)
+    def smiles_from_pubchem(self):
         """Searches PubChem for a compound using its CID or name and inserts the canonical SMILES into the input box."""
-        search_text = self.search_pubchem_input.text().strip()
-        if not search_text:
+        code_name = self.search_pubchem_input.text()
+        if not code_name:
             QMessageBox.warning(self, "Error", "Please enter a valid CID, CAS or compound name.")
-            return
         try:
-            if "-" in search_text:
-                compounds = pcp.get_compounds(search_text, 'name')
-                if compounds:
-                    cid = compounds[0].cid
-                    compound = pcp.get_compounds(cid, 'cid')[0]
-                else:
-                    raise ValueError("No CID match for the given CAS.")
-            elif search_text.isdigit():
-                compound = pcp.get_compounds(int(search_text), 'cid')[0]
-            else:
-                compound = pcp.get_compounds(search_text, 'name')[0]
-
-            smiles = compound.isomeric_smiles
-            if not smiles:
-                raise ValueError("No SMILES found for the given input.")
-
-            current_text = self.smiles_input.toPlainText().strip()
-            new_text = f"{current_text}.{smiles}" if current_text else smiles
-            self.smiles_input.setText(new_text)
-
-            if not self.csv_dictionary["code_name"][self.current_index - 1]:
-                self.csv_dictionary["code_name"][self.current_index - 1] = search_text
-            self.update_properties()
-            logging.debug("at find_smiles_from_PubChem >>> updating properties")
-            self.search_pubchem_input.clear()
-
+            smiles = pubchem2smiles(code_name)
         except IndexError:
             QMessageBox.warning(self, "Error", "No compound found for the given input. Please check the CID or name.")
         except Exception as e:
             QMessageBox.warning(self, "Error", f"An error occurred: {str(e)}")
+
+        current_text = self.smiles_input.toPlainText().strip()
+        new_text = f"{current_text}.{smiles}" if current_text else smiles
+        self.smiles_input.setText(new_text)
+
+        if not self.csv_dictionary["code_name"][self.current_index - 1]:
+            self.csv_dictionary["code_name"][self.current_index - 1] = code_name
+        self.update_properties()
+        self.search_pubchem_input.clear()
 
     def enumerate_smiles(self, smiles):
         """Enumerate all possible SMILES strings for a molecule."""
@@ -771,6 +744,11 @@ class smiles_to_csv(QWidget):
                 self.selected_atoms = []
                 return
 
+
+
+
+
+
 # PROPERTIES FUNCTIONS
     def update_properties(self):
         """Update the properties box with:
@@ -922,7 +900,6 @@ class smiles_to_csv(QWidget):
         smiles = self.smiles_input.toPlainText()
         mol = Chem.MolFromSmiles(smiles)
         metal_atoms = [] 
-        self.smiles_w_metal = []
         transition_metals = ['Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Y', 'Zr', 'Nb', 'Mo',
                             'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au',
                             'Hg', 'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds', 'Rg', 'Cn', 'Nh', 'Fl', 'Mc', 'Lv', 'Ts', 'Og']
@@ -931,7 +908,6 @@ class smiles_to_csv(QWidget):
                 metal_atoms.append(atom.GetSymbol())
         if len(metal_atoms) > 0:
             self.smiles_w_metal.append(self.current_index)
-            print(self.smiles_w_metal)
             self.log_box_label.setText(f"Transition metal atoms detected in SMILES: {metal_atoms}. Select complex_type. Check charge and multiplicity!")
             # self.complex_type_combobox.setEnabled(True)
         else:
@@ -939,7 +915,10 @@ class smiles_to_csv(QWidget):
             # self.complex_type_combobox.setEnabled(False)
         return 
 
-# NAVIGATION FUNCTIONS
+
+
+
+# NAVIGATION FUNCTIONS 
     def next_molecule(self):
         """Move to the next index in csv dictionary and update display."""
         if self.current_index == self.total_index == 1:
@@ -997,7 +976,12 @@ class smiles_to_csv(QWidget):
 
         self.update_display()
 
-# UI ELEMENTS UPDATE FUNCTIONS
+
+
+
+
+
+# UI ELEMENTS UPDATE FUNCTIONS (This will definitely stay but might need to rewrite quite heavily)
     def index_and_total_label_update(self):
         self.index_and_total_label.setText(f"{self.current_index}/{self.total_index}")
 
@@ -1022,7 +1006,7 @@ class smiles_to_csv(QWidget):
 
     def closeEvent(self, event):
         """Handle the close event to prompt saving the CSV file, with the added icon."""
-        pixmap = QPixmap(red_icon_path)
+        pixmap = QPixmap(icons.red_path)
         icon = QIcon(pixmap)
         
         if self.file_name is None: 
@@ -1048,9 +1032,9 @@ class smiles_to_csv(QWidget):
 
     def save_csv_file(self):
         """Save the csv_dictionary to a file."""
-        error_pixmap = QPixmap(red_icon_path)
+        error_pixmap = QPixmap(icons.red_path)
         error_icon = QIcon(error_pixmap)
-        success_pixmap = QPixmap(green_icon_path)
+        success_pixmap = QPixmap(icons.green_path)
         success_icon = QIcon(success_pixmap)
         for index in range(len(self.csv_dictionary["code_name"])):
             if self.csv_dictionary["code_name"][index] == "":
@@ -1081,6 +1065,13 @@ class smiles_to_csv(QWidget):
         msgBox.exec()
         return True  # again for the closing event
 
+
+
+
+
+
+
+
 # CHEMDRAW FUNCTIONS
     def import_file(self):
         """Import an SDF or ChemDraw file, extract SMILES, and display them."""
@@ -1088,7 +1079,7 @@ class smiles_to_csv(QWidget):
         if not file_name:
             return
         try:
-            self.initialize_csv_dictionary()
+            self.initialise_csv_dictionary()
             smiles_list = []
 
             if file_name.endswith(".sdf"):
@@ -1190,7 +1181,7 @@ class smiles_to_csv(QWidget):
         clipboard = QApplication.clipboard()
         command = self.aqme_rungen()
         clipboard.setText(command)
-        pixmap = QPixmap(green_icon_path)
+        pixmap = QPixmap(icons.green_path)
         icon = QIcon(pixmap)
         msg = QMessageBox(self)
         msg.setWindowTitle("Command Copied")
@@ -1224,9 +1215,9 @@ class smiles_to_csv(QWidget):
             for index in self.smiles_w_metal:
                 if index not in changed_charge_multiplicity:
                     msgBox = QMessageBox(self)
-                    msgBox.setIconPixmap(QPixmap(red_icon_path))
+                    msgBox.setIconPixmap(QPixmap(icons.red_path))
                     msgBox.setWindowTitle("Warning")
-                    msgBox.setText(f"Please check the charge and multiplicity for the transition metal complex(es): {', '.join([self.csv_dictionary['code_name'][idx - 1] for idx in self.smiles_w_metal])}.")
+                    msgBox.setText(f"Please check the charge and multiplicity for the transition metal complex(es): {', '.join(sorted(set(self.csv_dictionary['code_name'][idx - 1] for idx in self.smiles_w_metal)))}.")
                     msgBox.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
                     msgBox.setButtonText(QMessageBox.StandardButton.Yes, "Proceed Anyway")
                     msgBox.setButtonText(QMessageBox.StandardButton.No, "Go Back")
@@ -1236,7 +1227,7 @@ class smiles_to_csv(QWidget):
         for value in self.csv_dictionary["SMILES"]:
             if value == "":
                 msgBox = QMessageBox(self)
-                msgBox.setIconPixmap(QPixmap(red_icon_path))
+                msgBox.setIconPixmap(QPixmap(icons.red_path))
                 msgBox.setWindowTitle("Warning")
                 msgBox.setText("No SMILES found. Please enter a SMILES string.")
                 msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
@@ -1309,7 +1300,7 @@ class smiles_to_csv(QWidget):
     def process_finished(self, exitCode, exitStatus):
         """Handle the process finish event and display a message box."""
         if exitCode == 0:
-            pixmap = QPixmap(green_icon_path)
+            pixmap = QPixmap(icons.green_path)
             icon = QIcon(pixmap)
             msgBox = QMessageBox(self)
             msgBox.setWindowTitle("AQME Run Completed")
@@ -1319,7 +1310,7 @@ class smiles_to_csv(QWidget):
             msgBox.setStandardButtons(QMessageBox.Ok)
             msgBox.exec()
         else:
-            pixmap = QPixmap(red_icon_path)
+            pixmap = QPixmap(icons.red_path)
             icon = QIcon(pixmap)
             msgBox = QMessageBox(self)
             msgBox.setWindowTitle("AQME Run Failed")
@@ -1367,3 +1358,5 @@ class smiles_to_csv(QWidget):
 # add intermedaite plus transition state option in the show all 
 
 # fucking dark mode man !!!!
+
+# realised find_metal_atom only runs once the complex is viewed once but if it's just freshly loaded it would never know. (bad) however good thing at least it can work pretty okay with large amounts of data although it's definitely not made for that.
