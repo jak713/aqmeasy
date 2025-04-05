@@ -1,7 +1,5 @@
 from PySide6.QtWidgets import QDialog, QTableWidget, QTableWidgetItem, QVBoxLayout, QHBoxLayout, QPushButton
 from PySide6.QtCore import Qt
-from models.smiles2csv_model import csv_dictionary as csv_model
-
 
 class csv_table(QDialog):
     def __init__(self, csv_model, smiles2pixmap, parent=None):

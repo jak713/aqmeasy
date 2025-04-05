@@ -39,16 +39,15 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(central_widget)
 
-        self.smiles2csv_list = []
         label_layout = QHBoxLayout()
         button_layout = QHBoxLayout()
 
         label_for_csearch = QLabel("Conformational\nSearch:")
         label_layout.addWidget(label_for_csearch)
-        button_for_csearch = QPushButton("CSEARCH")
-        button_for_csearch.setFixedHeight(50)
-        button_for_csearch.clicked.connect(self.new_smiles2csv_window)
-        button_layout.addWidget(button_for_csearch)
+        self.button_for_csearch = QPushButton("CSEARCH")
+        self.button_for_csearch.setFixedHeight(50)
+        self.button_for_csearch.clicked.connect(self.new_smiles2csv_window)
+        button_layout.addWidget(self.button_for_csearch)
         
         label_for_qprep = QLabel("Quantum\nPreprocessing:")
         label_layout.addWidget(label_for_qprep)
@@ -119,8 +118,9 @@ class MainWindow(QMainWindow):
     def new_smiles2csv_window(self):
         """Opens a new window for converting SMILES to CSV"""
         new_smiles2csv = smiles_to_csv()
-        self.smiles2csv_list.append(new_smiles2csv)
-        new_smiles2csv.destroyed.connect(lambda obj: self.smiles2csv_list.remove(new_smiles2csv))
+        self.button_for_csearch.setDisabled(True)
+        new_smiles2csv.setAttribute(Qt.WA_DeleteOnClose)
+        new_smiles2csv.destroyed.connect(lambda: self.button_for_csearch.setDisabled(False))
         new_smiles2csv.show()
 
     def new_qprep_widget(self):
@@ -136,6 +136,4 @@ class MainWindow(QMainWindow):
         pass
 
     def closeEvent(self, event):
-        for smiles2csv in self.smiles2csv_list:
-            smiles2csv.close()
         event.accept()
