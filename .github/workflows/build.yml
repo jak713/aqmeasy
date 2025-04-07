@@ -19,11 +19,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+
       - name: Install CMake
-        if: runner.os == 'Windows'
         uses: jwlawson/actions-setup-cmake@v2
         with:
-          cmake-version: "3.22.x" 
+          cmake-version: "3.22.x"
 
 
       - name: Set Up Miniconda (Linux/Mac)
@@ -38,7 +38,7 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           eval "$(conda shell.bash hook)"
-          conda create -y -n buildenv python=3.10 rdkit xtb crest aqme -c conda-forge
+          conda create -y -n buildenv python=3.10 xtb crest aqme rdkit -c conda-forge
           conda activate buildenv
 
 
@@ -48,7 +48,6 @@ jobs:
         with:
           update: true
           install: mingw-w64-x86_64-gcc-fortran mingw-w64-x86_64-gcc mingw-w64-x86_64-ninja git
-
 
 
       - name: Compile CREST from Source (Windows)
@@ -65,7 +64,7 @@ jobs:
 
       - name: Add CREST Binary to PATH (Windows)
         if: runner.os == 'Windows'
-        run: echo "$HOME/crest/_build" >> $GITHUB_PATH
+        run: echo "/c/crest/_build" >> $GITHUB_PATH
 
 
       - name: Install Pip Dependencies
@@ -75,7 +74,11 @@ jobs:
 
       - name: Build Executable with PyInstaller
         run: |
-          pyinstaller --onefile --noconsole --windowed main.py
+          pyinstaller --onefile --noconsole --windowed \
+            --hidden-import=rdkit \
+            --hidden-import=xtb \
+            --hidden-import=crest \
+            main.py
 
 
       - name: Upload Artifact
