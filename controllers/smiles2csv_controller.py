@@ -43,24 +43,24 @@ class CsvController:
         self.model[key][row] = item.text()
         self.model.signals.updated.emit()
 
-    # def add_intermediate(self):
-    #     """Add an intermediate to the CSV table by combining the SMILES strings of the selected items in the csv_table."""
-    #     selected_items = self.table.selectedItems()
-    #     if len(selected_items) < 2:
-    #         return
-    #     smiles = ""
-    #     for item in selected_items:
-    #         smiles += self.model["SMILES"][item.row()] + "."
-    #     smiles = smiles[:-1]
-    #     index = self.table.currentRow()
-    #     self.model["SMILES"][index] = smiles
-    #     self.model["code_name"][index] = "Intermediate"
-    #     self.model["charge"][index] = smiles2charge(smiles)
-    #     self.model["multiplicity"][index] = smiles2multiplicity(smiles)
-    #     self.model["constraints_atoms"][index] = ""
-    #     self.model["constraints_dist"][index] = ""
-    #     self.model["constraints_angle"][index] = ""
-    #     self.model["constraints_dihedral"][index] = ""
+    def add_intermediate(self):
+        """Add an intermediate to the CSV table by combining the SMILES strings of the selected items in the csv_table."""
+        selected_items = self.table.selectedItems()
+        if len(selected_items) < 2:
+            return
+        smiles = ""
+        for item in selected_items:
+            smiles += self.model["SMILES"][item.row()] + "."
+        smiles = smiles[:-1]
+        index = self.table.currentRow()
+        self.model["SMILES"][index] = smiles
+        self.model["code_name"][index] = f"Intermediate_{self.model['code_name'][index]}"
+        self.model["charge"][index] = smiles2charge(smiles)
+        self.model["multiplicity"][index] = smiles2multiplicity(smiles)
+        self.model["constraints_atoms"][index] = ""
+        self.model["constraints_dist"][index] = ""
+        self.model["constraints_angle"][index] = ""
+        self.model["constraints_dihedral"][index] = ""
 
     def add_transition_state(self):
         """Add a transition state to the CSV table."""
@@ -132,12 +132,6 @@ class CsvController:
         self.parent.success("CSV file saved successfully.")
         return True  # again for the closing event
 
-
-
-
-
-
-
     def display_molecule(self,checked = None):
         """Display the molecule in the molecule_label using rdkit.Chem.Draw module"""
         rdkit.rdBase.DisableLog('rdApp.*')
@@ -189,10 +183,6 @@ class CsvController:
         except Exception as e:
             if self.parent.molecule_label is not None:
                 self.parent.molecule_label.setText(f"Error displaying molecule: {str(e)}")
-
-
-
-
 
     def mousePressEvent(self, pos):
         """Handle mouse press events to select atoms and add constraints.
