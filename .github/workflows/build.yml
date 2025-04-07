@@ -19,12 +19,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+
       - name: Set Up Miniconda (Linux/Mac)
         if: runner.os != 'Windows'
         uses: conda-incubator/setup-miniconda@v3
         with:
           miniconda-version: "latest"
           channels: conda-forge
+
 
       - name: Install Conda Dependencies (Linux/Mac)
         if: runner.os != 'Windows'
@@ -33,12 +35,14 @@ jobs:
           conda create -y -n buildenv python=3.10 rdkit xtb crest aqme -c conda-forge
           conda activate buildenv
 
-      - name: Set Up MSYS2
+
+      - name: Set Up MSYS2 and Install Dependencies
         if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
           update: true
-          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-gfortran cmake ninja git
+          install: mingw-w64-x86_64-gcc-fortran mingw-w64-x86_64-gcc cmake ninja git
+
 
       - name: Compile CREST from Source (Windows)
         if: runner.os == 'Windows'
@@ -51,17 +55,21 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=Release ..
           ninja
 
+
       - name: Add CREST Binary to PATH (Windows)
         if: runner.os == 'Windows'
         run: echo "$HOME/crest/_build" >> $GITHUB_PATH
+
 
       - name: Install Pip Dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel pyinstaller pyside6 pubchempy
 
+
       - name: Build Executable with PyInstaller
         run: |
           pyinstaller --onefile --noconsole --windowed main.py
+
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
