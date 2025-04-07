@@ -1,12 +1,12 @@
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication
 
 from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors
 from rdkit.Chem.Draw import rdMolDraw2D
 
 import pubchempy as pcp
-
 
 def smiles2pixmap(smiles):
     """Convert a SMILES string to a QPixmap image of the molecule.
@@ -171,5 +171,12 @@ def smiles2findmetal(smiles):
     else:
         return 
     
-def import_file():
-    pass
+def command2clipboard(command):
+    clipboard = QApplication.clipboard()
+    command = str(command)
+    try:
+        clipboard.setText(command)
+        return True
+    except Exception:
+        return False
+    

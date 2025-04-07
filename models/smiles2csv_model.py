@@ -10,7 +10,6 @@ class csv_model(UserDict):
     def __init__(self, *args, **kwargs):
         self.signals = csv_model_signals()
         super().__init__(*args, **kwargs)
-        self.current_index = 1
 
     def __setitem__(self, key, value):
         prev_value = self.get(key)
@@ -32,3 +31,5 @@ csv_dictionary = csv_model(
     complex_type = [""],
     geom = [""],
 )
+
+# thinking about changing this up so i can create a new instance of data model with each window (same as before) rather than them being all connected here at the minute (synced)

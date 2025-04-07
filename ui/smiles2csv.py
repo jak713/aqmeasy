@@ -5,19 +5,16 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 import os
-import csv
 import subprocess
 import tempfile
 
-from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QTextEdit, QCheckBox, QInputDialog, QMessageBox, QSizePolicy, QFileDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem, QFrame, QGridLayout, QDoubleSpinBox
+from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QTextEdit, QCheckBox, QMessageBox, QSizePolicy, QFileDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem, QFrame, QGridLayout, QDoubleSpinBox
 from PySide6.QtCore import Qt, QProcess
 from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, QDoubleValidator, QTextCursor
 
 from rdkit import Chem
-from rdkit.Chem.Draw import rdMolDraw2D, rdDepictor
-import rdkit.rdBase
 
-from utils import  pubchem2smiles, smiles2enumerate, smiles2numatoms, smiles2numelectrons, smiles2findmetal, smiles2charge, smiles2multiplicity
+from utils import  pubchem2smiles, smiles2enumerate, smiles2numatoms, smiles2numelectrons, smiles2findmetal, smiles2charge, smiles2multiplicity, command2clipboard
 import ui.resources.icons as icons
 
 from models.smiles2csv_model import csv_dictionary as csv_model
@@ -32,13 +29,14 @@ from controllers.smiles2csv_controller import csv_controller as control
 class smiles_to_csv(QWidget):
     def __init__(self):
         super().__init__()
+        control.set_parent(self)
+
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.resize(900,800)
         self.setWindowTitle("smiles2csv")
         QShortcut(QKeySequence(Qt.Key_Escape), self, lambda: self.clear_focus_on_inputs())
-        self.current_index = 1
+
         self.file_name = None
-        self.total_index = len(csv_model["SMILES"]) 
         self.smiles_w_metal = [] 
 
         self.top_layout = QHBoxLayout()
@@ -59,7 +57,7 @@ class smiles_to_csv(QWidget):
         self.main_layout.addLayout(self.bottom_layout, 1)
         self.setLayout(self.main_layout)
 
-        self.index_and_total_label = QLabel(f"{self.current_index}/{self.total_index}", self)
+        self.index_and_total_label = QLabel(f"{control.current_index}/{control.total_index}", self)
         self.control1_layout.addWidget(self.index_and_total_label)
 
         self.import_button = QPushButton("Import", self)
@@ -68,7 +66,7 @@ class smiles_to_csv(QWidget):
         self.control1_layout.addWidget(self.import_button)
 
         self.new_molecule_button = QPushButton("New Molecule", self)
-        self.new_molecule_button.clicked.connect(lambda: (logging.debug("at new_molecule_button >>> self.new_molecule()"), self.new_molecule()))
+        self.new_molecule_button.clicked.connect(lambda: (logging.debug("at new_molecule_button >>> self.new_molecule()"), control.new_molecule()))
         self.control1_layout.addWidget(self.new_molecule_button)
 
         self.show_all_button = QPushButton("Show All", self)
@@ -80,7 +78,7 @@ class smiles_to_csv(QWidget):
         self.save_csv_button.setToolTip("Save CSV file")
         self.save_csv_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton))
         self.save_csv_button.setStyleSheet("font-size: 12px; color: black;")
-        self.save_csv_button.clicked.connect(lambda: (logging.debug("at save_csv_button >>> save_csv"), self.save_csv_file()))
+        self.save_csv_button.clicked.connect(lambda: (logging.debug("at save_csv_button >>> save_csv"), control.save_csv_file()))
         self.control1_layout.addWidget(self.save_csv_button)
 
         self.how_to_label = QLabel("Click to select atoms and add constraints, click again to deselect.", self)
@@ -94,6 +92,8 @@ class smiles_to_csv(QWidget):
         self.molecule_label.setStyleSheet("background-color: #f8f8f8; border: 1px solid black; color: black; font-size: 12px;")
         self.molecule_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)  
         self.molecule_label.setMinimumSize(250, 200)  
+
+        # Pass the molecule_label to the controller
         self.left_layout.addWidget(self.molecule_label)
 
         self.atom_electron_label = QLabel(self.molecule_label)
@@ -113,11 +113,11 @@ class smiles_to_csv(QWidget):
         self.smiles_input.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.right_layout.addWidget(self.smiles_input, 1)
 
-        self.smiles_input.textChanged.connect(lambda: control.update_smiles_model(self.smiles_input.toPlainText(), self.current_index))
+        self.smiles_input.textChanged.connect(lambda: control.update_smiles_model(self.smiles_input.toPlainText()))
 
         self.show_numbered_atoms_toggle = QCheckBox("Show atom labels", self)
         self.show_numbered_atoms_toggle.setChecked(False)
-        self.show_numbered_atoms_toggle.stateChanged.connect(lambda: self.display_molecule(self.show_numbered_atoms_toggle.isChecked()))
+        self.show_numbered_atoms_toggle.stateChanged.connect(lambda: control.display_molecule(self.show_numbered_atoms_toggle.isChecked()))
         self.control2_layout.addWidget(self.show_numbered_atoms_toggle)
 
         self.search_pubchem_input = QLineEdit(self)
@@ -138,20 +138,20 @@ class smiles_to_csv(QWidget):
 
     # CONTROL BUTTONS
         self.delete_button = QPushButton("Delete", self)
-        self.delete_button.clicked.connect(self.delete_molecule)
+        self.delete_button.clicked.connect(control.delete_molecule)
         self.control3_layout.addWidget(self.delete_button)
 
         self.previous_button = QPushButton("Previous", self)
         self.previous_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_ArrowLeft))
-        self.previous_button.clicked.connect(lambda: (logging.debug("at previous_button >>> self.previous_molecule"), self.previous_molecule()))
-        QShortcut(QKeySequence(Qt.Key_Left), self, self.previous_molecule)
+        self.previous_button.clicked.connect(lambda: (logging.debug("at previous_button >>> self.previous_molecule"), control.previous_molecule()))
+        QShortcut(QKeySequence(Qt.Key_Left), self, control.previous_molecule)
         self.control3_layout.addWidget(self.previous_button)
 
         self.next_button = QPushButton("Next ", self)
         self.next_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_ArrowRight))
         self.next_button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.next_button.clicked.connect(lambda: (logging.debug("at next_button >>> self.next_molecule"), self.next_molecule()))
-        QShortcut(QKeySequence(Qt.Key_Right), self, self.next_molecule)
+        self.next_button.clicked.connect(lambda: (logging.debug("at next_button >>> self.next_molecule"), control.next_molecule()))
+        QShortcut(QKeySequence(Qt.Key_Right), self, control.next_molecule)
         self.control3_layout.addWidget(self.next_button)
 
     # OUTPUTS
@@ -258,7 +258,7 @@ class smiles_to_csv(QWidget):
         # Row 4 - copy command/save csv
         self.copy_command_button = QPushButton("Copy Command", self)
         self.copy_command_button.setStyleSheet("font-size: 12px; color: black;")
-        self.copy_command_button.clicked.connect(lambda: (logging.debug("at copy_command_button >>> copy_command"), self.copy_command_to_clipboard()))
+        self.copy_command_button.clicked.connect(lambda: self.success("Command copied to clipboard.") if command2clipboard(self.aqme_rungen()) else self.failure("Failed to copy command to clipboard."))
         self.aqme_setup_grid.addWidget(self.copy_command_button, 4,0)
 
         # Row 5 - Run button
@@ -378,40 +378,23 @@ class smiles_to_csv(QWidget):
             self.advanced_settings_button.setText("Show Advanced Settings")
 
 
-    # def handle_smiles_change(self):
-    #     # logging.debug("at smiles_input >>> handling SMILES text change")
-    #     smiles = self.smiles_input.toPlainText()
-    #     enumerated_smiles = smiles2enumerate(smiles)
-    #     if enumerated_smiles is not None:
-    #         self.smiles_output.setText(enumerated_smiles)
-    #     self.display_molecule(self.show_numbered_atoms_toggle.isChecked())
-    #     self.find_metal_atom(smiles)
-
-
     def handle_property_change(self, item):
         """Handle changes to editable properties and update the csv_dictionary."""
         logging.debug("at handle_property_change >>> handling property change")
         if item.row() == 0:  
-            csv_model["code_name"][self.current_index - 1] = item.text()
+            csv_model["code_name"][control.current_index - 1] = item.text()
         elif item.row() == 1:  
-            csv_model["charge"][self.current_index - 1] = item.text()
+            csv_model["charge"][control.current_index - 1] = item.text()
             # Track user-defined charge
             if not hasattr(self, 'user_defined_charge'):
                 self.user_defined_charge = {}
-            self.user_defined_charge[self.current_index] = item.text()
+            self.user_defined_charge[control.current_index] = item.text()
         elif item.row() == 2:  
-            csv_model["multiplicity"][self.current_index - 1] = item.text()
+            csv_model["multiplicity"][control.current_index - 1] = item.text()
             # Track user-defined multiplicity
             if not hasattr(self, 'user_defined_multiplicity'):
                 self.user_defined_multiplicity = {}
-            self.user_defined_multiplicity[self.current_index] = item.text()
-
-
-
-
-
-
-
+            self.user_defined_multiplicity[control.current_index] = item.text()
 
 
 # SMILES HANDILING FUNCTIONS (this to certain extent is also UI handling)
@@ -435,12 +418,12 @@ class smiles_to_csv(QWidget):
         except Exception as e:
             QMessageBox.warning(self, "Error", f"An error occurred: {str(e)}")
 
-        current_text = csv_model["SMILES"][self.current_index - 1]
+        current_text = csv_model["SMILES"][control.current_index - 1]
         new_text = f"{current_text}.{smiles}" if current_text else smiles
         self.smiles_input.setText(new_text)
 
-        if not csv_model["code_name"][self.current_index - 1]:
-            csv_model["code_name"][self.current_index - 1] = code_name
+        if not csv_model["code_name"][control.current_index - 1]:
+            csv_model["code_name"][control.current_index - 1] = code_name
         self.update_properties()
         self.update_ui()
         self.search_pubchem_input.clear()
@@ -448,217 +431,12 @@ class smiles_to_csv(QWidget):
     def resizeEvent(self, event):
         """Handle window resize events to refresh the molecule display."""
         super().resizeEvent(event)
-        self.display_molecule(self.show_numbered_atoms_toggle.isChecked())
-
-    def display_molecule(self,checked = None):
-        """Display the molecule in the molecule_label using rdkit.Chem.Draw module"""
-        logging.debug("at display_molecule >>> displaying molecule")
-        rdkit.rdBase.DisableLog('rdApp.*')
-        rdDepictor.SetPreferCoordGen(True)
-
-        smiles = csv_model["SMILES"][self.current_index - 1]
-        if not smiles:
-            self.molecule_label.setText("No molecule to display.")
-            self.atom_coords = None
-            return
-
-        try:
-            mol = Chem.MolFromSmiles(smiles)
-            if mol is None:
-                raise ValueError("Invalid SMILES string.")
-            
-            mol = Chem.AddHs(mol)
-            for i, atom in enumerate(mol.GetAtoms()):
-                atom.SetAtomMapNum(i + 1)
-            
-            width = self.molecule_label.width()
-            height = self.molecule_label.height()
-            drawer = rdMolDraw2D.MolDraw2DCairo(width, height)
-            
-            if checked:
-                drawer.drawOptions().noAtomLabels = False
-            if not checked:
-                drawer.drawOptions().noAtomLabels = True
-
-            drawer.drawOptions().bondLineWidth = 1.5
-
-            highlight_atoms = []
-            highlight_colors = {}
-            
-            if hasattr(self, 'selected_atoms') and self.selected_atoms:
-                highlight_atoms = [atom_idx - 1 for atom_idx in self.selected_atoms]
-                highlight_colors = {idx: (0.5176, 0.6314, 0.9922) for idx in highlight_atoms}
-
-            drawer.DrawMolecule(mol, highlightAtoms=highlight_atoms, highlightAtomColors=highlight_colors)
-            drawer.FinishDrawing()
-            drawer.WriteDrawingText("/tmp/molecule.svg")
-            
-            self.atom_coords = [drawer.GetDrawCoords(i) for i in range(mol.GetNumAtoms())]
-
-            pixmap = QPixmap("/tmp/molecule.svg")
-            if self.molecule_label is not None:
-                self.molecule_label.setPixmap(pixmap)
-                
-        except Exception as e:
-            if self.molecule_label is not None:
-                self.molecule_label.setText(f"Error displaying molecule: {str(e)}")
+        control.display_molecule(self.show_numbered_atoms_toggle.isChecked())
 
     def mousePressEvent(self, event: QMouseEvent):
-        """Handle mouse press events to select atoms and add constraints.
-        The logic is to check if the mouse press event is within the molecule_label"""
-        logging.debug("at mousePressEvent >>> handling mouse press event")
         if event.button() == Qt.MouseButton.LeftButton:
             pos = event.position()
-            if self.molecule_label and self.molecule_label.geometry().contains(pos.toPoint()):
-                x = pos.x() - self.molecule_label.x()
-                y = pos.y() - self.molecule_label.y()
-                selected_atom = self.get_atom_at_position(x, y)
-                if selected_atom is not None:
-                    self.handle_atom_selection(selected_atom)
-                    self.display_molecule(self.show_numbered_atoms_toggle.isChecked())  
-
-    def get_atom_at_position(self, x, y):
-        """Get the atom index at the given position by 
-        checking the distance from the atom coordinates. 
-        The atom coordinates are found using RDKit.
-        The logic is to check if the distance between the mouse click
-        and the atom coordinates is less than a threshold."""
-        logging.debug("at get_atom_at_position >>> getting atom at position")
-        if not hasattr(self, 'atom_coords'):
-            return None
-        elif self.atom_coords is not None:
-            for idx, coord in enumerate(self.atom_coords):
-                if len(csv_model["SMILES"][self.current_index - 1]) <= 50: # small molecule = bigger click area
-                    if (coord.x - x) ** 2 + (coord.y - y) ** 2 < 100: 
-                        return idx + 1
-                elif len(csv_model["SMILES"][self.current_index - 1]) > 50 : # big molecule = smaller click area BUT should probs keep playing around with these
-                    if (coord.x - x) ** 2 + (coord.y - y) ** 2 < 40: 
-                        return idx + 1
-            return None
-
-    def handle_atom_selection(self, atom_idx):
-        """Handle the selection of an atom by adding constraints.
-        If same atom pressed twice, deselect it.
-        If two atoms are selected, add distance constraint.
-        If three atoms are selected, add angle constraint.
-        If four atoms are selected, add dihedral constraint."""
-        logging.debug("at handle_atom_selection >>> handling atom selection")
-        if not hasattr(self, 'selected_atoms'):
-            self.selected_atoms = []
-
-        if atom_idx in self.selected_atoms:  # deselect if already selected
-            self.selected_atoms.remove(atom_idx)
-            self.display_molecule(self.show_numbered_atoms_toggle.isChecked())  # update the highlighted atom
-            return
-        
-        self.selected_atoms.append(atom_idx)
-        self.display_molecule(self.show_numbered_atoms_toggle.isChecked())  # update the highlighted atom
-        atom1 = self.selected_atoms[0]
-        mol = Chem.MolFromSmiles(csv_model["SMILES"][self.current_index - 1])
-        mol = Chem.AddHs(mol) 
-        atom1_type = mol.GetAtomWithIdx(atom1 - 1).GetSymbol()
-
-        if len(self.selected_atoms) == 1:
-            self.constraint_type, ok = QInputDialog.getItem(
-                self, 
-                "Select Constraint Type", 
-                f"Current selection: {atom1_type}{self.selected_atoms}.\nChoose constraint type:", 
-                ["Distance", "Angle", "Dihedral"],
-                0,
-                False
-            )
-            if not ok:
-                self.selected_atoms = []
-                return
-        
-        if self.constraint_type == "Distance" and len(self.selected_atoms) == 2:
-            self.add_distance_constraints()
-        elif self.constraint_type == "Angle" and len(self.selected_atoms) == 3:
-            self.add_angle_constraints()
-        elif self.constraint_type == "Dihedral" and len(self.selected_atoms) == 4:
-            self.add_dihedral_constraints()
-
-    def add_distance_constraints(self):
-        """Add distance constraints between two selected atoms."""
-        if len(self.selected_atoms) == 2:
-            atom1, atom2 = self.selected_atoms
-            mol = Chem.MolFromSmiles(csv_model["SMILES"][self.current_index - 1])
-            mol = Chem.AddHs(mol) 
-            atom1_type = mol.GetAtomWithIdx(atom1 - 1).GetSymbol()
-            atom2_type = mol.GetAtomWithIdx(atom2 - 1).GetSymbol()
-            distance, ok = QInputDialog.getDouble(self, "Distance Constraint", f"Enter distance between {atom1_type}:{atom1} and {atom2_type}:{atom2} (Å):")
-            if ok:
-                if distance <= 0:
-                    QMessageBox.warning(self, "Invalid Distance", "Distance must be greater than 0.", QMessageBox.StandardButton.Ok, QMessageBox.StandardButton.Ok)
-                    return  self.add_distance_constraints()
-                
-                if not hasattr(self, 'each_dist'):
-                    self.each_dist = {self.current_index: []}
-                if self.current_index not in self.each_dist:
-                    self.each_dist[self.current_index] = []
-                self.each_dist[self.current_index].append([atom1, atom2, distance])
-                csv_model["constraints_dist"][self.current_index - 1] = str(self.each_dist[self.current_index])
-                self.update_properties()
-                self.selected_atoms = []
-            else:
-                self.selected_atoms = []
-                return
-
-    def add_angle_constraints(self):
-        """Add angle constraints between three selected atoms."""
-        if len(self.selected_atoms) == 3:
-            atom1, atom2, atom3 = self.selected_atoms
-            mol = Chem.MolFromSmiles(csv_model["SMILES"][self.current_index - 1])
-            mol = Chem.AddHs(mol) 
-            atom1_type = mol.GetAtomWithIdx(atom1 - 1).GetSymbol()
-            atom2_type = mol.GetAtomWithIdx(atom2 - 1).GetSymbol()
-            atom3_type = mol.GetAtomWithIdx(atom3 - 1).GetSymbol()
-            angle, ok = QInputDialog.getDouble(self, "Angle Constraint", f"Enter angle between {atom1_type}:{atom1}, {atom2_type}:{atom2}, and {atom3_type}:{atom3} (°):")
-            if ok:
-                if angle <= 0 or angle >= 360:
-                    QMessageBox.warning(self, "Invalid Angle", "Angle must be between 0 and 360 degrees.", QMessageBox.StandardButton.Ok, QMessageBox.StandardButton.Ok)
-                    return self.addAngleConstraints()
-                if not hasattr(self, 'each_angle'):
-                    self.each_angle = {self.current_index: []}
-                if self.current_index not in self.each_angle:
-                    self.each_angle[self.current_index] = []
-                self.each_angle[self.current_index].append([atom1, atom2, atom3, angle])
-                csv_model["constraints_angle"][self.current_index - 1] = str(self.each_angle[self.current_index])
-                self.update_properties()
-                self.selected_atoms = []
-            else:
-                self.selected_atoms = []
-                return
-
-    def add_dihedral_constraints(self):
-        """Add dihedral constraints between four selected atoms."""
-        if len(self.selected_atoms) == 4:
-            atom1, atom2, atom3, atom4 = self.selected_atoms
-            mol = Chem.MolFromSmiles(csv_model["SMILES"][self.current_index - 1])
-            mol = Chem.AddHs(mol)
-            atom1_type = mol.GetAtomWithIdx(atom1 - 1).GetSymbol()
-            atom2_type = mol.GetAtomWithIdx(atom2 - 1).GetSymbol()
-            atom3_type = mol.GetAtomWithIdx(atom3 - 1).GetSymbol()
-            atom4_type = mol.GetAtomWithIdx(atom4 - 1).GetSymbol()
-            dihedral, ok = QInputDialog.getDouble(self, "Dihedral Constraint", f"Enter dihedral angle between {atom1_type}:{atom1}, {atom2_type}:{atom2}, {atom3_type}:{atom3}, and {atom4_type}:{atom4} (°):")
-            if ok:
-                if dihedral < -180 or dihedral > 180:
-                    QMessageBox.warning(self, "Invalid Dihedral", "Dihedral angle must be between -180 and 180 degrees.", QMessageBox.StandardButton.Ok, QMessageBox.StandardButton.Ok)
-                    return self.addDihedralConstraints()
-                if not hasattr(self, 'each_dihedral'):
-                    self.each_dihedral = {self.current_index: []}
-                if self.current_index not in self.each_dihedral:
-                    self.each_dihedral[self.current_index] = []
-                self.each_dihedral[self.current_index].append([atom1, atom2, atom3, atom4, dihedral])
-                csv_model["constraints_dihedral"][self.current_index - 1] = str(self.each_dihedral[self.current_index])
-                self.update_properties()
-                self.selected_atoms = []
-            else:
-                self.selected_atoms = []
-                return
-
-
-
+            control.mousePressEvent(pos)
 
 # PROPERTIES FUNCTIONS
     def update_properties(self):
@@ -678,15 +456,15 @@ class smiles_to_csv(QWidget):
         try:
             self.properties_table.setRowCount(9)  
             properties = [
-            ("code_name", csv_model["code_name"][self.current_index - 1]),
-            ("charge", csv_model["charge"][self.current_index - 1]),
-            ("multiplicity", csv_model["multiplicity"][self.current_index - 1]),
-            ("constraints_atoms", csv_model["constraints_atoms"][self.current_index - 1]),
-            ("constraints_dist", csv_model["constraints_dist"][self.current_index - 1]),
-            ("constraints_angle", csv_model["constraints_angle"][self.current_index - 1]),
-            ("constraints_dihedral", csv_model["constraints_dihedral"][self.current_index - 1]),
-            ("complex_type", csv_model["complex_type"][self.current_index - 1]),
-            ("geom", csv_model["geom"][self.current_index - 1]),
+            ("code_name", csv_model["code_name"][control.current_index - 1]),
+            ("charge", csv_model["charge"][control.current_index - 1]),
+            ("multiplicity", csv_model["multiplicity"][control.current_index - 1]),
+            ("constraints_atoms", csv_model["constraints_atoms"][control.current_index - 1]),
+            ("constraints_dist", csv_model["constraints_dist"][control.current_index - 1]),
+            ("constraints_angle", csv_model["constraints_angle"][control.current_index - 1]),
+            ("constraints_dihedral", csv_model["constraints_dihedral"][control.current_index - 1]),
+            ("complex_type", csv_model["complex_type"][control.current_index - 1]),
+            ("geom", csv_model["geom"][control.current_index - 1]),
             ]
             # Temporarily disconnect the signal to avoid any callbacks
             self.properties_table.blockSignals(True)
@@ -713,67 +491,11 @@ class smiles_to_csv(QWidget):
         finally:
             self.is_programmatic_update = old_value
 
-
-
-# NAVIGATION FUNCTIONS 
-    def next_molecule(self):
-        """Move to the next index in csv dictionary and update display."""
-        if self.current_index == self.total_index == 1:
-            return
-        self.current_index = (self.current_index + 1) % (len(csv_model["SMILES"]) +1)
-        if self.current_index == 0:
-            self.current_index = 1
-        self.update_ui()
-
-    def previous_molecule(self):
-        """Move to the previous molecule and update display."""
-        if self.current_index == self.total_index == 1:
-            return
-        self.current_index = (self.current_index - 1) % (len(csv_model["SMILES"])+1)
-        if self.current_index == 0:
-            self.current_index = len(csv_model["SMILES"])
-        self.update_ui()
-
-    def new_molecule(self):
-        """Create a new empty molecule entry in the csv dictionary and update the display."""
-        for key in csv_model.keys():
-            csv_model[key].append("")
-        self.current_index = len(csv_model["SMILES"]) 
-        self.total_index = len(csv_model["SMILES"])
-        self.update_ui()
-
-    def delete_molecule(self):
-        """Delete the current molecule and all associated data (including constraints) from the csv dictionary and update the display."""
-        if self.total_index == 1:
-            for key, value in csv_model.items():
-                value.pop(self.current_index - 1)
-            self.new_molecule()
-            return
-
-        for key in csv_model.keys():
-            csv_model[key].pop(self.current_index - 1)
-
-        for constraint in ['each_dist', 'each_angle', 'each_dihedral']:
-            if hasattr(self, constraint):
-                constraint_dict = getattr(self, constraint)
-                if self.current_index in constraint_dict:
-                    del constraint_dict[self.current_index]
-
-        if hasattr(self, 'selected_atoms'):
-            self.selected_atoms = []
-
-        self.total_index = len(csv_model["SMILES"])
-        self.current_index = (self.current_index - 1) % (self.total_index + 1)
-        if self.current_index == 0:
-            self.current_index = 1
-        self.update_ui()
-
-
 # UI ELEMENTS UPDATE FUNCTIONS (This will definitely stay but might need to rewrite quite heavily)
 
     def update_ui(self):
         """Update all UI elements to reflect the current molecule's data."""
-        smiles = csv_model["SMILES"][self.current_index - 1]
+        smiles = csv_model["SMILES"][control.current_index - 1]
         self.smiles_input.blockSignals(True)
         self.smiles_input.setText(smiles)
         self.smiles_output.setText(smiles2enumerate(smiles))
@@ -784,7 +506,7 @@ class smiles_to_csv(QWidget):
 
         self.smiles_input.blockSignals(False)
 
-        self.display_molecule(self.show_numbered_atoms_toggle.isChecked())
+        control.display_molecule(self.show_numbered_atoms_toggle.isChecked())
 
         self.index_and_total_label_update()
 
@@ -798,12 +520,9 @@ class smiles_to_csv(QWidget):
 
         self.update_properties()
         
-
-
-
-
     def index_and_total_label_update(self):
-        self.index_and_total_label.setText(f"{self.current_index}/{self.total_index}")
+        control.total_index = control.get_total_index()    
+        self.index_and_total_label.setText(f"{control.current_index}/{control.total_index}")
 
     def clear_focus_on_inputs(self):
         self.smiles_input.clearFocus()
@@ -824,7 +543,7 @@ class smiles_to_csv(QWidget):
             reply = msgBox.exec()
             
             if reply == QMessageBox.Save:
-                if not self.save_csv_file():
+                if not control.save_csv_file():
                     event.ignore()  # Prevent closing if saving fails
                 else:
                     event.accept()
@@ -834,54 +553,6 @@ class smiles_to_csv(QWidget):
                 event.ignore()
         else:
             event.accept()
-
-
-
-
-
-
-
-# need to move this one i fear
-    def save_csv_file(self):
-        """Save the csv_dictionary to a file."""
-        error_pixmap = QPixmap(icons.red_path)
-        error_icon = QIcon(error_pixmap)
-        success_pixmap = QPixmap(icons.green_path)
-        success_icon = QIcon(success_pixmap)
-        for index in range(len(csv_model["code_name"])):
-            if csv_model["code_name"][index] == "":
-                msgBox = QMessageBox(self)
-                msgBox.setWindowTitle("Error")
-                msgBox.setText("Please enter a code name for all molecules before saving.")
-                msgBox.setWindowIcon(error_icon)
-                msgBox.setIconPixmap(error_pixmap)
-                msgBox.setStandardButtons(QMessageBox.Ok)
-                msgBox.exec()
-                return False  # for the closing event
-        file_name, _ = QFileDialog.getSaveFileName(self, "Save CSV File", "", "CSV Files (*.csv)")
-        self.file_name = file_name 
-        if not self.file_name:
-            self.file_name = None
-            return False  # for the closing event
-        with open(self.file_name, 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(csv_model.keys())
-            for i in range(len(csv_model["SMILES"])):
-                writer.writerow([csv_model[key][i] for key in csv_model.keys()])   
-        msgBox = QMessageBox(self)
-        msgBox.setWindowTitle("File Saved")
-        msgBox.setText("CSV file saved successfully.")
-        msgBox.setWindowIcon(success_icon)
-        msgBox.setIconPixmap(success_pixmap)
-        msgBox.setStandardButtons(QMessageBox.Ok)
-        msgBox.exec()
-        return True  # again for the closing event
-
-
-
-
-
-
 
 
 # CHEMDRAW FUNCTIONS
@@ -952,9 +623,9 @@ class smiles_to_csv(QWidget):
                         csv_model["geom"].append(row["geom"])
                         csv_model.signals.updated.emit()
                     
-                self.total_index = len(csv_model["SMILES"])
-                if self.total_index > 0:
-                    self.current_index = 1  # assuming indices start from 1
+                control.total_index = control.get_total_index()
+                if control.total_index > 0:
+                    control.current_index = 1  # assuming indices start from 1
                     self.update_properties()
                     self.update_ui()
                 return
@@ -977,11 +648,11 @@ class smiles_to_csv(QWidget):
                     csv_model["SMILES"][-1] = smiles
                     csv_model["charge"][-1] = smiles2charge(smiles)
                     csv_model["multiplicity"][-1] = smiles2multiplicity(smiles)
-            self.total_index = len(csv_model["SMILES"])
+            control.total_index = control.get_total_index()
 
-            for index in range(self.total_index):
+            for index in range(control.total_index):
                 csv_model["code_name"][index] = f"mol_{index + 1}"
-                self.current_index = 1
+                control.current_index = 1
                 
             csv_model.signals.updated.emit()
             self.update_properties()
@@ -994,19 +665,6 @@ class smiles_to_csv(QWidget):
             print(f"An unexpected error occurred: {e}")
 
 # AQME RUN SETUP FUNCTIONS
-    def copy_command_to_clipboard(self):
-        """Copy the generated AQME command to the clipboard."""
-        clipboard = QApplication.clipboard()
-        command = self.aqme_rungen()
-        clipboard.setText(command)
-        pixmap = QPixmap(icons.green_path)
-        icon = QIcon(pixmap)
-        msg = QMessageBox(self)
-        msg.setWindowTitle("Command Copied")
-        msg.setText("Command copied to clipboard.")
-        msg.setWindowIcon(icon)
-        msg.setIconPixmap(pixmap)
-        msg.exec()
 
     def select_output_directory(self):
         """Select the output directory for AQME results."""
@@ -1058,7 +716,7 @@ class smiles_to_csv(QWidget):
                 pass
 
         if self.file_name is None:
-            self.save_csv_file() 
+            control.save_csv_file() 
             if not self.file_name:
                 return
         command = self.aqme_rungen()
@@ -1171,14 +829,35 @@ class smiles_to_csv(QWidget):
         print(aqme_rungen)
         return aqme_rungen
 
-# FOR LATER
+# random 
+    def success(self, message):
+        pixmap = QPixmap(icons.green_path)
+        icon = QIcon(pixmap)
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Success")
+        msg.setText(message)
+        msg.setWindowIcon(icon)
+        msg.setIconPixmap(pixmap)
+        msg.exec()
 
-# To do:
+    def failure(self, message):
+        pixmap = QPixmap(icons.red_path)
+        icon = QIcon(pixmap)
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Failure")
+        msg.setText(message)
+        msg.setWindowIcon(icon)
+        msg.setIconPixmap(pixmap)
+        msg.exec()
+
+
+# TODO:
 # - Add all the parameters to the actual command ... !!!!!
 # - Add the complex_type option when TM is found !
 # - Fix run aqme command  !!!!
 # - expand the pubchem search  ... !
-
+# ---- fix the warning where the smiles entered are not valid (rn nothing really happens but the change is only regirestered when the smiles are valid (or thats how it should be)), similarly changing smiles removes the view of the constraints but doesnt remove them completely at the index level, which I think should be done?
 # add intermedaite plus transition state option in the show all 
 
 # fucking dark mode man !!!!
+

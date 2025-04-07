@@ -118,9 +118,9 @@ class MainWindow(QMainWindow):
     def new_smiles2csv_window(self):
         """Opens a new window for converting SMILES to CSV"""
         new_smiles2csv = smiles_to_csv()
-        self.button_for_csearch.setDisabled(True)
-        new_smiles2csv.setAttribute(Qt.WA_DeleteOnClose)
-        new_smiles2csv.destroyed.connect(lambda: self.button_for_csearch.setDisabled(False))
+        # self.button_for_csearch.setDisabled(True)
+        # new_smiles2csv.setAttribute(Qt.WA_DeleteOnClose)
+        # new_smiles2csv.destroyed.connect(lambda: self.button_for_csearch.setDisabled(False))
         new_smiles2csv.show()
 
     def new_qprep_widget(self):
