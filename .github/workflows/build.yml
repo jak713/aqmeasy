@@ -19,6 +19,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Install CMake
+        if: runner.os == "Windows"
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: "3.22.x" 
+
 
       - name: Set Up Miniconda (Linux/Mac)
         if: runner.os != 'Windows'
