@@ -41,7 +41,8 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           update: true
-          install: mingw-w64-x86_64-gcc-fortran mingw-w64-x86_64-gcc cmake ninja git
+          install: mingw-w64-x86_64-gcc-fortran mingw-w64-x86_64-gcc mingw-w64-x86_64-ninja git
+
 
 
       - name: Compile CREST from Source (Windows)
@@ -50,9 +51,9 @@ jobs:
         run: |
           git clone https://github.com/crest-lab/crest.git
           cd crest
-          export FC=gfortran && export CC=gcc
+          export FC=/mingw64/bin/gfortran && export CC=/mingw64/bin/gcc
           mkdir _build && cd _build
-          cmake -DCMAKE_BUILD_TYPE=Release ..
+          cmake -G "Ninja" ..
           ninja
 
 
