@@ -78,17 +78,16 @@ jobs:
       # Step 10: Add CREST Binary to PATH (Windows)
       - name: Add CREST Binary to PATH (Windows)
         if: runner.os == 'Windows'
-        run:
-          echo "/c/crest/_build" >> $GITHUB_PATH
+        run: echo "/c/crest/_build" >> $GITHUB_PATH
 
       # Step 11: Install Pip Dependencies (All Platforms)
       - name: Install Pip Dependencies
-        run:
+        run: |
           python -m pip install --upgrade pip setuptools wheel pyinstaller pyside6 pubchempy
 
       # Step 12: Build Executable with PyInstaller (All Platforms)
       - name: Build Executable with PyInstaller
-        run:
+        run: |
           pyinstaller --onefile --noconsole --windowed \
             --hidden-import=rdkit \
             --hidden-import=xtb \
@@ -96,5 +95,8 @@ jobs:
             main.py
 
       # Step 13 Upload Built Executable as Artifact (All Platforms)
-      - name Upload Artifact 
-         uses actions-upload-artifact
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-executable
+          path: dist/
