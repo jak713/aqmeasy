@@ -14,6 +14,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,15 +22,31 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          miniconda-version: 'latest'
+          channels: conda-forge
+          auto-activate-base: false
+
+      - name: Install Conda dependencies
         run: |
-          pip install pyinstaller
+          conda create -y -n buildenv python=3.10
+          conda activate buildenv
+          conda install -y rdkit xtb crest aqme -c conda-forge
+
+      - name: Install pip dependencies
+        run: |
+          conda activate buildenv
+          python -m pip install --upgrade pip setuptools wheel
+          pip install pyinstaller pyside6 pubchempy
 
       - name: Build executable
         run: |
-          pyinstaller --onefile --noconsole --windowed --hidden-import=PySide6.QtCore --hidden-import=PySide6.QtGui --hidden-import=PySide6.QtWidgets main.py
+          conda activate buildenv
+          pyinstaller --onefile --noconsole --windowed main.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
