@@ -33,10 +33,17 @@ jobs:
           conda create -y -n buildenv python=3.10 rdkit xtb crest aqme -c conda-forge
           conda activate buildenv
 
+      - name: Set Up MSYS2
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-gfortran cmake ninja git
+
       - name: Compile CREST from Source (Windows)
         if: runner.os == 'Windows'
+        shell: msys2 {0}
         run: |
-          pacman -Syu --noconfirm && pacman -S --noconfirm mingw-w64-x86_64-gcc mingw-w64-x86_64-gfortran cmake ninja git
           git clone https://github.com/crest-lab/crest.git
           cd crest
           export FC=gfortran && export CC=gcc
@@ -46,8 +53,7 @@ jobs:
 
       - name: Add CREST Binary to PATH (Windows)
         if: runner.os == 'Windows'
-        run: |
-          echo "$HOME/crest/_build" >> $GITHUB_PATH
+        run: echo "$HOME/crest/_build" >> $GITHUB_PATH
 
       - name: Install Pip Dependencies
         run: |
