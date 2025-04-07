@@ -29,7 +29,7 @@ jobs:
 
       - name: Build executable
         run: |
-          pyinstaller --onefile --noconsole --windowed main.py
+          pyinstaller --onefile --noconsole --windowed --hidden-import=PySide6.QtCore --hidden-import=PySide6.QtGui --hidden-import=PySide6.QtWidgets main.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
