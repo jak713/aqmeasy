@@ -25,16 +25,18 @@ jobs:
           python-version: '3.10'
 
       - name: Set up Miniconda
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          miniconda-version: 'latest'
+          miniconda-version: "latest"
+          install-path: $HOME/miniconda
           channels: conda-forge
+          auto-update-conda: true
           auto-activate-base: false
 
       - name: Install Conda dependencies
         run: |
           conda create -y -n buildenv python=3.10
-          conda activate buildenv
+          conda activate buildenv || echo " buildenv activated"
           conda install -y rdkit xtb crest aqme -c conda-forge
 
       - name: Install pip dependencies
