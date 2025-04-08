@@ -285,6 +285,7 @@ class smiles_to_csv(QWidget):
 
         # ADVANCED SETTINGS 
 
+        # Column 1 & 2
         self.advanced_settings_button = QPushButton("Show Advanced Settings", self)
         self.advanced_settings_button.setCheckable(True)
         self.advanced_settings_button.clicked.connect(lambda: (logging.debug("at advanced_settings_button >>> toggle_panel"), self.toggle_panel()))
@@ -318,7 +319,7 @@ class smiles_to_csv(QWidget):
         self.auto_sample_combo.setToolTip("Apply automatic calculation of the number of conformers generated initially with RDKit. \nThis number of conformers is initially generated and then reduced to the number specified in --sample with different filters. \nOptions:\n• Low: Base multiplier = 5, max confs = 100\n• Mid: Base multiplier = 10, max confs = 250\n• High: Base multiplier = 20, max confs = 500\n• False: Use the number specified in --sample")
         advanced_layout.addWidget(self.auto_sample_combo, 1, 1)
 
-        self.energy_window_label = QLabel("Energy window (kcal/mol):", self)
+        self.energy_window_label = QLabel("Energy window:", self)
         self.energy_window_label.setStyleSheet("font-size: 12px; color: black;")
         advanced_layout.addWidget(self.energy_window_label, 2, 0)
         self.energy_window_input = QDoubleSpinBox(self)
@@ -328,7 +329,7 @@ class smiles_to_csv(QWidget):
         self.energy_window_input.setToolTip("Energy window in kcal/mol to discard conformers\n(i.e. if a conformer is more than the E window compared to the most stable conformer).")
         advanced_layout.addWidget(self.energy_window_input, 2, 1)
 
-        self.initial_energy_threshold_label = QLabel("Initial E threshold (kcal/mol):", self)
+        self.initial_energy_threshold_label = QLabel("Initial E threshold:", self)
         self.initial_energy_threshold_label.setStyleSheet("font-size: 12px; color: black;")
         advanced_layout.addWidget(self.initial_energy_threshold_label, 3, 0)
         self.initial_energy_threshold_input = QLineEdit(self)
@@ -338,7 +339,7 @@ class smiles_to_csv(QWidget):
         self.initial_energy_threshold_input.setToolTip("Energy difference in kcal/mol between unique conformers for the first filter of only E.")
         advanced_layout.addWidget(self.initial_energy_threshold_input, 3, 1)
 
-        self.energy_threshold_label = QLabel("Energy threshold (kcal/mol):", self)
+        self.energy_threshold_label = QLabel("Energy threshold:", self)
         self.energy_threshold_label.setStyleSheet("font-size: 12px; color: black;")
         advanced_layout.addWidget(self.energy_threshold_label, 4, 0)
 
@@ -371,19 +372,7 @@ class smiles_to_csv(QWidget):
         self.opt_steps_rdkit_input.setToolTip("Max cycles used in RDKit optimizations. ")
         advanced_layout.addWidget(self.opt_steps_rdkit_input, 1, 4)
 
-        self.heavyonly_checkbox = QCheckBox("Heavy only", self)
-        self.heavyonly_checkbox.setChecked(True)
-        self.heavyonly_checkbox.setStyleSheet("font-size: 12px; color: black;")
-        self.heavyonly_checkbox.setToolTip("Only consider heavy atoms during RMS calculations for filtering \n(in the Chem.rdMolAlign.GetBestRMS() RDKit function)")
-        advanced_layout.addWidget(self.heavyonly_checkbox, 0, 5)
-
-        self.auto_metal_atoms_checkbox = QCheckBox("Auto metal atoms", self)
-        self.auto_metal_atoms_checkbox.setChecked(True)
-        self.auto_metal_atoms_checkbox.setStyleSheet("font-size: 12px; color: black;")
-        self.auto_metal_atoms_checkbox.setToolTip("Automatically detect metal atoms for the RDKit conformer generation. \nCharge and mult should be specified as well since the automatic charge and mult detection might not be precise.")
-        advanced_layout.addWidget(self.auto_metal_atoms_checkbox, 0, 6)
-
-
+        # Column 3 & 4
         self.max_matches_rmsd_label = QLabel("Max matches RMSD:", self)
         self.max_matches_rmsd_label.setStyleSheet("font-size: 12px; color: black;")
         advanced_layout.addWidget(self.max_matches_rmsd_label, 2, 3)
@@ -416,6 +405,19 @@ class smiles_to_csv(QWidget):
         self.max_torsions_input.setStyleSheet("font-size: 12px; color: black;")
         self.max_torsions_input.setToolTip("Discard systems with more than this many torsions (relevant to avoid molecules with many rotatable bonds). \nIf 0 is set, this filter is off.")
         advanced_layout.addWidget(self.max_torsions_input, 4, 4)
+
+        # Column  5 & 6
+        self.heavyonly_checkbox = QCheckBox("Heavy Only", self)
+        self.heavyonly_checkbox.setChecked(True)
+        self.heavyonly_checkbox.setStyleSheet("font-size: 12px; color: black;")
+        self.heavyonly_checkbox.setToolTip("Only consider heavy atoms during RMS calculations for filtering \n(in the Chem.rdMolAlign.GetBestRMS() RDKit function)")
+        advanced_layout.addWidget(self.heavyonly_checkbox, 0, 6)
+
+        self.auto_metal_atoms_checkbox = QCheckBox("Auto Metal Atoms", self)
+        self.auto_metal_atoms_checkbox.setChecked(True)
+        self.auto_metal_atoms_checkbox.setStyleSheet("font-size: 12px; color: black;")
+        self.auto_metal_atoms_checkbox.setToolTip("Automatically detect metal atoms for the RDKit conformer generation. \nCharge and mult should be specified as well since the automatic charge and mult detection might not be precise.")
+        advanced_layout.addWidget(self.auto_metal_atoms_checkbox, 0, 5)
 
         self.seed_label = QLabel("Seed:", self)
         self.seed_label.setStyleSheet("font-size: 12px; color: black;")
@@ -472,22 +474,41 @@ class smiles_to_csv(QWidget):
         self.crest_force_input.setToolTip("CREST ONLY: Force constant for constraints in the .xcontrol.sample file for CREST jobs.")
         advanced_layout.addWidget(self.crest_force_input, 0, 8)
 
-        self.crest_keywords_label = QLabel("CREST keywords:", self)
-        self.crest_keywords_label.setStyleSheet("font-size: 12px; color: black;")
-        advanced_layout.addWidget(self.crest_keywords_label, 1, 7)
         self.crest_keywords_input = QLineEdit(self)
+        self.crest_keywords_input.setPlaceholderText("CREST keywords...")
         self.crest_keywords_input.setStyleSheet("font-size: 12px; color: black;")
         self.crest_keywords_input.setToolTip("CREST ONLY: KDefine additional keywords to use in CREST that are not included in --chrg, --uhf, -T and -cinp. For example: '--alpb ch2cl2 --nci --cbonds 0.5'.")
-        advanced_layout.addWidget(self.crest_keywords_input, 1, 8)
+        advanced_layout.addWidget(self.crest_keywords_input, 1, 7)
 
-        
+        self.xtb_keywords_input = QLineEdit(self)
+        self.xtb_keywords_input.setPlaceholderText("xTB keywords...")
+        self.xtb_keywords_input.setStyleSheet("font-size: 12px; color: black;")
+        self.xtb_keywords_input.setToolTip("CREST ONLY: Define additional keywords to use in the xTB pre-optimization that are not included in -c, --uhf, -P and --input. For example: '--alpb ch2cl2 --gfn 1'.")
+        advanced_layout.addWidget(self.xtb_keywords_input, 1, 8)
 
+        self.cregen_checkbox = QCheckBox("CREGEN", self)
+        self.cregen_checkbox.setChecked(True)
+        self.cregen_checkbox.setStyleSheet("font-size: 12px; color: black;")
+        self.cregen_checkbox.setToolTip("If True, perform a CREGEN analysis after CREST.")
+        advanced_layout.addWidget(self.cregen_checkbox, 2, 7)
 
+        self.cregen_keywords_input = QLineEdit(self)
+        self.cregen_keywords_input.setPlaceholderText("CREGEN keywords...")
+        self.cregen_keywords_input.setStyleSheet("font-size: 12px; color: black;")
+        self.cregen_keywords_input.setToolTip("Additional keywords for CREGEN (i.e. cregen_keywords='--ethr 0.02').")
+        advanced_layout.addWidget(self.cregen_keywords_input, 2, 8)
 
+        self.crest_runs_label = QLabel("CREST runs:", self)
+        self.crest_runs_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.crest_runs_label, 3, 7)
 
+        self.crest_runs_input = QSpinBox(self)
+        self.crest_runs_input.setRange(1, 100)
+        self.crest_runs_input.setValue(1)
+        self.crest_runs_input.setStyleSheet("font-size: 12px; color: black;")
+        self.crest_runs_input.setToolTip("Specify as number of runs if multiple starting points from RDKit starting points is required.")
+        advanced_layout.addWidget(self.crest_runs_input, 3, 8)
 
-
-        
 
 
 

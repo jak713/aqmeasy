@@ -16,7 +16,6 @@ class csv_model(UserDict):
         super().__setitem__(key, value)
         if value != prev_value:
             self.signals.updated.emit()
-            print(self)
 
 csv_dictionary = csv_model(
     SMILES = [""],

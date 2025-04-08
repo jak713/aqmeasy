@@ -18,7 +18,6 @@ class command_model(UserDict):
         super().__setitem__(key, value)
         if value != prev_value:
             self.signals.updated.emit()
-            print(self)
 
 general_command_dictionary = command_model(
     input = "",
