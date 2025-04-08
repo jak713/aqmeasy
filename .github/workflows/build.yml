@@ -10,30 +10,46 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest] # windows-latest
+        os: [ubuntu-latest, macos-latest]#windows-latest, 
 
     steps:
+      # Step 1: Checkout Code
       - name: Checkout Code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
+      # Step 2: Set Up Miniconda
       - name: Set Up Miniconda
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          miniconda-version: 'latest'
+          miniconda-version: "latest"
           channels: conda-forge
-          auto-activate-base: false
+          auto-update-conda: true
 
-      - name: Install Dependencies
+      # Step 3: Initialize Conda and Create Environment
+      - name: Initialize Conda and Create Environment
+        shell: bash 
         run: |
-          conda create -y -n myenv python=3.10
-          conda activate myenv
-          conda install -y rdkit xtb crest aqme -c conda-forge
+          conda init bash
+          source ~/.bashrc
+          conda create -y -n buildenv python=3.10 rdkit xtb crest aqme -c conda-forge
 
+      # Step 4: Install Pip Dependencies (if needed)
+      - name: Install Pip Dependencies
+        shell: bash 
+        run: |
+          source ~/.bashrc
+          conda activate buildenv
+          pip install pyinstaller pyside6
+
+      # Step 5: Build Executable with PyInstaller
       - name: Build Executable
+        shell: bash
         run: |
-          conda activate myenv
+          source ~/.bashrc
+          conda activate buildenv
           pyinstaller --onefile --windowed main.py
 
+      # Step 6: Upload Built Executable as Artifact
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
