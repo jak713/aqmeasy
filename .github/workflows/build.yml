@@ -37,7 +37,7 @@ jobs:
         run: |
           eval "$(conda shell.bash hook)"
           conda activate buildenv
-          pip install pyinstaller pyside6
+          pip install pyinstaller pyside6 pubchempy
 
 
       - name: Build Executable
@@ -45,7 +45,7 @@ jobs:
         run: |
           eval "$(conda shell.bash hook)"
           conda activate buildenv
-          pyinstaller --onefile --windowed main.py
+          pyinstaller --onefile --windowed --hidden_import=pubchempy main.py
 
       # Step 6: Upload Built Executable as Artifact
       - name: Upload Artifact
