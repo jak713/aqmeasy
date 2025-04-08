@@ -10,82 +10,40 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on:  ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-
+        go-version: [1.20.x]
     steps:
-      # Step 1: Checkout Code
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Install CMake (All Platforms)
-      - name: Install CMake
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: "3.22.x"
-
-      # Step 3: Verify CMake Installation (All Platforms)
-      - name: Verify CMake Installation
-        run: cmake --version
-
-      # Step 4: Debug PATH (All Platforms)
-      - name: Debug PATH
-        run: echo $PATH
-
-      # Step 5: Set Up Miniconda (Linux/Mac)
-      - name: Set Up Miniconda (Linux/Mac)
-        if: runner.os != 'Windows'
+      - name: set up conda
         uses: conda-incubator/setup-miniconda@v3
         with:
-          miniconda-version: "latest"
-          channels: conda-forge
+              auto-update-conda: true
+              auto-update-micromamba: true
+              python-version: 3.10
 
-      # Step 6: Install Conda Dependencies (Linux/Mac)
-      - name: Install Conda Dependencies (Linux/Mac)
-        if: runner.os != 'Windows'
+      - name: Configure conda to use conda-forge
         run: |
-          eval "$(conda shell.bash hook)"
-          conda create -y -n buildenv python=3.10 xtb crest aqme rdkit -c conda-forge
-          conda activate buildenv
+              conda config --add channels conda-forge
+              conda config --set channel_priority strict
 
-      # Step 7: Set Up MSYS2 and Install Dependencies (Windows)
-      - name: Set Up MSYS2 and Install Dependencies
-        if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          update: true
-          install: mingw-w64-x86_64-gcc-fortran mingw-w64-x86_64-gcc mingw-w64-x86_64-ninja git
+      - name: Initialize conda
+        run: conda init
 
-      # Step 8: Initialize MSYS2 Environment (Windows)
-      - name: Initialize MSYS2 Environment (Windows)
-        if: runner.os == 'Windows'
-        run: source /etc/profile.d/msys2.sh
-
-      # Step 9: Compile CREST from Source (Windows)
-      - name: Compile CREST from Source (Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
+      - name: Create conda environment
         run: |
-          git clone https://github.com/crest-lab/crest.git
-          cd crest
-          export FC=/mingw64/bin/gfortran && export CC=/mingw64/bin/gcc
-          mkdir _build && cd _build
-          cmake -G "Ninja" ..
-          ninja
-
-      # Step 10: Add CREST Binary to PATH (Windows)
-      - name: Add CREST Binary to PATH (Windows)
-        if: runner.os == 'Windows'
-        run: echo "/c/crest/_build" >> $GITHUB_PATH
-
-      # Step 11: Install Pip Dependencies (All Platforms)
+              conda create -n build-env python=3.10
+              conda activate build-env
+              conda install -y pyinstaller pyside6 xtb crest aqme rdkit -c conda-forge
+      
       - name: Install Pip Dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel pyinstaller pyside6 pubchempy
 
-      # Step 12: Build Executable with PyInstaller (All Platforms)
       - name: Build Executable with PyInstaller
         run: |
           pyinstaller --onefile --noconsole --windowed \
@@ -94,7 +52,6 @@ jobs:
             --hidden-import=crest \
             main.py
 
-      # Step 13 Upload Built Executable as Artifact (All Platforms)
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
