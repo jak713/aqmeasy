@@ -25,13 +25,15 @@ jobs:
               auto-update-conda: true
               python-version: 3.10
 
+      - name: Initialize conda
+        run: conda init
+
       - name: Configure conda to use conda-forge
         run: |
               conda config --add channels conda-forge
               conda config --set channel_priority strict
 
-      - name: Initialize conda
-        run: conda init
+     
 
       - name: Create conda environment
         run: |
