@@ -2,40 +2,37 @@ name: Build Multi-Platform Executables
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest] # windows-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v2
 
-      - name: Set up conda
-        uses: conda-incubator/setup-miniconda@v3
+      - name: Set Up Miniconda
+        uses: conda-incubator/setup-miniconda@v2
         with:
-          auto-update-conda: true
-          python-version: 3.10
+          miniconda-version: 'latest'
+          channels: conda-forge
+          auto-activate-base: false
 
-      - name: Configure conda and install dependencies
-        shell: bash -l {0}
+      - name: Install Dependencies
         run: |
-          conda config --add channels conda-forge
-          conda config --set channel_priority strict
-          conda install -y pyinstaller pyside6 xtb crest aqme rdkit -c conda-forge
-          python -m pip install --upgrade pip setuptools wheel pubchempy
+          conda create -y -n myenv python=3.10
+          conda activate myenv
+          conda install -y rdkit xtb crest aqme -c conda-forge
 
-      - name: Build Executable with PyInstaller
-        shell: bash -l {0}
+      - name: Build Executable
         run: |
-          pyinstaller your_script.py --onefile --noconsole --windowed \
-            --hidden-import=rdkit
+          conda activate myenv
+          pyinstaller --onefile --windowed main.py
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
