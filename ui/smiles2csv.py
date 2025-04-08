@@ -1,4 +1,5 @@
 import logging
+import csv
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -10,7 +11,7 @@ import tempfile
 
 from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QTextEdit, QCheckBox, QMessageBox, QSizePolicy, QFileDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem, QFrame, QGridLayout, QDoubleSpinBox
 from PySide6.QtCore import Qt, QProcess
-from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, QDoubleValidator, QTextCursor
+from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, QDoubleValidator, QTextCursor, QIntValidator
 
 from rdkit import Chem
 
@@ -36,8 +37,7 @@ class smiles_to_csv(QWidget):
         self.setWindowTitle("smiles2csv")
         QShortcut(QKeySequence(Qt.Key_Escape), self, lambda: self.clear_focus_on_inputs())
 
-        self.file_name = None
-        self.smiles_w_metal = [] 
+        self.smiles_w_metal = [] # will take this out later
 
         self.top_layout = QHBoxLayout()
         self.left_layout = QVBoxLayout()
@@ -274,6 +274,15 @@ class smiles_to_csv(QWidget):
             palette.setColor(widget.backgroundRole(), self.palette().color(self.backgroundRole()))
             widget.setPalette(palette)
 
+
+
+
+
+
+
+
+
+
         # ADVANCED SETTINGS 
 
         self.advanced_settings_button = QPushButton("Show Advanced Settings", self)
@@ -361,6 +370,127 @@ class smiles_to_csv(QWidget):
         self.opt_steps_rdkit_input.setStyleSheet("font-size: 12px; color: black;")
         self.opt_steps_rdkit_input.setToolTip("Max cycles used in RDKit optimizations. ")
         advanced_layout.addWidget(self.opt_steps_rdkit_input, 1, 4)
+
+        self.heavyonly_checkbox = QCheckBox("Heavy only", self)
+        self.heavyonly_checkbox.setChecked(True)
+        self.heavyonly_checkbox.setStyleSheet("font-size: 12px; color: black;")
+        self.heavyonly_checkbox.setToolTip("Only consider heavy atoms during RMS calculations for filtering \n(in the Chem.rdMolAlign.GetBestRMS() RDKit function)")
+        advanced_layout.addWidget(self.heavyonly_checkbox, 0, 5)
+
+        self.auto_metal_atoms_checkbox = QCheckBox("Auto metal atoms", self)
+        self.auto_metal_atoms_checkbox.setChecked(True)
+        self.auto_metal_atoms_checkbox.setStyleSheet("font-size: 12px; color: black;")
+        self.auto_metal_atoms_checkbox.setToolTip("Automatically detect metal atoms for the RDKit conformer generation. \nCharge and mult should be specified as well since the automatic charge and mult detection might not be precise.")
+        advanced_layout.addWidget(self.auto_metal_atoms_checkbox, 0, 6)
+
+
+        self.max_matches_rmsd_label = QLabel("Max matches RMSD:", self)
+        self.max_matches_rmsd_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.max_matches_rmsd_label, 2, 3)
+
+        self.max_matches_rmsd_input = QSpinBox(self)
+        self.max_matches_rmsd_input.setRange(1, 10000)
+        self.max_matches_rmsd_input.setValue(1000)
+        self.max_matches_rmsd_input.setStyleSheet("font-size: 12px; color: black;")
+        self.max_matches_rmsd_input.setToolTip("Max matches during RMS calculations for filtering \n(maxMatches option in the Chem.rdMolAlign.GetBestRMS() RDKit function)")
+        advanced_layout.addWidget(self.max_matches_rmsd_input, 2, 4)
+
+        self.max_mol_wt_label = QLabel("Max mol weight (g/mol):", self)
+        self.max_mol_wt_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.max_mol_wt_label, 3, 3)
+
+        self.max_mol_wt_input = QSpinBox(self)
+        self.max_mol_wt_input.setRange(0, 10000)
+        self.max_mol_wt_input.setValue(0)
+        self.max_mol_wt_input.setStyleSheet("font-size: 12px; color: black;")
+        self.max_mol_wt_input.setToolTip("Discard systems with molecular weights higher than this parameter (in g/mol). \nIf 0 is set, this filter is off.")
+        advanced_layout.addWidget(self.max_mol_wt_input, 3, 4)
+
+        self.max_torsions_label = QLabel("Max torsions:", self)
+        self.max_torsions_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.max_torsions_label, 4, 3)
+
+        self.max_torsions_input = QSpinBox(self)
+        self.max_torsions_input.setRange(0, 1000)
+        self.max_torsions_input.setValue(0)
+        self.max_torsions_input.setStyleSheet("font-size: 12px; color: black;")
+        self.max_torsions_input.setToolTip("Discard systems with more than this many torsions (relevant to avoid molecules with many rotatable bonds). \nIf 0 is set, this filter is off.")
+        advanced_layout.addWidget(self.max_torsions_input, 4, 4)
+
+        self.seed_label = QLabel("Seed:", self)
+        self.seed_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.seed_label, 1, 5)
+
+        self.seed_input = QLineEdit(self)
+        self.seed_input.setValidator(QIntValidator())  
+        self.seed_input.setText("62609")
+        self.seed_input.setStyleSheet("font-size: 12px; color: black;")
+        self.seed_input.setToolTip("Random seed used during RDKit embedding \n(in the Chem.rdDistGeom.EmbedMultipleConfs() RDKit function)")
+        advanced_layout.addWidget(self.seed_input, 1, 6)
+
+        self.bond_thres_label = QLabel("Bond threshold:", self)
+        self.bond_thres_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.bond_thres_label, 2, 5)
+
+        self.bond_thres_input = QDoubleSpinBox(self)
+        self.bond_thres_input.setRange(0.0, 10.0)
+        self.bond_thres_input.setValue(0.2)
+        self.bond_thres_input.setStyleSheet("font-size: 12px; color: black;")
+        self.bond_thres_input.setToolTip("Threshold used to discard bonds in the geom option (+-0.2 A)")
+        advanced_layout.addWidget(self.bond_thres_input, 2, 6)
+
+        self.angle_thres_label = QLabel("Angle threshold:", self)
+        self.angle_thres_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.angle_thres_label, 3, 5)
+
+        self.angle_thres_input = QDoubleSpinBox(self)
+        self.angle_thres_input.setRange(0.0, 360.0)
+        self.angle_thres_input.setValue(30.0)
+        self.angle_thres_input.setStyleSheet("font-size: 12px; color: black;")
+        self.angle_thres_input.setToolTip("Threshold used to discard angles in the geom option (+-30 degrees)")
+        advanced_layout.addWidget(self.angle_thres_input, 3, 6)
+
+        self.dihedral_thres_label = QLabel("Dihedral threshold:", self)
+        self.dihedral_thres_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.dihedral_thres_label, 4, 5)
+
+        self.dihedral_thres_input = QDoubleSpinBox(self)
+        self.dihedral_thres_input.setRange(0.0, 360.0)
+        self.dihedral_thres_input.setValue(30.0) 
+        self.dihedral_thres_input.setStyleSheet("font-size: 12px; color: black;")
+        self.dihedral_thres_input.setToolTip("Threshold used to discard dihedrals in the geom option (+-30 degrees)")
+        advanced_layout.addWidget(self.dihedral_thres_input, 4, 6)
+
+        self.crest_force_label = QLabel("CREST force:", self)
+        self.crest_force_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.crest_force_label, 0, 7)
+
+        self.crest_force_input = QDoubleSpinBox(self)
+        self.crest_force_input.setRange(0.0, 10.0)
+        self.crest_force_input.setValue(0.5)
+        self.crest_force_input.setStyleSheet("font-size: 12px; color: black;")
+        self.crest_force_input.setToolTip("CREST ONLY: Force constant for constraints in the .xcontrol.sample file for CREST jobs.")
+        advanced_layout.addWidget(self.crest_force_input, 0, 8)
+
+        self.crest_keywords_label = QLabel("CREST keywords:", self)
+        self.crest_keywords_label.setStyleSheet("font-size: 12px; color: black;")
+        advanced_layout.addWidget(self.crest_keywords_label, 1, 7)
+        self.crest_keywords_input = QLineEdit(self)
+        self.crest_keywords_input.setStyleSheet("font-size: 12px; color: black;")
+        self.crest_keywords_input.setToolTip("CREST ONLY: KDefine additional keywords to use in CREST that are not included in --chrg, --uhf, -T and -cinp. For example: '--alpb ch2cl2 --nci --cbonds 0.5'.")
+        advanced_layout.addWidget(self.crest_keywords_input, 1, 8)
+
+        
+
+
+
+
+
+
+        
+
+
+
 
 
         csv_model.signals.updated.connect(self.update_ui)
@@ -606,8 +736,8 @@ class smiles_to_csv(QWidget):
 
             elif file_name.endswith(".csv"):
                 # fuckass solution but it works for now i guess (TODO: make it better) also idk how to handle rows i did not anticipate as of rn
-                for key in csv_model.keys():
-                    csv_model[key].pop(0) 
+                # for key in csv_model.keys():
+                    # csv_model[key].pop(0) 
                 with open(file_name, 'r') as csvfile:
                     reader = csv.DictReader(csvfile)
                     for row in reader: 
@@ -715,14 +845,19 @@ class smiles_to_csv(QWidget):
             else:
                 pass
 
-        if self.file_name is None:
+        if control.file_name is None:
             control.save_csv_file() 
-            if not self.file_name:
-                return
+        if not control.file_name:
+            msgBox = QMessageBox(self)
+            msgBox.setIconPixmap(QPixmap(icons.red_path))
+            msgBox.setWindowTitle("Warning")
+            msgBox.setText("Please save the CSV file before running AQME.")
+            msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
+            msgBox.exec()
+            return
         command = self.aqme_rungen()
-        file_directory = os.path.dirname(self.file_name)
+        file_directory = os.path.dirname(control.file_name)
 
-        # self.shell_output.clear()
         self.process = QProcess(self)
         self.process.setWorkingDirectory(file_directory)
 
@@ -805,7 +940,7 @@ class smiles_to_csv(QWidget):
     def aqme_rungen(self):
         """Update command w/ csv file."""
         program = self.program_combo.currentText()
-        aqme_rungen = f'python -u -m aqme --csearch --program {program} --input {self.file_name} '
+        aqme_rungen = f'python -u -m aqme --csearch --program {program} --input {control.file_name} '
         if self.output_dir_input == "":
             aqme_rungen += f'--destination {self.output_dir_input.text()} '
         if self.nprocs_input:
@@ -860,4 +995,3 @@ class smiles_to_csv(QWidget):
 # add intermedaite plus transition state option in the show all 
 
 # fucking dark mode man !!!!
-

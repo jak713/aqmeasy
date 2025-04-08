@@ -18,7 +18,6 @@ class csv_model(UserDict):
             self.signals.updated.emit()
             print(self)
 
-
 csv_dictionary = csv_model(
     SMILES = [""],
     code_name = [""],
@@ -31,5 +30,3 @@ csv_dictionary = csv_model(
     complex_type = [""],
     geom = [""],
 )
-
-# thinking about changing this up so i can create a new instance of data model with each window (same as before) rather than them being all connected here at the minute (synced)

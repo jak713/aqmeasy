@@ -1,0 +1,5 @@
+build/
+dist/
+test-files/
+__pycache__/
+*.pyc

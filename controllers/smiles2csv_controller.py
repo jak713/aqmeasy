@@ -8,11 +8,11 @@ from rdkit.Chem import Draw as rdMolDraw2D, rdDepictor
 from PySide6.QtWidgets import QInputDialog, QMessageBox, QFileDialog
 from PySide6.QtGui import QPixmap
 
-
 class CsvController:
     """Controller for the CSV model"""
     def __init__(self, model):
         self.model = model
+        self.file_name = None
         self.current_index = 1
         self.total_index = self.get_total_index()
 
@@ -27,12 +27,11 @@ class CsvController:
         csv = csv_table.csv_table(
             csv_model=self.model,
             smiles2pixmap=smiles2pixmap,
-            parent=None
+            parent=None 
         )
         csv.table.itemChanged.connect(lambda item: self.update_model_table(item))
-        # csv.intermediate_button.clicked.connect(
-        #     lambda: self.add_intermediate(csv.table.currentItem())
-        # )
+        csv.intermediate_button.clicked.connect(lambda: csv.table.update if self.add_intermediate(csv.table.selectedItems()) else self.parent.failure("Please select two or more items to add an intermediate."))
+        csv.ts_button.clicked.connect(lambda: self.add_transition_state(csv.table.selectedItems()))
         csv.exec()
 
     def update_model_table(self, item):
@@ -43,18 +42,38 @@ class CsvController:
         self.model[key][row] = item.text()
         self.model.signals.updated.emit()
 
-    def add_intermediate(self):
+    def add_intermediate(self,items):
         """Add an intermediate to the CSV table by combining the SMILES strings of the selected items in the csv_table."""
-        selected_items = self.table.selectedItems()
+        selected_items = [self.model["SMILES"][item.row()] for item in items]
+        print(selected_items)
         if len(selected_items) < 2:
-            return
-        smiles = ""
-        for item in selected_items:
-            smiles += self.model["SMILES"][item.row()] + "."
-        smiles = smiles[:-1]
-        index = self.table.currentRow()
+            return self.parent.failure("Please select two or more items to add an intermediate.")
+        smiles = ".".join(selected_items)
+        self.new_molecule()
+        index = self.get_total_index() - 1
         self.model["SMILES"][index] = smiles
-        self.model["code_name"][index] = f"Intermediate_{self.model['code_name'][index]}"
+        self.model["code_name"][index] = "Intermediate"
+        self.model["charge"][index] = smiles2charge(smiles)
+        self.model["multiplicity"][index] = smiles2multiplicity(smiles)
+        self.model["constraints_atoms"][index] = ""
+        self.model["constraints_dist"][index] = ""
+        self.model["constraints_angle"][index] = ""
+        self.model["constraints_dihedral"][index] = ""
+        self.model.signals.updated.emit()
+        return True
+
+
+    def add_transition_state(self, items):
+        """Add a transition state to the CSV table."""
+        selected_items = [self.model["SMILES"][item.row()] for item in items]
+        print(selected_items)
+        if len(selected_items) < 1:
+            return self.parent.failure("Please select one or more items to add a transition state.")
+        smiles = ".".join(selected_items)
+        self.new_molecule()
+        index = self.get_total_index() - 1
+        self.model["SMILES"][index] = smiles2enumerate(smiles)
+        self.model["code_name"][index] = "TS"
         self.model["charge"][index] = smiles2charge(smiles)
         self.model["multiplicity"][index] = smiles2multiplicity(smiles)
         self.model["constraints_atoms"][index] = ""
@@ -62,9 +81,8 @@ class CsvController:
         self.model["constraints_angle"][index] = ""
         self.model["constraints_dihedral"][index] = ""
 
-    def add_transition_state(self):
-        """Add a transition state to the CSV table."""
-        pass
+        self.model.signals.updated.emit()
+        return True
 
     def update_smiles_model(self, smiles):
         """Update the model with the current SMILES string.
