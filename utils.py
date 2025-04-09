@@ -174,6 +174,8 @@ def smiles2findmetal(smiles):
 def command2clipboard(command):
     clipboard = QApplication.clipboard()
     command = str(command)
+    if command == "None":
+        return False
     try:
         clipboard.setText(command)
         return True

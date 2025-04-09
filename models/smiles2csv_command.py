@@ -11,7 +11,6 @@ class command_model(UserDict):
     def __init__(self, *args, **kwargs):
         self.signals = command_model_signals()
         super().__init__(*args, **kwargs)
-        self.current_index = 1
 
     def __setitem__(self, key, value):
         prev_value = self.get(key)

@@ -1,5 +1,7 @@
+import logging
 import csv
 from models.smiles2csv_model import csv_dictionary as csv_model
+from models.smiles2csv_command import general_command_dictionary as gen_command
 import ui.dialogs.smiles2csv_table_dialog as csv_table
 from utils import smiles2pixmap, smiles2enumerate, smiles2charge, smiles2multiplicity
 import rdkit.rdBase
@@ -12,7 +14,6 @@ class CsvController:
     """Controller for the CSV model"""
     def __init__(self, model):
         self.model = model
-        self.file_name = None
         self.current_index = 1
         self.total_index = self.get_total_index()
 
@@ -31,7 +32,7 @@ class CsvController:
         )
         csv.table.itemChanged.connect(lambda item: self.update_model_table(item))
         csv.intermediate_button.clicked.connect(lambda: csv.table.update if self.add_intermediate(csv.table.selectedItems()) else self.parent.failure("Please select two or more items to add an intermediate."))
-        csv.ts_button.clicked.connect(lambda: self.add_transition_state(csv.table.selectedItems()))
+        csv.ts_button.clicked.connect(lambda: csv.table.update if self.add_transition_state(csv.table.selectedItems()) else self.parent.failure("Please select one or more items to add a transition state."))
         csv.exec()
 
     def update_model_table(self, item):
@@ -133,22 +134,32 @@ class CsvController:
         
     def save_csv_file(self):
         """Save the csv_dictionary to a file."""
-        for index in range(len(csv_model["code_name"])):
-            if csv_model["code_name"][index] == "":
-                self.parent.failure("Please enter a code name for the molecule before saving.")
+        try:
+            for index, code_name in enumerate(csv_model["code_name"]):
+                if code_name == "":
+                    self.parent.failure("Please enter a code name for the molecule before saving.")
+                    return False  # for the closing event
+
+            file_name, _ = QFileDialog.getSaveFileName(self.parent, "Save CSV File", "", "CSV Files (*.csv)")
+            if not file_name:
+                self.parent.failure("Please enter a file name before saving.")
                 return False  # for the closing event
-        file_name, _ = QFileDialog.getSaveFileName(self.parent, "Save CSV File", "", "CSV Files (*.csv)")
-        self.file_name = file_name 
-        if not self.file_name:
-            self.file_name = None
+
+            gen_command["input"] = file_name
+            with open(gen_command["input"], 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(csv_model.keys())
+                for i in range(len(csv_model["SMILES"])):
+                    writer.writerow([csv_model[key][i] for key in csv_model.keys()])
+
+            self.parent.success("CSV file saved successfully.")
+            return True  # for the closing event
+
+        except Exception as e:
+            self.parent.failure(f"An error occurred while saving the file.")
+            logging.error(f"Error saving CSV file: {str(e)}")
+
             return False  # for the closing event
-        with open(self.file_name, 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(csv_model.keys())
-            for i in range(len(csv_model["SMILES"])):
-                writer.writerow([csv_model[key][i] for key in csv_model.keys()])   
-        self.parent.success("CSV file saved successfully.")
-        return True  # again for the closing event
 
     def display_molecule(self,checked = None):
         """Display the molecule in the molecule_label using rdkit.Chem.Draw module"""

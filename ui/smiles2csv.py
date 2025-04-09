@@ -212,8 +212,12 @@ class smiles_to_csv(QWidget):
         self.program_label = QLabel("Select CSEARCH program:", self)
         self.program_label.setStyleSheet("font-size: 12px; color: black;")
         self.aqme_setup_grid.addWidget(self.program_label, 0, 0)
+
         self.program_combo = QComboBox(self)
+        
         self.program_combo.addItems(["RDKit", "CREST", "GOAT*"])
+        self.program_combo.model().item(2).setEnabled(False)
+        self.program_combo.currentTextChanged.connect(lambda text: gen_command.update({"program": text}))
         self.program_combo.setStyleSheet("font-size: 12px; color: black;")
         self.aqme_setup_grid.addWidget(self.program_combo, 0, 1)
 
@@ -221,9 +225,11 @@ class smiles_to_csv(QWidget):
         self.nprocs_label = QLabel("Number of processors:", self)
         self.nprocs_label.setStyleSheet("font-size: 12px; color: black;")
         self.aqme_setup_grid.addWidget(self.nprocs_label, 1, 0)
+        
         self.nprocs_input = QSpinBox(self)
         self.nprocs_input.setRange(1, 40)
         self.nprocs_input.setValue(8)
+        self.nprocs_input.valueChanged.connect(lambda: gen_command.update({"nprocs": self.nprocs_input.value()}))
         self.nprocs_input.setStyleSheet("font-size: 12px; color: black;")
         self.nprocs_input.setToolTip("Number of processors to use for the calculation.\nOnly relevant for CREST and GOAT*.")
         self.nprocs_input.setEnabled(self.program_combo.currentText() == "CREST")
@@ -237,6 +243,7 @@ class smiles_to_csv(QWidget):
         self.stacksize_input = QSpinBox(self)
         self.stacksize_input.setRange(1, 8)
         self.stacksize_input.setValue(1)
+        self.stacksize_input.valueChanged.connect(lambda: gen_command.update({"stacksize": f"{self.stacksize_input.value()}GB"}))
         self.stacksize_input.setStyleSheet("font-size: 12px; color: black;")
         self.aqme_setup_grid.addWidget(self.stacksize_input, 2, 1)
 
@@ -246,6 +253,9 @@ class smiles_to_csv(QWidget):
         self.aqme_setup_grid.addWidget(self.output_dir_label, 3, 0)
         self.output_dir_input = QLineEdit(self)
         self.output_dir_input.setPlaceholderText("Select output directory...")
+        self.output_dir_input.setStyleSheet("font-size: 12px; color: black;")
+        self.output_dir_input.textChanged.connect(lambda: gen_command.update({"destination": self.output_dir_input.text()}))
+
         self.output_dir_button = QPushButton(self)
         dir_icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon)
         self.output_dir_button.setIcon(dir_icon)
@@ -258,7 +268,7 @@ class smiles_to_csv(QWidget):
         # Row 4 - copy command/save csv
         self.copy_command_button = QPushButton("Copy Command", self)
         self.copy_command_button.setStyleSheet("font-size: 12px; color: black;")
-        self.copy_command_button.clicked.connect(lambda: self.success("Command copied to clipboard.") if command2clipboard(self.aqme_rungen()) else self.failure("Failed to copy command to clipboard."))
+        self.copy_command_button.clicked.connect(lambda: self.success("Command copied to clipboard.") if command2clipboard(self.aqme_rungen()) == True else self.failure("Failed to copy command to clipboard."))
         self.aqme_setup_grid.addWidget(self.copy_command_button, 4,0)
 
         # Row 5 - Run button
@@ -273,15 +283,6 @@ class smiles_to_csv(QWidget):
             palette = widget.palette()
             palette.setColor(widget.backgroundRole(), self.palette().color(self.backgroundRole()))
             widget.setPalette(palette)
-
-
-
-
-
-
-
-
-
 
         # ADVANCED SETTINGS 
 
@@ -302,9 +303,11 @@ class smiles_to_csv(QWidget):
         self.sample_size_label = QLabel("Sample size:", self)
         self.sample_size_label.setStyleSheet("font-size: 12px; color: black;")
         advanced_layout.addWidget(self.sample_size_label, 0, 0)
+
         self.sample_size_input = QSpinBox(self)
         self.sample_size_input.setRange(1, 500)
         self.sample_size_input.setValue(25)
+        self.sample_size_input.valueChanged.connect(lambda: gen_command.update({"sample": self.sample_size_input.value()}))
         self.sample_size_input.setStyleSheet("font-size: 12px; color: black;")
         self.sample_size_input.setToolTip("Number of conformers to keep after the initial RDKit sampling.\nThey are selected using a combination of RDKit energies and Butina clustering.")
         advanced_layout.addWidget(self.sample_size_input, 0, 1)
@@ -315,6 +318,7 @@ class smiles_to_csv(QWidget):
         self.auto_sample_combo = QComboBox(self)
         self.auto_sample_combo.addItems(["low", "mid", "high", "false"])
         self.auto_sample_combo.setCurrentText("mid")
+        self.auto_sample_combo.currentTextChanged.connect(lambda text: gen_command.update({"auto_sample": text}))
         self.auto_sample_combo.setStyleSheet("font-size: 12px; color: black;")
         self.auto_sample_combo.setToolTip("Apply automatic calculation of the number of conformers generated initially with RDKit. \nThis number of conformers is initially generated and then reduced to the number specified in --sample with different filters. \nOptions:\n• Low: Base multiplier = 5, max confs = 100\n• Mid: Base multiplier = 10, max confs = 250\n• High: Base multiplier = 20, max confs = 500\n• False: Use the number specified in --sample")
         advanced_layout.addWidget(self.auto_sample_combo, 1, 1)
@@ -325,6 +329,7 @@ class smiles_to_csv(QWidget):
         self.energy_window_input = QDoubleSpinBox(self)
         self.energy_window_input.setRange(1.0, 50.0)
         self.energy_window_input.setValue(5.0)
+        self.energy_window_input.valueChanged.connect(lambda: gen_command.update({"ewin_csearch": self.energy_window_input.value()}))
         self.energy_window_input.setStyleSheet("font-size: 12px; color: black;")
         self.energy_window_input.setToolTip("Energy window in kcal/mol to discard conformers\n(i.e. if a conformer is more than the E window compared to the most stable conformer).")
         advanced_layout.addWidget(self.energy_window_input, 2, 1)
@@ -335,6 +340,7 @@ class smiles_to_csv(QWidget):
         self.initial_energy_threshold_input = QLineEdit(self)
         self.initial_energy_threshold_input.setText("0.0001")
         self.initial_energy_threshold_input.setValidator(QDoubleValidator())
+        self.initial_energy_threshold_input.textChanged.connect(lambda: gen_command.update({"initial_energy_threshold": self.initial_energy_threshold_input.text()}))
         self.initial_energy_threshold_input.setStyleSheet("font-size: 12px; color: black;")
         self.initial_energy_threshold_input.setToolTip("Energy difference in kcal/mol between unique conformers for the first filter of only E.")
         advanced_layout.addWidget(self.initial_energy_threshold_input, 3, 1)
@@ -346,6 +352,7 @@ class smiles_to_csv(QWidget):
         self.energy_threshold_input = QLineEdit(self)
         self.energy_threshold_input.setText("0.25")
         self.energy_threshold_input.setValidator(QDoubleValidator())
+        self.energy_threshold_input.textChanged.connect(lambda: gen_command.update({"energy_threshold": self.energy_threshold_input.text()}))
         self.energy_threshold_input.setStyleSheet("font-size: 12px; color: black;")
         self.energy_threshold_input.setToolTip("Energy difference in kcal/mol between unique conformers for the second filter of E + RMS")
         advanced_layout.addWidget(self.energy_threshold_input, 4, 1)
@@ -357,6 +364,7 @@ class smiles_to_csv(QWidget):
         self.rms_threshold_input = QLineEdit(self)
         self.rms_threshold_input.setText("0.25")
         self.rms_threshold_input.setValidator(QDoubleValidator())
+        self.rms_threshold_input.textChanged.connect(lambda: gen_command.update({"rms_threshold": self.rms_threshold_input.text()}))
         self.rms_threshold_input.setStyleSheet("font-size: 12px; color: black;")
         self.rms_threshold_input.setToolTip("RMS difference between unique conformers for the second filter of E + RMS")
         advanced_layout.addWidget(self.rms_threshold_input, 0, 4)
@@ -368,6 +376,7 @@ class smiles_to_csv(QWidget):
         self.opt_steps_rdkit_input = QSpinBox(self)
         self.opt_steps_rdkit_input.setRange(1, 10000)
         self.opt_steps_rdkit_input.setValue(1000)
+        self.opt_steps_rdkit_input.valueChanged.connect(lambda: gen_command.update({"opt_steps_rdkit": self.opt_steps_rdkit_input.value()}))
         self.opt_steps_rdkit_input.setStyleSheet("font-size: 12px; color: black;")
         self.opt_steps_rdkit_input.setToolTip("Max cycles used in RDKit optimizations. ")
         advanced_layout.addWidget(self.opt_steps_rdkit_input, 1, 4)
@@ -380,17 +389,20 @@ class smiles_to_csv(QWidget):
         self.max_matches_rmsd_input = QSpinBox(self)
         self.max_matches_rmsd_input.setRange(1, 10000)
         self.max_matches_rmsd_input.setValue(1000)
+        self.max_matches_rmsd_input.valueChanged.connect(lambda: gen_command.update({"max_matches_rmsd": self.max_matches_rmsd_input.value()}))
         self.max_matches_rmsd_input.setStyleSheet("font-size: 12px; color: black;")
         self.max_matches_rmsd_input.setToolTip("Max matches during RMS calculations for filtering \n(maxMatches option in the Chem.rdMolAlign.GetBestRMS() RDKit function)")
         advanced_layout.addWidget(self.max_matches_rmsd_input, 2, 4)
 
-        self.max_mol_wt_label = QLabel("Max mol weight (g/mol):", self)
+        self.max_mol_wt_label = QLabel("Max mol weight:", self)
         self.max_mol_wt_label.setStyleSheet("font-size: 12px; color: black;")
         advanced_layout.addWidget(self.max_mol_wt_label, 3, 3)
 
         self.max_mol_wt_input = QSpinBox(self)
         self.max_mol_wt_input.setRange(0, 10000)
         self.max_mol_wt_input.setValue(0)
+        self.max_mol_wt_input.valueChanged.connect(lambda: gen_command.update({"max_mol_wt": self.max_mol_wt_input.value()}))
+        self.max_mol_wt_input.setSuffix(" g/mol")
         self.max_mol_wt_input.setStyleSheet("font-size: 12px; color: black;")
         self.max_mol_wt_input.setToolTip("Discard systems with molecular weights higher than this parameter (in g/mol). \nIf 0 is set, this filter is off.")
         advanced_layout.addWidget(self.max_mol_wt_input, 3, 4)
@@ -402,6 +414,7 @@ class smiles_to_csv(QWidget):
         self.max_torsions_input = QSpinBox(self)
         self.max_torsions_input.setRange(0, 1000)
         self.max_torsions_input.setValue(0)
+        self.max_torsions_input.valueChanged.connect(lambda: gen_command.update({"max_torsions": self.max_torsions_input.value()}))
         self.max_torsions_input.setStyleSheet("font-size: 12px; color: black;")
         self.max_torsions_input.setToolTip("Discard systems with more than this many torsions (relevant to avoid molecules with many rotatable bonds). \nIf 0 is set, this filter is off.")
         advanced_layout.addWidget(self.max_torsions_input, 4, 4)
@@ -409,12 +422,14 @@ class smiles_to_csv(QWidget):
         # Column  5 & 6
         self.heavyonly_checkbox = QCheckBox("Heavy Only", self)
         self.heavyonly_checkbox.setChecked(True)
+        self.heavyonly_checkbox.stateChanged.connect(lambda: gen_command.update({"heavyonly": self.heavyonly_checkbox.isChecked()}))
         self.heavyonly_checkbox.setStyleSheet("font-size: 12px; color: black;")
         self.heavyonly_checkbox.setToolTip("Only consider heavy atoms during RMS calculations for filtering \n(in the Chem.rdMolAlign.GetBestRMS() RDKit function)")
         advanced_layout.addWidget(self.heavyonly_checkbox, 0, 6)
 
         self.auto_metal_atoms_checkbox = QCheckBox("Auto Metal Atoms", self)
         self.auto_metal_atoms_checkbox.setChecked(True)
+        self.auto_metal_atoms_checkbox.stateChanged.connect(lambda: gen_command.update({"auto_metal_atoms": self.auto_metal_atoms_checkbox.isChecked()}))
         self.auto_metal_atoms_checkbox.setStyleSheet("font-size: 12px; color: black;")
         self.auto_metal_atoms_checkbox.setToolTip("Automatically detect metal atoms for the RDKit conformer generation. \nCharge and mult should be specified as well since the automatic charge and mult detection might not be precise.")
         advanced_layout.addWidget(self.auto_metal_atoms_checkbox, 0, 5)
@@ -426,6 +441,7 @@ class smiles_to_csv(QWidget):
         self.seed_input = QLineEdit(self)
         self.seed_input.setValidator(QIntValidator())  
         self.seed_input.setText("62609")
+        self.seed_input.textChanged.connect(lambda: gen_command.update({"seed": self.seed_input.text()}))
         self.seed_input.setStyleSheet("font-size: 12px; color: black;")
         self.seed_input.setToolTip("Random seed used during RDKit embedding \n(in the Chem.rdDistGeom.EmbedMultipleConfs() RDKit function)")
         advanced_layout.addWidget(self.seed_input, 1, 6)
@@ -437,6 +453,7 @@ class smiles_to_csv(QWidget):
         self.bond_thres_input = QDoubleSpinBox(self)
         self.bond_thres_input.setRange(0.0, 10.0)
         self.bond_thres_input.setValue(0.2)
+        self.bond_thres_input.valueChanged.connect(lambda: gen_command.update({"bond_thres": self.bond_thres_input.value()}))
         self.bond_thres_input.setStyleSheet("font-size: 12px; color: black;")
         self.bond_thres_input.setToolTip("Threshold used to discard bonds in the geom option (+-0.2 A)")
         advanced_layout.addWidget(self.bond_thres_input, 2, 6)
@@ -448,6 +465,7 @@ class smiles_to_csv(QWidget):
         self.angle_thres_input = QDoubleSpinBox(self)
         self.angle_thres_input.setRange(0.0, 360.0)
         self.angle_thres_input.setValue(30.0)
+        self.angle_thres_input.valueChanged.connect(lambda: gen_command.update({"angle_thres": self.angle_thres_input.value()}))
         self.angle_thres_input.setStyleSheet("font-size: 12px; color: black;")
         self.angle_thres_input.setToolTip("Threshold used to discard angles in the geom option (+-30 degrees)")
         advanced_layout.addWidget(self.angle_thres_input, 3, 6)
@@ -459,6 +477,7 @@ class smiles_to_csv(QWidget):
         self.dihedral_thres_input = QDoubleSpinBox(self)
         self.dihedral_thres_input.setRange(0.0, 360.0)
         self.dihedral_thres_input.setValue(30.0) 
+        self.dihedral_thres_input.valueChanged.connect(lambda: gen_command.update({"dihedral_thres": self.dihedral_thres_input.value()}))
         self.dihedral_thres_input.setStyleSheet("font-size: 12px; color: black;")
         self.dihedral_thres_input.setToolTip("Threshold used to discard dihedrals in the geom option (+-30 degrees)")
         advanced_layout.addWidget(self.dihedral_thres_input, 4, 6)
@@ -470,30 +489,36 @@ class smiles_to_csv(QWidget):
         self.crest_force_input = QDoubleSpinBox(self)
         self.crest_force_input.setRange(0.0, 10.0)
         self.crest_force_input.setValue(0.5)
+        self.crest_force_input.setSingleStep(0.1)
+        self.crest_force_input.valueChanged.connect(lambda: crest_command.update({"crest_force": self.crest_force_input.value()}))
         self.crest_force_input.setStyleSheet("font-size: 12px; color: black;")
         self.crest_force_input.setToolTip("CREST ONLY: Force constant for constraints in the .xcontrol.sample file for CREST jobs.")
         advanced_layout.addWidget(self.crest_force_input, 0, 8)
 
         self.crest_keywords_input = QLineEdit(self)
         self.crest_keywords_input.setPlaceholderText("CREST keywords...")
+        self.crest_keywords_input.textChanged.connect(lambda: crest_command.update({"crest_keywords": self.crest_keywords_input.text()}))
         self.crest_keywords_input.setStyleSheet("font-size: 12px; color: black;")
         self.crest_keywords_input.setToolTip("CREST ONLY: KDefine additional keywords to use in CREST that are not included in --chrg, --uhf, -T and -cinp. For example: '--alpb ch2cl2 --nci --cbonds 0.5'.")
         advanced_layout.addWidget(self.crest_keywords_input, 1, 7)
 
         self.xtb_keywords_input = QLineEdit(self)
         self.xtb_keywords_input.setPlaceholderText("xTB keywords...")
+        self.xtb_keywords_input.textChanged.connect(lambda: crest_command.update({"xtb_keywords": self.xtb_keywords_input.text()}))
         self.xtb_keywords_input.setStyleSheet("font-size: 12px; color: black;")
         self.xtb_keywords_input.setToolTip("CREST ONLY: Define additional keywords to use in the xTB pre-optimization that are not included in -c, --uhf, -P and --input. For example: '--alpb ch2cl2 --gfn 1'.")
         advanced_layout.addWidget(self.xtb_keywords_input, 1, 8)
 
         self.cregen_checkbox = QCheckBox("CREGEN", self)
         self.cregen_checkbox.setChecked(True)
+        self.cregen_checkbox.stateChanged.connect(lambda: crest_command.update({"cregen": self.cregen_checkbox.isChecked()}))
         self.cregen_checkbox.setStyleSheet("font-size: 12px; color: black;")
         self.cregen_checkbox.setToolTip("If True, perform a CREGEN analysis after CREST.")
         advanced_layout.addWidget(self.cregen_checkbox, 2, 7)
 
         self.cregen_keywords_input = QLineEdit(self)
         self.cregen_keywords_input.setPlaceholderText("CREGEN keywords...")
+        self.cregen_keywords_input.textChanged.connect(lambda: crest_command.update({"cregen_keywords": self.cregen_keywords_input.text()}))
         self.cregen_keywords_input.setStyleSheet("font-size: 12px; color: black;")
         self.cregen_keywords_input.setToolTip("Additional keywords for CREGEN (i.e. cregen_keywords='--ethr 0.02').")
         advanced_layout.addWidget(self.cregen_keywords_input, 2, 8)
@@ -505,13 +530,11 @@ class smiles_to_csv(QWidget):
         self.crest_runs_input = QSpinBox(self)
         self.crest_runs_input.setRange(1, 100)
         self.crest_runs_input.setValue(1)
+        self.crest_runs_input.setSingleStep(1)
+        self.crest_runs_input.valueChanged.connect(lambda: crest_command.update({"crest_runs": self.crest_runs_input.value()}))
         self.crest_runs_input.setStyleSheet("font-size: 12px; color: black;")
         self.crest_runs_input.setToolTip("Specify as number of runs if multiple starting points from RDKit starting points is required.")
         advanced_layout.addWidget(self.crest_runs_input, 3, 8)
-
-
-
-
 
 
         csv_model.signals.updated.connect(self.update_ui)
@@ -617,7 +640,7 @@ class smiles_to_csv(QWidget):
             ("complex_type", csv_model["complex_type"][control.current_index - 1]),
             ("geom", csv_model["geom"][control.current_index - 1]),
             ]
-            # Temporarily disconnect the signal to avoid any callbacks
+            
             self.properties_table.blockSignals(True)
             
             for row, (property_name, value) in enumerate(properties):
@@ -638,7 +661,6 @@ class smiles_to_csv(QWidget):
                         item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                         
             self.properties_table.blockSignals(False)
-            self.file_name = None  # Reset file name to indicate unsaved changes idk if this works as intended tho 
         finally:
             self.is_programmatic_update = old_value
 
@@ -866,18 +888,17 @@ class smiles_to_csv(QWidget):
             else:
                 pass
 
-        if control.file_name is None:
-            control.save_csv_file() 
-        if not control.file_name:
+        if gen_command["input"] is None or not gen_command["input"]:
             msgBox = QMessageBox(self)
             msgBox.setIconPixmap(QPixmap(icons.red_path))
             msgBox.setWindowTitle("Warning")
-            msgBox.setText("Please save the CSV file before running AQME.")
+            msgBox.setText("Please select the input file before running AQME.")
             msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
             msgBox.exec()
+            control.save_csv_file() 
             return
         command = self.aqme_rungen()
-        file_directory = os.path.dirname(control.file_name)
+        file_directory = os.path.dirname(gen_command["input"])
 
         self.process = QProcess(self)
         self.process.setWorkingDirectory(file_directory)
@@ -960,29 +981,49 @@ class smiles_to_csv(QWidget):
 
     def aqme_rungen(self):
         """Update command w/ csv file."""
-        program = self.program_combo.currentText()
-        aqme_rungen = f'python -u -m aqme --csearch --program {program} --input {control.file_name} '
-        if self.output_dir_input == "":
-            aqme_rungen += f'--destination {self.output_dir_input.text()} '
-        if self.nprocs_input:
-            aqme_rungen += f'--nprocs {int(self.nprocs_input.text())} '
-        if self.stacksize_input:
-            aqme_rungen += f'--stacksize {int(self.stacksize_input.text())}GB '
-        if self.sample_size_input:
-            aqme_rungen += f'--sample {int(self.sample_size_input.text())} '
-        if self.auto_sample_combo:
-            aqme_rungen += f'--auto_sample {self.auto_sample_combo.currentText()} '
-        if self.energy_window_input:
-            aqme_rungen += f'--ewin_csearch {float(self.energy_window_input.text())} '
-        if self.initial_energy_threshold_input:
-            aqme_rungen += f'--initial_energy_threshold {float(self.initial_energy_threshold_input.text())} '
-        if self.energy_threshold_input:
-            aqme_rungen += f'--energy_threshold {float(self.energy_threshold_input.text())} '
-        if self.rms_threshold_input:
-            aqme_rungen += f'--rms_threshold {float(self.rms_threshold_input.text())} '
-        if self.opt_steps_rdkit_input:
-            aqme_rungen += f'--opt_steps_rdkit {int(self.opt_steps_rdkit_input.text())} '
-        print(aqme_rungen)
+        input_file, program, destination, stacksize, sample, auto_sample, ewin_csearch, \
+        initial_energy_threshold, energy_threshold, rms_threshold, \
+        opt_steps_rdkit, heavyonly, max_matches_rmsd, max_mol_wt, \
+        max_torsions, seed, geom, bond_thres, angle_thres, dihedral_thres, auto_metal_atoms = (
+            gen_command[key] for key in [
+            "input","program", "destination", "stacksize", "sample", "auto_sample",
+            "ewin_csearch", "initial_energy_threshold", "energy_threshold",
+            "rms_threshold", "opt_steps_rdkit", "heavyonly",
+            "max_matches_rmsd", "max_mol_wt", "max_torsions", "seed", "geom",
+            "bond_thres", "angle_thres", "dihedral_thres", "auto_metal_atoms"
+            ]
+        )
+        if not input_file:
+            self.failure("Please save the file before running AQME.")
+            return 
+        if not os.path.exists(input_file):
+            self.failure("Input file does not exist.")
+            return 
+        if not destination:
+            destination = os.path.dirname(input_file)
+        if not os.path.exists(destination):
+            os.makedirs(destination)
+        if not os.path.exists(destination):
+            self.failure("Output directory does not exist.")
+            return 
+        
+        aqme_rungen = f'python -u -m aqme --csearch --program {program} --input {input_file}  --destination {destination} --stacksize {stacksize} --sample {sample} --auto_sample {auto_sample} --ewin_csearch {ewin_csearch} --initial_energy_threshold {initial_energy_threshold} --energy_threshold {energy_threshold} --rms_threshold {rms_threshold} --opt_steps_rdkit {opt_steps_rdkit} --heavyonly {heavyonly} --max_matches_rmsd {max_matches_rmsd} --max_mol_wt {max_mol_wt} --max_torsions {max_torsions} --seed {seed} --geom "{geom}" --bond_thres {bond_thres} --angle_thres {angle_thres} --dihedral_thres {dihedral_thres} --auto_metal_atoms {auto_metal_atoms}'
+
+        if program == "CREST":
+            nprocs, crest_force, crest_keywords, cregen, cregen_keywords, xtb_keywords, crest_runs = (
+                crest_command[key] for key in [
+                "nprocs", "crest_force", "crest_keywords", "cregen", "cregen_keywords",
+                "xtb_keywords", "crest_runs"
+                ]
+            )
+            aqme_rungen += f' --nprocs {nprocs} --crest_force {crest_force}--cregen {cregen} --crest_runs {crest_runs}'
+
+            if crest_keywords != None:
+                aqme_rungen += f' --crest_keywords "{crest_keywords}"'
+            if cregen_keywords != None:
+                aqme_rungen += f' --cregen_keywords "{cregen_keywords}"'
+            if xtb_keywords != None:
+                aqme_rungen += f' --xtb_keywords "{xtb_keywords}"'
         return aqme_rungen
 
 # random 
@@ -1008,7 +1049,6 @@ class smiles_to_csv(QWidget):
 
 
 # TODO:
-# - Add all the parameters to the actual command ... !!!!!
 # - Add the complex_type option when TM is found !
 # - Fix run aqme command  !!!!
 # - expand the pubchem search  ... !
