@@ -21,7 +21,7 @@ class command_model(UserDict):
 general_command_dictionary = command_model(
     input = "",
     destination = "",
-    program = "",
+    program = "RDKit",
     stacksize = "1GB",
     sample=25,
     auto_sample="mid",

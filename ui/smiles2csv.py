@@ -10,12 +10,12 @@ import subprocess
 import tempfile
 
 from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QTextEdit, QCheckBox, QMessageBox, QSizePolicy, QFileDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem, QFrame, QGridLayout, QDoubleSpinBox
-from PySide6.QtCore import Qt, QProcess
+from PySide6.QtCore import Qt, QProcess, QEvent
 from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, QDoubleValidator, QTextCursor, QIntValidator
 
 from rdkit import Chem
 
-from utils import  pubchem2smiles, smiles2enumerate, smiles2numatoms, smiles2numelectrons, smiles2findmetal, smiles2charge, smiles2multiplicity, command2clipboard
+from utils import  pubchem2smiles, smiles2enumerate, smiles2numatoms, smiles2numelectrons, smiles2charge, smiles2multiplicity, command2clipboard
 import ui.resources.icons as icons
 
 from models.smiles2csv_model import csv_dictionary as csv_model
@@ -103,7 +103,7 @@ class smiles_to_csv(QWidget):
         self.log_box_label = QLabel(self.molecule_label)
         self.log_box_label.setFixedSize(550, 20)
         self.log_box_label.setStyleSheet("background-color: rgba(255, 255, 255, 0); border: none; font-size: 10px; color: black;")
-        self.molecule_label.resizeEvent = lambda event: self.log_box_label.move(5, self.molecule_label.height() - self.log_box_label.height())
+        self.molecule_label.resizeEvent = lambda event: self.log_box_label.move(5, self.molecule_label.height() - self.log_box_label.height() - 2)
 
     # VARIOUS INPUTS
         self.smiles_input = QTextEdit(self)
@@ -111,6 +111,7 @@ class smiles_to_csv(QWidget):
         self.smiles_input.setStyleSheet("border: 1px solid #dcdcdc;")
         self.smiles_input.setAutoFillBackground(True)
         self.smiles_input.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.smiles_input.installEventFilter(self)
         self.right_layout.addWidget(self.smiles_input, 1)
 
         self.smiles_input.textChanged.connect(lambda: control.update_smiles_model(self.smiles_input.toPlainText()))
@@ -237,13 +238,14 @@ class smiles_to_csv(QWidget):
         self.program_combo.currentTextChanged.connect(lambda text: self.nprocs_input.setEnabled(text == "CREST"))
 
         # Row 2 - Stack size
-        self.stacksize_label = QLabel("Stack size (GB):", self)
+        self.stacksize_label = QLabel("Stack size:", self)
         self.stacksize_label.setStyleSheet("font-size: 12px; color: black;")
         self.aqme_setup_grid.addWidget(self.stacksize_label, 2, 0)
         self.stacksize_input = QSpinBox(self)
         self.stacksize_input.setRange(1, 8)
         self.stacksize_input.setValue(1)
-        self.stacksize_input.valueChanged.connect(lambda: gen_command.update({"stacksize": f"{self.stacksize_input.value()}GB"}))
+        self.stacksize_input.valueChanged.connect(lambda: gen_command.update({"stacksize": f"{self.stacksize_input.value()}"}))
+        self.stacksize_input.setSuffix(" GB")
         self.stacksize_input.setStyleSheet("font-size: 12px; color: black;")
         self.aqme_setup_grid.addWidget(self.stacksize_input, 2, 1)
 
@@ -276,7 +278,7 @@ class smiles_to_csv(QWidget):
         self.run_button.setStyleSheet("font-size: 12px; color: black; background-color: lightblue;")
         self.run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
         self.run_button.setFixedHeight(55)
-        self.run_button.clicked.connect(lambda: (logging.debug("at run_button >>> self.run_aqme()"), self.run_aqme()))
+        self.run_button.clicked.connect(control.run_aqme)
         self.aqme_setup_grid.addWidget(self.run_button, 4, 1, 2, 1)
 
         for widget in [self.smiles_input, self.smiles_output, self.properties_table,  self.shell_output, self.molecule_label, self.atom_electron_label]:
@@ -549,7 +551,7 @@ class smiles_to_csv(QWidget):
         else:
             self.advanced_panel.setFixedHeight(0)
             self.resize(self.width(), self.height() - expanded_height)
-            self.advanced_settings_button.setText("Show Advanced Settings")
+            self.advanced_settings_button.setText("Show Advanced Settings") 
 
 
     def handle_property_change(self, item):
@@ -571,7 +573,7 @@ class smiles_to_csv(QWidget):
             self.user_defined_multiplicity[control.current_index] = item.text()
 
 
-# SMILES HANDILING FUNCTIONS (this to certain extent is also UI handling)
+# SMILES HANDILING FUNCTIONS ??
     def smiles_from_pubchem(self):
         """Searches PubChem for a compound using its CID or name and inserts the canonical SMILES into the input box."""
         code_name = self.search_pubchem_input.text()
@@ -601,6 +603,19 @@ class smiles_to_csv(QWidget):
         self.update_properties()
         self.update_ui()
         self.search_pubchem_input.clear()
+
+    def metal_atom_detected(self, metals):
+        """Detects metal atoms in the current molecule and updates the UI accordingly."""
+        self.log_box_label.setText(f"Metal atoms detected: {', '.join(metals)}. Check the charge and multiplicity.")
+        self.log_box_label.setStyleSheet("background-color: rgba(255, 255, 255, 0); border: none; font-size: 10px; color: black;")
+        
+
+    def smiles_are_bad_bro(self, smiles):
+        """Got the signal the smiles are bad so gotta let the people kno ig"""
+        self.log_box_label.setText(f"Bad SMILES: {smiles}")
+        self.log_box_label.setStyleSheet("color: red; font-size: 8px; border: none; background-color: white;")
+        self.log_box_label.setWordWrap(True)
+
 
     def resizeEvent(self, event):
         """Handle window resize events to refresh the molecule display."""
@@ -664,8 +679,11 @@ class smiles_to_csv(QWidget):
         finally:
             self.is_programmatic_update = old_value
 
-# UI ELEMENTS UPDATE FUNCTIONS (This will definitely stay but might need to rewrite quite heavily)
 
+
+
+
+# UI ELEMENTS UPDATE FUNCTIONS 
     def update_ui(self):
         """Update all UI elements to reflect the current molecule's data."""
         smiles = csv_model["SMILES"][control.current_index - 1]
@@ -682,6 +700,7 @@ class smiles_to_csv(QWidget):
         control.display_molecule(self.show_numbered_atoms_toggle.isChecked())
 
         self.index_and_total_label_update()
+        self.log_box_label.clear()
 
         try:
             num_atoms = smiles2numatoms(smiles)
@@ -706,7 +725,7 @@ class smiles_to_csv(QWidget):
         pixmap = QPixmap(icons.red_path)
         icon = QIcon(pixmap)
         
-        if self.file_name is None: 
+        if gen_command["input"] is None: 
             msgBox = QMessageBox(self)
             msgBox.setWindowTitle("Save CSV")
             msgBox.setText("Would you like to save the CSV file before exiting?")
@@ -726,7 +745,6 @@ class smiles_to_csv(QWidget):
                 event.ignore()
         else:
             event.accept()
-
 
 # CHEMDRAW FUNCTIONS
     def import_file(self):
@@ -826,7 +844,7 @@ class smiles_to_csv(QWidget):
             for index in range(control.total_index):
                 csv_model["code_name"][index] = f"mol_{index + 1}"
                 control.current_index = 1
-                
+            gen_command["input"] = None
             csv_model.signals.updated.emit()
             self.update_properties()
 
@@ -838,7 +856,6 @@ class smiles_to_csv(QWidget):
             print(f"An unexpected error occurred: {e}")
 
 # AQME RUN SETUP FUNCTIONS
-
     def select_output_directory(self):
         """Select the output directory for AQME results."""
         self.output_directory = QFileDialog.getExistingDirectory(self, "Select Output Directory")
@@ -892,7 +909,7 @@ class smiles_to_csv(QWidget):
             msgBox = QMessageBox(self)
             msgBox.setIconPixmap(QPixmap(icons.red_path))
             msgBox.setWindowTitle("Warning")
-            msgBox.setText("Please select the input file before running AQME.")
+            msgBox.setText("Please save the input file before running AQME.")
             msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
             msgBox.exec()
             control.save_csv_file() 
@@ -1047,6 +1064,13 @@ class smiles_to_csv(QWidget):
         msg.setIconPixmap(pixmap)
         msg.exec()
 
+    def eventFilter(self, obj, event):
+        # Check if the event is for the QTextEdit and is a key press
+        if obj == self.smiles_input and event.type() == QEvent.KeyPress:
+            # Ignore Space and Enter keys
+            if event.key() in (Qt.Key_Space, Qt.Key_Return, Qt.Key_Enter):
+                return True  # Block the event
+        return super().eventFilter(obj, event) 
 
 # TODO:
 # - Add the complex_type option when TM is found !
