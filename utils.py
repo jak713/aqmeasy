@@ -181,4 +181,3 @@ def command2clipboard(command):
         return True
     except Exception:
         return False
-    

@@ -1016,7 +1016,7 @@ class smiles_to_csv(QWidget):
                 "xtb_keywords", "crest_runs"
                 ]
             )
-            aqme_rungen += f' --nprocs {nprocs} --crest_force {crest_force}--cregen {cregen} --crest_runs {crest_runs}'
+            aqme_rungen += f' --nprocs {int(nprocs)} --crest_force {crest_force} --cregen {cregen} --crest_runs {crest_runs}'
 
             if crest_keywords != None:
                 aqme_rungen += f' --crest_keywords "{crest_keywords}"'
