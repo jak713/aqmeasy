@@ -31,13 +31,14 @@ class smiles_to_csv(QWidget):
     def __init__(self):
         super().__init__()
         control.set_parent(self)
+        self.file_name = None # this actually not needed but i need to fix the logic when nothing has been changed in the UI and we want to close the app (i.e. no need to save)
 
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.resize(900,800)
         self.setWindowTitle("smiles2csv")
         QShortcut(QKeySequence(Qt.Key_Escape), self, lambda: self.clear_focus_on_inputs())
-
-        self.smiles_w_metal = [] # will take this out later
+        
+        self.smiles_w_metal = [] # will take this out later, right now the feature is not implemented
 
         self.top_layout = QHBoxLayout()
         self.left_layout = QVBoxLayout()

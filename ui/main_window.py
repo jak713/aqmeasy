@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QMainWindow, QLabel, QVBoxLayout, QWidget, QPushBu
 from PySide6.QtGui import QAction, QPixmap, QDesktopServices
 from ui.smiles2csv import smiles_to_csv
 from PySide6.QtCore import Qt, QUrl
+import os
 
 class MainWindow(QMainWindow):
 #FE6253 coral
@@ -17,7 +18,8 @@ class MainWindow(QMainWindow):
         central_widget = QWidget(self)
         layout = QVBoxLayout(central_widget)
         self.logo = QLabel(self)
-        logo = QPixmap("/Users/user/Documents/aqme/aqmeasy/ui/resources/aqme-logo-grey-transparent.svg")
+        logo_path = os.path.join(os.path.dirname(__file__), "resources", "aqme-logo-grey-transparent.svg")
+        logo = QPixmap(logo_path)
         if not logo.isNull():
             self.logo.setPixmap(logo)
         else:
@@ -25,7 +27,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.logo,2, alignment=Qt.AlignCenter)
 
         readthedocs_label = QLabel(self)
-        readthedocs_icon = QPixmap("/Users/user/Documents/aqme/aqmeasy/ui/resources/readthedocs_logo.png")
+        readthedocs_icon = QPixmap(os.path.join(os.path.dirname(__file__), "resources", "readthedocs_logo.png"))
         if not readthedocs_icon.isNull():
             readthedocs_icon = readthedocs_icon.scaled(self.logo.pixmap().size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
             readthedocs_label.setPixmap(readthedocs_icon)
