@@ -63,14 +63,16 @@ class CsvController:
     def add_intermediate(self,items):
         """Add an intermediate to the CSV table by combining the SMILES strings of the selected items in the csv_table."""
         selected_items = [self.model["SMILES"][item.row()] for item in items]
-        print(selected_items)
+        selected_code_names = [self.model["code_name"][item.row()] for item in items]
+        # print(selected_items)
         if len(selected_items) < 2:
             return self.parent.failure("Please select two or more items to add an intermediate.")
+        
         smiles = ".".join(selected_items)
         self.new_molecule()
         index = self.get_total_index() - 1
         self.model["SMILES"][index] = smiles
-        self.model["code_name"][index] = "Intermediate"
+        self.model["code_name"][index] = "Intermediate_" + "+".join(selected_code_names)
         self.model["charge"][index] = smiles2charge(smiles)
         self.model["multiplicity"][index] = smiles2multiplicity(smiles)
         self.model["constraints_atoms"][index] = ""
@@ -84,15 +86,26 @@ class CsvController:
         """Add a transition state to the CSV table."""
         selected_items = [self.model["SMILES"][item.row()] for item in items]
         selected_code_names = [self.model["code_name"][item.row()] for item in items]
-        print(selected_code_names)
-        print(selected_items)
+        # print(selected_code_names)
+        # print(selected_items)
         if len(selected_items) < 1:
             return self.parent.failure("Please select one or more items to add a transition state.")
+        
         smiles = ".".join(selected_items)
         self.new_molecule()
         index = self.get_total_index() - 1
+
+        # to avoid duplicate names, need to check if the name already exists, if it does do magic trick of adding number at the end
+        base_TS_name = "TS_" + "+".join(selected_code_names) 
+        existing_names = self.model["code_name"]
+        if base_TS_name in existing_names:
+            count = sum(1 for name in existing_names if name.startswith(base_TS_name))
+            unique_TS_name = f"{base_TS_name}_{count}"
+        else:
+            unique_TS_name = base_TS_name
+
         self.model["SMILES"][index] = smiles2enumerate(smiles)
-        self.model["code_name"][index] = "TS_" + "+".join(selected_code_names)
+        self.model["code_name"][index] = unique_TS_name
         self.model["charge"][index] = smiles2charge(smiles)
         self.model["multiplicity"][index] = smiles2multiplicity(smiles)
         self.model["constraints_atoms"][index] = ""
