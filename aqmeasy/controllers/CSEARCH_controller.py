@@ -2,11 +2,11 @@ import logging
 import csv
 import io
 import sys
-from models.smiles2csv_model import csv_dictionary as csv_model
-from models.smiles2csv_command import general_command_dictionary as gen_command, crest_command_dictionary as crest_command
+from aqmeasy.models.CSEARCH_model import csv_dictionary as csv_model
+from aqmeasy.models.CSEARCH_command import general_command_dictionary as gen_command, crest_command_dictionary as crest_command
 
-import ui.dialogs.smiles2csv_table_dialog as csv_table
-from utils import smiles2pixmap, smiles2enumerate, smiles2charge, smiles2multiplicity, smiles2findmetal
+import aqmeasy.ui.dialogs.smiles2csv_table_dialog as csv_table
+from aqmeasy.utils import smiles2pixmap, smiles2enumerate, smiles2charge, smiles2multiplicity, smiles2findmetal
 import rdkit.rdBase
 from rdkit import Chem
 from rdkit.Chem import Draw as rdMolDraw2D, rdDepictor

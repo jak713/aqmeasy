@@ -15,19 +15,22 @@ from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, 
 
 from rdkit import Chem
 
-from utils import  pubchem2smiles, smiles2enumerate, smiles2numatoms, smiles2numelectrons, smiles2findmetal, smiles2charge, smiles2multiplicity, command2clipboard
-import ui.resources.icons as icons
+from aqmeasy.utils import  pubchem2smiles, smiles2enumerate, smiles2numatoms, smiles2numelectrons, smiles2findmetal, smiles2charge, smiles2multiplicity, command2clipboard, resource_path
+# import ui.resources.icons as icons
 
-from models.smiles2csv_model import csv_dictionary as csv_model
-from models.smiles2csv_command import (
+from aqmeasy.models.CSEARCH_model import csv_dictionary as csv_model
+from aqmeasy.models.CSEARCH_command import (
     general_command_dictionary as gen_command,
     summ_command_dictionary as summ_command,
     fullmonte_command_dictionary as fullmonte_command,
     crest_command_dictionary as crest_command
     )
-from controllers.smiles2csv_controller import csv_controller as control
+from aqmeasy.controllers.CSEARCH_controller import csv_controller as control
 
-class smiles_to_csv(QWidget):
+red_icon = resource_path("ui/resources/aqme-icon-red_512@2x.png")
+green_icon = resource_path("ui/resources/aqme-icon-green_512@2x.png")
+
+class CSEARCH(QWidget):
     def __init__(self):
         super().__init__()
         control.set_parent(self)
@@ -35,7 +38,7 @@ class smiles_to_csv(QWidget):
 
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.resize(900,800)
-        self.setWindowTitle("smiles2csv")
+        self.setWindowTitle("CSEARCH")
         QShortcut(QKeySequence(Qt.Key_Escape), self, lambda: self.clear_focus_on_inputs())
         
         self.smiles_w_metal = [] # will take this out later, right now the feature is not implemented
@@ -574,14 +577,22 @@ class smiles_to_csv(QWidget):
 
 # SMILES HANDILING FUNCTIONS (this to certain extent is also UI handling)
     def smiles_from_pubchem(self):
-        """Searches PubChem for a compound using its CID or name and inserts the canonical SMILES into the input box."""
+        """
+        Fetches the canonical SMILES string for a compound from PubChem using its CID, CAS, or name, and updates the input field and model accordingly.
+        This function is triggered when the user presses Enter in the search field.
+        It performs the following steps:
+        - Retrieves the user input (CID, CAS, or compound name) from the search field.
+        - Attempts to fetch the SMILES string from PubChem
+        - Updates the SMILES field in the model and input box, appending if necessary.
+        - Sets the compound name in the model if not already present.
+        """
         code_name = self.search_pubchem_input.text()
         if not code_name:
             QMessageBox.warning(self, "Error", "Please enter a valid CID, CAS or compound name.")
         try:
             smiles = pubchem2smiles(code_name)
         except IndexError:
-            pixmap = QPixmap(icons.red_path)
+            pixmap = QPixmap(red_icon)
             icon = QIcon(pixmap)
             msgBox = QMessageBox(self)
             msgBox.setWindowTitle("Error")
@@ -704,7 +715,7 @@ class smiles_to_csv(QWidget):
 
     def closeEvent(self, event):
         """Handle the close event to prompt saving the CSV file, with the added icon."""
-        pixmap = QPixmap(icons.red_path)
+        pixmap = QPixmap(red_icon)
         icon = QIcon(pixmap)
         
         if self.file_name is None: 
@@ -731,7 +742,7 @@ class smiles_to_csv(QWidget):
 
 # CHEMDRAW FUNCTIONS
     def import_file(self):
-        """Import an SDF or ChemDraw file, extract SMILES, and display them."""
+        """Import an SDF or ChemDraw file, extract SMILES, and display them. For CSV files, it reads the data and updates the model."""
         file_name, _ = QFileDialog.getOpenFileName(self, "Import File", "", "ChemDraw Files (*.cdx *.cdxml);;SDF Files (*.sdf);;CSV files (*.csv)")
         if not file_name:
             return
@@ -854,7 +865,7 @@ class smiles_to_csv(QWidget):
         for value in csv_model["SMILES"]:
             if value == "":
                 msgBox = QMessageBox(self)
-                msgBox.setIconPixmap(QPixmap(icons.red_path))
+                msgBox.setIconPixmap(QPixmap(red_icon))
                 msgBox.setWindowTitle("Warning")
                 msgBox.setText("No SMILES found. Please enter a SMILES string.")
                 msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
@@ -877,7 +888,7 @@ class smiles_to_csv(QWidget):
                 if index not in changed_charge_multiplicity:
                     continue
             msgBox = QMessageBox(self)
-            msgBox.setIconPixmap(QPixmap(icons.red_path))
+            msgBox.setIconPixmap(QPixmap(red_icon))
             msgBox.setWindowTitle("Warning")
             msgBox.setText(f"Please check the charge and multiplicity for the transition metal complex(es).")
             msgBox.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
@@ -891,7 +902,7 @@ class smiles_to_csv(QWidget):
 
         if gen_command["input"] is None or not gen_command["input"]:
             msgBox = QMessageBox(self)
-            msgBox.setIconPixmap(QPixmap(icons.red_path))
+            msgBox.setIconPixmap(QPixmap(red_icon))
             msgBox.setWindowTitle("Warning")
             msgBox.setText("Please select the input file before running AQME.")
             msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
@@ -960,7 +971,7 @@ class smiles_to_csv(QWidget):
     def process_finished(self, exitCode):
         """Handle the process finish event and display a message box."""
         if exitCode == 0:
-            pixmap = QPixmap(icons.green_path)
+            pixmap = QPixmap(green_icon)
             icon = QIcon(pixmap)
             msgBox = QMessageBox(self)
             msgBox.setWindowTitle("AQME Run Completed")
@@ -970,7 +981,7 @@ class smiles_to_csv(QWidget):
             msgBox.setStandardButtons(QMessageBox.Ok)
             msgBox.exec()
         else:
-            pixmap = QPixmap(icons.red_path)
+            pixmap = QPixmap(red_icon)
             icon = QIcon(pixmap)
             msgBox = QMessageBox(self)
             msgBox.setWindowTitle("AQME Run Failed")
@@ -1029,7 +1040,7 @@ class smiles_to_csv(QWidget):
 
 # random 
     def success(self, message):
-        pixmap = QPixmap(icons.green_path)
+        pixmap = QPixmap(green_icon)
         icon = QIcon(pixmap)
         msg = QMessageBox(self)
         msg.setWindowTitle("Success")
@@ -1039,7 +1050,7 @@ class smiles_to_csv(QWidget):
         msg.exec()
 
     def failure(self, message):
-        pixmap = QPixmap(icons.red_path)
+        pixmap = QPixmap(red_icon)
         icon = QIcon(pixmap)
         msg = QMessageBox(self)
         msg.setWindowTitle("Failure")
@@ -1053,7 +1064,9 @@ class smiles_to_csv(QWidget):
 # - Add the complex_type option when TM is found !
 # - Fix run aqme command  !!!!
 # - expand the pubchem search  ... !
+
 # ---- fix the warning where the smiles entered are not valid (rn nothing really happens but the change is only regirestered when the smiles are valid (or thats how it should be)), similarly changing smiles removes the view of the constraints but doesnt remove them completely at the index level, which I think should be done?
+
 # add intermedaite plus transition state option in the show all 
 
 # fucking dark mode man !!!!

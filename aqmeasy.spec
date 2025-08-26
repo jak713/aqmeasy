@@ -2,15 +2,21 @@
 
 
 a = Analysis(
-    ['main.py'],
+    ['aqmeasy.py'],
     pathex=[],
     binaries=[],
-    datas=[],
-    hiddenimports=[],
+    datas=[('ui/resources/*', 'ui/resources'),
+           ('ui/*.py', 'ui'),
+           ('ui/resources/*.py', 'ui/resources'),
+           ('models/*.py', 'models'),
+           ('controllers/*.py', 'controllers'),
+           ('utils.py', '.')
+           ],
+    hiddenimports=['rdkit', 'rdkit.Chem.Descriptrs'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['PyQt6'],
+    excludes=[],
     noarchive=False,
     optimize=0,
 )
@@ -32,6 +38,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['ui/resources/icons.iconset/aqme_icon.icns'],
 )
 coll = COLLECT(
     exe,
@@ -40,11 +47,11 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='main',
+    name='aqmeasy',
 )
 app = BUNDLE(
     coll,
     name='aqmeasy.app',
-    icon=None,
+    icon='ui/resources/icons.iconset/aqme_icon.icns',
     bundle_identifier=None,
 )

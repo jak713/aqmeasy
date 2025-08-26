@@ -7,6 +7,8 @@ from rdkit.Chem import AllChem, Descriptors
 from rdkit.Chem.Draw import rdMolDraw2D
 
 import pubchempy as pcp
+import os
+import sys
 
 def smiles2pixmap(smiles):
     """Convert a SMILES string to a QPixmap image of the molecule.
@@ -172,6 +174,11 @@ def smiles2findmetal(smiles):
         return 
     
 def command2clipboard(command):
+    """Copy a command to the clipboard.
+    Args:
+        command (str): The command to copy.
+    Returns:
+        bool: True if the command was copied successfully, False otherwise."""
     clipboard = QApplication.clipboard()
     command = str(command)
     if command == "None":
@@ -181,3 +188,9 @@ def command2clipboard(command):
         return True
     except Exception:
         return False
+    
+
+def resource_path(relative_path):
+    """Get absolute path to resource, works for PyInstaller."""
+    base_path = sys._MEIPASS if getattr(sys, 'frozen', False) else os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
