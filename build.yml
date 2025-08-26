@@ -37,11 +37,11 @@ jobs:
         run: |
               conda create -n build-env python=3.10
               conda activate build-env
-              conda install -y pyinstaller pyside6 xtb crest aqme rdkit -c conda-forge
+              conda install -y pyinstaller xtb crest aqme rdkit -c conda-forge
       
       - name: Install Pip Dependencies
         run: |
-          python -m pip install --upgrade pip setuptools wheel pyinstaller pyside6 pubchempy
+          python -m pip install --upgrade pip setuptools wheel pyinstaller pyside6 pubchempy pyside6-addons py3dmol
 
       - name: Build Executable with PyInstaller
         run: |
