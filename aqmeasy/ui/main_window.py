@@ -1,7 +1,8 @@
 import csv
 from PySide6.QtWidgets import QMainWindow, QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QMessageBox, QApplication
 from PySide6.QtGui import QAction, QPixmap, QDesktopServices
-from ui.smiles2csv import smiles_to_csv
+from aqmeasy.ui.CSEARCH import CSEARCH
+from aqmeasy.ui.QPREP import QPREP
 from PySide6.QtCore import Qt, QUrl
 import os
 
@@ -108,26 +109,25 @@ class MainWindow(QMainWindow):
             <p>Code <a href="https://github.com/jvalegre/aqme">here</a> (Github)</p>
             <p>ReadTheDocs <a href="https://aqme.readthedocs.io/en/latest/">here</a></p>
             <p>Citation: Alegre-Requena JV, Sowndarya S. V. S, Pérez-Soto R, Alturaifi TM, Paton RS. AQME: Automated quantum mechanical environments for researchers and educators. WIREs Comput Mol Sci. 2023; 13(5):e1663. https://doi.org/10.1002/wcms.1663</p>
+            <p>GUI developed by <a href="https://github.com/jak713">Julia Kaczmarek</a></p>
         </div>
         """
         QMessageBox.about(self, "About AQMEasy", about_text)
 
-        # <p>GUI developed by <a href="https://github.com/jak713">Julia Kaczmarek</a></p>
+        
 
     def aboutQt(self):
         QMessageBox.aboutQt(self, QApplication.aboutQt())
 
     def new_smiles2csv_window(self):
         """Opens a new window for converting SMILES to CSV"""
-        new_smiles2csv = smiles_to_csv()
-        # self.button_for_csearch.setDisabled(True)
-        # new_smiles2csv.setAttribute(Qt.WA_DeleteOnClose)
-        # new_smiles2csv.destroyed.connect(lambda: self.button_for_csearch.setDisabled(False))
-        new_smiles2csv.show()
+        self.new_smiles2csv = CSEARCH()
+        self.new_smiles2csv.show()
 
     def new_qprep_widget(self):
-        """Opens a new window for qprep"""
-        pass
+        self.new_qprep = QPREP()
+        print("QPREP created:", self.new_qprep)
+        self.new_qprep.show()
 
     def new_qcorr_widget(self):
         """Opens a new window for qcorr"""
