@@ -1,5 +1,4 @@
 aqme
 pyside6
-pyside6-addons
 pubchempy
 py3dmol

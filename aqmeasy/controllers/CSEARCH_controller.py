@@ -2,8 +2,8 @@ import logging
 import csv
 import io
 import sys
-from aqmeasy.models.CSEARCH_model import csv_dictionary as csv_model
-from aqmeasy.models.CSEARCH_command import general_command_dictionary as gen_command, crest_command_dictionary as crest_command
+from aqmeasy.models.CSEARCH_model.CSEARCH_model import csv_dictionary as csv_model
+from aqmeasy.models.CSEARCH_model.CSEARCH_command import general_command_dictionary as gen_command, crest_command_dictionary as crest_command
 
 import aqmeasy.ui.dialogs.smiles2csv_table_dialog as csv_table
 from aqmeasy.utils import smiles2pixmap, smiles2enumerate, smiles2charge, smiles2multiplicity, smiles2findmetal

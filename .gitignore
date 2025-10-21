@@ -1,6 +1,9 @@
 tests/
 build/
 dist/
+aqmeasy/.DS_Store/
+.DS_Store/
+run_app.py
 test-files/
 __pycache__/
 *.pyc

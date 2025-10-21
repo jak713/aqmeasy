@@ -16,7 +16,7 @@ class InputModel(QObject):
         self._software = 'Orca'
         self._functional = 'B3LYP'
         self._basis_set = '6-31G(d)'
-        self._nprocs = 8 # just because the default is usually 8
+        self._nprocs = 8
         self._mem = 1
 
     def software(self):
