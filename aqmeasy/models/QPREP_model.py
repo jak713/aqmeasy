@@ -4,7 +4,7 @@ from PySide6.QtCore import QObject, Signal
 # The new values are returned and updated in a dictionary fashion (bottom of code)
 
 class InputModel(QObject):
-    """Able to read when buttom is changed, i.e going from GAUSSIAN -> ORCA ETC"""
+    """Able to read when button is changed, i.e going from GAUSSIAN -> ORCA ETC"""
     softwareChanged = Signal(str)
     functionalChanged = Signal(str)
     basisSetChanged = Signal(str)

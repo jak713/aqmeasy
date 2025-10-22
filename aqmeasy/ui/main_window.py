@@ -4,6 +4,7 @@ from PySide6.QtGui import QAction, QPixmap, QDesktopServices
 from aqmeasy.ui.CSEARCH_ui.CSEARCH import CSEARCH
 from aqmeasy.ui.QPREP_ui.QPREP import QPREP
 from aqmeasy.ui.QCORR_ui.QCORR import QCORR
+from aqmeasy.ui.stylesheets import stylesheets
 from PySide6.QtCore import Qt, QUrl
 import os
 
@@ -19,23 +20,24 @@ class MainWindow(QMainWindow):
         central_widget = QWidget(self)
         layout = QVBoxLayout(central_widget)
         self.logo = QLabel(self)
-        logo_path = os.path.join(os.path.dirname(__file__), "resources", "aqme-logo-grey-transparent.svg")
+        logo_path = os.path.join(os.path.dirname(__file__), "resources", "aqme-logo-transparent.svg")
         logo = QPixmap(logo_path)
         if not logo.isNull():
             self.logo.setPixmap(logo)
         else:
             self.logo.setText("Logo not found")
+        self.logo.setOpenExternalLinks(True)
+        self.logo.mousePressEvent = lambda event: QDesktopServices.openUrl(QUrl("https://github.com/jvalegre/aqme"))
         layout.addWidget(self.logo,2, alignment=Qt.AlignCenter)
 
         readthedocs_label = QLabel(self)
+        readthedocs_label.setStyleSheet(stylesheets.QLabel)
         readthedocs_icon = QPixmap(os.path.join(os.path.dirname(__file__), "resources", "readthedocs_logo.png"))
         if not readthedocs_icon.isNull():
             readthedocs_icon = readthedocs_icon.scaled(self.logo.pixmap().size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
             readthedocs_label.setPixmap(readthedocs_icon)
         else:
             readthedocs_label.setText('<a href="https://aqme.readthedocs.io/en/latest/">Docs</a>')
-            readthedocs_label.setTextFormat(Qt.RichText)
-            readthedocs_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
             readthedocs_label.setOpenExternalLinks(True)
         readthedocs_label.mousePressEvent = lambda event: QDesktopServices.openUrl(QUrl("https://aqme.readthedocs.io/en/latest/"))
         layout.addWidget(readthedocs_label,1, alignment=Qt.AlignCenter)
@@ -46,29 +48,37 @@ class MainWindow(QMainWindow):
         button_layout = QHBoxLayout()
 
         label_for_csearch = QLabel("Conformational\nSearch:")
+        label_for_csearch.setStyleSheet(stylesheets.QLabel)
         label_layout.addWidget(label_for_csearch)
         self.button_for_csearch = QPushButton("CSEARCH")
+        self.button_for_csearch.setStyleSheet(stylesheets.QPushButton)
         self.button_for_csearch.setFixedHeight(50)
         self.button_for_csearch.clicked.connect(self.new_smiles2csv_window)
         button_layout.addWidget(self.button_for_csearch)
         
         label_for_qprep = QLabel("Quantum Chem\nPreprocessing:")
+        label_for_qprep.setStyleSheet(stylesheets.QLabel)
         label_layout.addWidget(label_for_qprep)
         button_for_qprep = QPushButton("QPREP")
+        button_for_qprep.setStyleSheet(stylesheets.QPushButton)
         button_for_qprep.setFixedHeight(50)
         button_for_qprep.clicked.connect(self.new_qprep_widget)
         button_layout.addWidget(button_for_qprep)
         
         label_for_qcorr = QLabel("Quantum Chem\nCorrections:")
+        label_for_qcorr.setStyleSheet(stylesheets.QLabel)
         label_layout.addWidget(label_for_qcorr)
         button_for_qcorr = QPushButton("QCORR")
+        button_for_qcorr.setStyleSheet(stylesheets.QPushButton)
         button_for_qcorr.setFixedHeight(50)
         button_for_qcorr.clicked.connect(self.new_qcorr_widget)
         button_layout.addWidget(button_for_qcorr)
 
         label_for_qdescp = QLabel("Quantum Chem\nDescriptors:")
+        label_for_qdescp.setStyleSheet(stylesheets.QLabel)
         label_layout.addWidget(label_for_qdescp)
         button_for_qdescp = QPushButton("QDESCP")
+        button_for_qdescp.setStyleSheet(stylesheets.QPushButton)
         button_for_qdescp.setFixedHeight(50)
         button_for_qdescp.clicked.connect(self.new_qdescp_widget)
         button_layout.addWidget(button_for_qdescp)
@@ -91,9 +101,9 @@ class MainWindow(QMainWindow):
     def create_menu(self):
         menu = self.menuBar()
         menu.setNativeMenuBar(False)
+        menu.setStyleSheet(stylesheets.QMenuBar)
 
         help_menu = menu.addMenu("Help")
-
         about_action = QAction("About AQME", self)
         about_action.triggered.connect(self.showAboutDialog)
         help_menu.addAction(about_action)

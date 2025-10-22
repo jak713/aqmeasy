@@ -22,6 +22,8 @@ from PySide6.QtCore import Qt, QProcess
 from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, QDoubleValidator, QTextCursor, QIntValidator
 from aqmeasy.ui.QCORR_ui.QCORR_filepanel import FilePanel
 from aqmeasy.ui.QCORR_ui.QCORR_viewpanel import ViewPanel
+from aqmeasy.ui.QCORR_ui.QCORR_parampanel import ParamPanel
+from aqmeasy.ui.stylesheets import stylesheets
 
 
 
@@ -39,6 +41,8 @@ class QCORR(QWidget):
 
         self.file_panel = FilePanel()
         left_panel.addWidget(self.file_panel)
+        self.param_panel = ParamPanel()
+        left_panel.addWidget(self.param_panel)
         
         right_panel = QVBoxLayout()
         

@@ -15,8 +15,7 @@ from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, 
 
 from rdkit import Chem
 
-from aqmeasy.utils import  pubchem2smiles, smiles2enumerate, smiles2numatoms, smiles2numelectrons, smiles2findmetal, smiles2charge, smiles2multiplicity, command2clipboard, resource_path
-# import ui.resources.icons as icons
+from aqmeasy.utils import  pubchem2smiles, smiles2enumerate, smiles2numatoms, smiles2numelectrons, smiles2findmetal, smiles2charge, smiles2multiplicity, command2clipboard
 
 from aqmeasy.models.CSEARCH_model.CSEARCH_model import csv_dictionary as csv_model
 from aqmeasy.models.CSEARCH_model.CSEARCH_command import (
@@ -26,18 +25,19 @@ from aqmeasy.models.CSEARCH_model.CSEARCH_command import (
     crest_command_dictionary as crest_command
     )
 from aqmeasy.controllers.CSEARCH_controller import csv_controller as control
+from aqmeasy.ui.stylesheets import stylesheets
+from aqmeasy.ui.icons import red_icon, green_icon, plus_icon
 
-red_icon = resource_path("ui/resources/aqme-icon-red_512@2x.png")
-green_icon = resource_path("ui/resources/aqme-icon-green_512@2x.png")
 
 class CSEARCH(QWidget):
     def __init__(self):
         super().__init__()
         control.set_parent(self)
+        self.setAcceptDrops(True)
         self.file_name = None # this actually not needed but i need to fix the logic when nothing has been changed in the UI and we want to close the app (i.e. no need to save)
 
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
-        # self.resize(900,800)
+        self.resize(850,800)
         self.setWindowTitle("CSEARCH")
         QShortcut(QKeySequence(Qt.Key_Escape), self, lambda: self.clear_focus_on_inputs())
         
@@ -65,23 +65,27 @@ class CSEARCH(QWidget):
         self.control1_layout.addWidget(self.index_and_total_label)
 
         self.import_button = QPushButton("Import", self)
+        self.import_button.setStyleSheet(stylesheets.QPushButton)
         self.import_button.setFixedWidth(65)
         self.import_button.clicked.connect(lambda: (logging.debug("at import_button >>> self.import_file()"), self.import_file()))
         self.control1_layout.addWidget(self.import_button)
 
-        self.new_molecule_button = QPushButton("New Molecule", self)
+        self.new_molecule_button = QPushButton("Add Entry", self)
+        self.new_molecule_button.setStyleSheet(stylesheets.QPushButton)
+        # self.new_molecule_button.setIcon(QIcon(plus_icon))
         self.new_molecule_button.clicked.connect(lambda: (logging.debug("at new_molecule_button >>> self.new_molecule()"), control.new_molecule()))
         self.control1_layout.addWidget(self.new_molecule_button)
 
         self.show_all_button = QPushButton("Show All", self)
+        self.show_all_button.setStyleSheet(stylesheets.QPushButton)
         self.show_all_button.setFixedWidth(65)
         self.show_all_button.clicked.connect(control.show_csv)
         self.control1_layout.addWidget(self.show_all_button)
 
         self.save_csv_button = QPushButton(self)
+        self.save_csv_button.setStyleSheet(stylesheets.QPushButton)
         self.save_csv_button.setToolTip("Save CSV file")
         self.save_csv_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton))
-        self.save_csv_button.setStyleSheet("font-size: 12px; color: black;")
         self.save_csv_button.clicked.connect(lambda: (logging.debug("at save_csv_button >>> save_csv"), control.save_csv_file()))
         self.control1_layout.addWidget(self.save_csv_button)
 
@@ -93,7 +97,7 @@ class CSEARCH(QWidget):
     # THIS IS WHERE THE MOLECULE IS DISPLAYED
         self.molecule_label = QLabel("Enter SMILES in the box on the right...", self)
         self.molecule_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.molecule_label.setStyleSheet("background-color: #f8f8f8; border: 1px solid black; color: black; font-size: 12px;")
+        self.molecule_label.setStyleSheet(stylesheets.MoleculeLabel)
         self.molecule_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)  
         self.molecule_label.setMinimumSize(250, 200)  
 
@@ -101,18 +105,17 @@ class CSEARCH(QWidget):
         self.left_layout.addWidget(self.molecule_label)
 
         self.atom_electron_label = QLabel(self.molecule_label)
-        self.atom_electron_label.setFixedSize(150, 30)
         self.atom_electron_label.setStyleSheet("background-color: rgba(255, 255, 255, 0); border: none; font-size: 10px; color: black;")
-
+        self.atom_electron_label.setFixedSize(150, 30)
         self.log_box_label = QLabel(self.molecule_label)
+        self.log_box_label.setStyleSheet("background-color: rgba(255, 255, 255, 0); border: none; font-size: 10px; color: black;")        
         self.log_box_label.setFixedSize(550, 20)
-        self.log_box_label.setStyleSheet("background-color: rgba(255, 255, 255, 0); border: none; font-size: 10px; color: black;")
         self.molecule_label.resizeEvent = lambda event: self.log_box_label.move(5, self.molecule_label.height() - self.log_box_label.height())
 
     # VARIOUS INPUTS
         self.smiles_input = QTextEdit(self)
         self.smiles_input.setPlaceholderText("Enter SMILES here or search PubChem below...")
-        self.smiles_input.setStyleSheet("border: 1px solid #dcdcdc;")
+        self.smiles_input.setStyleSheet(stylesheets.QTextEdit)
         self.smiles_input.setAutoFillBackground(True)
         self.smiles_input.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.right_layout.addWidget(self.smiles_input, 1)
@@ -120,16 +123,19 @@ class CSEARCH(QWidget):
         self.smiles_input.textChanged.connect(lambda: control.update_smiles_model(self.smiles_input.toPlainText()))
 
         self.show_numbered_atoms_toggle = QCheckBox("Show atom labels", self)
+        self.show_numbered_atoms_toggle.setStyleSheet(stylesheets.QCheckBox)
         self.show_numbered_atoms_toggle.setChecked(False)
         self.show_numbered_atoms_toggle.stateChanged.connect(lambda: control.display_molecule(self.show_numbered_atoms_toggle.isChecked()))
         self.control2_layout.addWidget(self.show_numbered_atoms_toggle)
 
         self.search_pubchem_input = QLineEdit(self)
+        self.search_pubchem_input.setStyleSheet(stylesheets.QLineEdit)
         self.search_pubchem_input.setPlaceholderText("Search PubChem...")
         self.search_pubchem_input.returnPressed.connect(self.smiles_from_pubchem)
         self.control2_layout.addWidget(self.search_pubchem_input)
 
         self.search_pubchem_advanced_button = QPushButton(self)
+        self.search_pubchem_advanced_button.setStyleSheet(stylesheets.QPushButton)
         self.search_pubchem_advanced_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView))
         # this is for Getting a full results list for common compound names (https://pubchempy.readthedocs.io/en/latest/guide/searching.html)
         # probs wont incorporate advanced search types but idk yet
@@ -142,17 +148,21 @@ class CSEARCH(QWidget):
 
     # CONTROL BUTTONS
         self.delete_button = QPushButton("Delete", self)
+        self.delete_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_TrashIcon))
+        self.delete_button.setStyleSheet(stylesheets.QPushButton)
         self.delete_button.clicked.connect(control.delete_molecule)
         self.control3_layout.addWidget(self.delete_button)
 
         self.previous_button = QPushButton("Previous", self)
         self.previous_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_ArrowLeft))
+        self.previous_button.setStyleSheet(stylesheets.QPushButton)
         self.previous_button.clicked.connect(lambda: (logging.debug("at previous_button >>> self.previous_molecule"), control.previous_molecule()))
         QShortcut(QKeySequence(Qt.Key_Left), self, control.previous_molecule)
         self.control3_layout.addWidget(self.previous_button)
 
         self.next_button = QPushButton("Next ", self)
         self.next_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_ArrowRight))
+        self.next_button.setStyleSheet(stylesheets.QPushButton)
         self.next_button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.next_button.clicked.connect(lambda: (logging.debug("at next_button >>> self.next_molecule"), control.next_molecule()))
         QShortcut(QKeySequence(Qt.Key_Right), self, control.next_molecule)
@@ -160,7 +170,7 @@ class CSEARCH(QWidget):
 
     # OUTPUTS
         self.smiles_output = QTextBrowser(self)
-        self.smiles_output.setStyleSheet("border: 1px solid #dcdcdc;")
+        self.smiles_output.setStyleSheet(stylesheets.QTextBrowser)
         self.smiles_output.setAutoFillBackground(True)
         self.smiles_output.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.right_layout.addWidget(self.smiles_output, 1)
@@ -185,25 +195,11 @@ class CSEARCH(QWidget):
 
         self.properties_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.properties_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.properties_table.setStyleSheet("""
-            QTableWidget {
-            border: 1px solid #dcdcdc;
-            gridline-color: #dcdcdc;
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            }
-            QTableWidget::item {
-            padding: 5px;
-            }
-            QTableWidget::item:selected {
-            background-color: #cce7ff;
-            color: #000;
-            }
-        """)
+        self.properties_table.setStyleSheet(stylesheets.QTableWidget)
         self.right_layout.addWidget(self.properties_table, 2)
 
         self.shell_output = QTextBrowser(self)
-        self.shell_output.setStyleSheet("background-color: black; color: white; padding: 10px; border: 1px solid #444;")
+        self.shell_output.setStyleSheet(stylesheets.ShellOutput)
         self.shell_output.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.shell_output.setReadOnly(True)
         self.bottom_layout.addWidget(self.shell_output, 2)
@@ -214,7 +210,7 @@ class CSEARCH(QWidget):
 
         # Row 0 - Program selection
         self.program_label = QLabel("Select CSEARCH program:", self)
-        self.program_label.setStyleSheet("font-size: 12px; color: black;")
+        self.program_label.setStyleSheet(stylesheets.QLabel)
         self.aqme_setup_grid.addWidget(self.program_label, 0, 0)
 
         self.program_combo = QComboBox(self)
@@ -222,19 +218,19 @@ class CSEARCH(QWidget):
         self.program_combo.addItems(["RDKit", "CREST", "GOAT*"])
         self.program_combo.model().item(2).setEnabled(False)
         self.program_combo.currentTextChanged.connect(lambda text: gen_command.update({"program": text}))
-        self.program_combo.setStyleSheet("font-size: 12px; color: black;")
+        self.program_combo.setStyleSheet(stylesheets.QComboBox)
         self.aqme_setup_grid.addWidget(self.program_combo, 0, 1)
 
         # Row 1 - Number of processors
         self.nprocs_label = QLabel("Number of processors:", self)
-        self.nprocs_label.setStyleSheet("font-size: 12px; color: black;")
+        self.nprocs_label.setStyleSheet(stylesheets.QLabel)
         self.aqme_setup_grid.addWidget(self.nprocs_label, 1, 0)
         
         self.nprocs_input = QSpinBox(self)
+        self.nprocs_input.setStyleSheet(stylesheets.QSpinBox)
         self.nprocs_input.setRange(1, 40)
         self.nprocs_input.setValue(8)
         self.nprocs_input.valueChanged.connect(lambda: gen_command.update({"nprocs": self.nprocs_input.value()}))
-        self.nprocs_input.setStyleSheet("font-size: 12px; color: black;")
         self.nprocs_input.setToolTip("Number of processors to use for the calculation.\nOnly relevant for CREST and GOAT*.")
         self.nprocs_input.setEnabled(self.program_combo.currentText() == "CREST")
         self.aqme_setup_grid.addWidget(self.nprocs_input, 1, 1)
@@ -242,25 +238,26 @@ class CSEARCH(QWidget):
 
         # Row 2 - Stack size
         self.stacksize_label = QLabel("Stack size (GB):", self)
-        self.stacksize_label.setStyleSheet("font-size: 12px; color: black;")
+        self.stacksize_label.setStyleSheet(stylesheets.QLabel)
         self.aqme_setup_grid.addWidget(self.stacksize_label, 2, 0)
         self.stacksize_input = QSpinBox(self)
         self.stacksize_input.setRange(1, 8)
         self.stacksize_input.setValue(1)
         self.stacksize_input.valueChanged.connect(lambda: gen_command.update({"stacksize": f"{self.stacksize_input.value()}GB"}))
-        self.stacksize_input.setStyleSheet("font-size: 12px; color: black;")
+        self.stacksize_input.setStyleSheet(stylesheets.QSpinBox)
         self.aqme_setup_grid.addWidget(self.stacksize_input, 2, 1)
 
         # Row 3 - Output directory
         self.output_dir_label = QLabel("Output directory:", self)
-        self.output_dir_label.setStyleSheet("font-size: 12px; color: black;")
+        self.output_dir_label.setStyleSheet(stylesheets.QLabel)
         self.aqme_setup_grid.addWidget(self.output_dir_label, 3, 0)
         self.output_dir_input = QLineEdit(self)
         self.output_dir_input.setPlaceholderText("Select output directory...")
-        self.output_dir_input.setStyleSheet("font-size: 12px; color: black;")
+        self.output_dir_input.setStyleSheet(stylesheets.QLineEdit)
         self.output_dir_input.textChanged.connect(lambda: gen_command.update({"destination": self.output_dir_input.text()}))
 
         self.output_dir_button = QPushButton(self)
+
         dir_icon = self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon)
         self.output_dir_button.setIcon(dir_icon)
         self.output_dir_button.clicked.connect(self.select_output_directory)
@@ -271,7 +268,7 @@ class CSEARCH(QWidget):
 
         # Row 4 - copy command/save csv
         self.copy_command_button = QPushButton("Copy Command", self)
-        self.copy_command_button.setStyleSheet("font-size: 12px; color: black;")
+        self.copy_command_button.setStyleSheet(stylesheets.QPushButton)
         self.copy_command_button.clicked.connect(lambda: self.success("Command copied to clipboard.") if command2clipboard(self.aqme_rungen()) == True else self.failure("Failed to copy command to clipboard."))
         self.aqme_setup_grid.addWidget(self.copy_command_button, 4,0)
 
@@ -294,7 +291,7 @@ class CSEARCH(QWidget):
         self.advanced_settings_button = QPushButton("Show Advanced Settings", self)
         self.advanced_settings_button.setCheckable(True)
         self.advanced_settings_button.clicked.connect(lambda: (logging.debug("at advanced_settings_button >>> toggle_panel"), self.toggle_panel()))
-        self.advanced_settings_button.setStyleSheet("font-size: 12px; color: black;")
+        self.advanced_settings_button.setStyleSheet(stylesheets.QPushButton)
         self.aqme_setup_grid.addWidget(self.advanced_settings_button, 5, 0)
 
         self.advanced_panel = QFrame()
@@ -305,101 +302,101 @@ class CSEARCH(QWidget):
         self.advanced_panel.setLayout(advanced_layout)
 
         self.sample_size_label = QLabel("Sample size:", self)
-        self.sample_size_label.setStyleSheet("font-size: 12px; color: black;")
+        self.sample_size_label.setStyleSheet(stylesheets.QLabel)
         advanced_layout.addWidget(self.sample_size_label, 0, 0)
 
         self.sample_size_input = QSpinBox(self)
         self.sample_size_input.setRange(1, 500)
         self.sample_size_input.setValue(25)
         self.sample_size_input.valueChanged.connect(lambda: gen_command.update({"sample": self.sample_size_input.value()}))
-        self.sample_size_input.setStyleSheet("font-size: 12px; color: black;")
+        self.sample_size_input.setStyleSheet(stylesheets.QSpinBox)
         self.sample_size_input.setToolTip("Number of conformers to keep after the initial RDKit sampling.\nThey are selected using a combination of RDKit energies and Butina clustering.")
         advanced_layout.addWidget(self.sample_size_input, 0, 1)
 
         self.auto_sample_label = QLabel("Auto sample level:", self)
-        self.auto_sample_label.setStyleSheet("font-size: 12px; color: black;")
+        self.auto_sample_label.setStyleSheet(stylesheets.QLabel)
         advanced_layout.addWidget(self.auto_sample_label, 1, 0)
         self.auto_sample_combo = QComboBox(self)
         self.auto_sample_combo.addItems(["low", "mid", "high", "false"])
         self.auto_sample_combo.setCurrentText("mid")
         self.auto_sample_combo.currentTextChanged.connect(lambda text: gen_command.update({"auto_sample": text}))
-        self.auto_sample_combo.setStyleSheet("font-size: 12px; color: black;")
+        self.auto_sample_combo.setStyleSheet(stylesheets.QComboBox)
         self.auto_sample_combo.setToolTip("Apply automatic calculation of the number of conformers generated initially with RDKit. \nThis number of conformers is initially generated and then reduced to the number specified in --sample with different filters. \nOptions:\n• Low: Base multiplier = 5, max confs = 100\n• Mid: Base multiplier = 10, max confs = 250\n• High: Base multiplier = 20, max confs = 500\n• False: Use the number specified in --sample")
         advanced_layout.addWidget(self.auto_sample_combo, 1, 1)
 
         self.energy_window_label = QLabel("Energy window:", self)
-        self.energy_window_label.setStyleSheet("font-size: 12px; color: black;")
+        self.energy_window_label.setStyleSheet(stylesheets.QLabel)
         advanced_layout.addWidget(self.energy_window_label, 2, 0)
         self.energy_window_input = QDoubleSpinBox(self)
         self.energy_window_input.setRange(1.0, 50.0)
         self.energy_window_input.setValue(5.0)
         self.energy_window_input.valueChanged.connect(lambda: gen_command.update({"ewin_csearch": self.energy_window_input.value()}))
-        self.energy_window_input.setStyleSheet("font-size: 12px; color: black;")
+        self.energy_window_input.setStyleSheet(stylesheets.QDoubleSpinBox)
         self.energy_window_input.setToolTip("Energy window in kcal/mol to discard conformers\n(i.e. if a conformer is more than the E window compared to the most stable conformer).")
         advanced_layout.addWidget(self.energy_window_input, 2, 1)
 
         self.initial_energy_threshold_label = QLabel("Initial E threshold:", self)
-        self.initial_energy_threshold_label.setStyleSheet("font-size: 12px; color: black;")
+        self.initial_energy_threshold_label.setStyleSheet(stylesheets.QLabel)
         advanced_layout.addWidget(self.initial_energy_threshold_label, 3, 0)
         self.initial_energy_threshold_input = QLineEdit(self)
         self.initial_energy_threshold_input.setText("0.0001")
         self.initial_energy_threshold_input.setValidator(QDoubleValidator())
         self.initial_energy_threshold_input.textChanged.connect(lambda: gen_command.update({"initial_energy_threshold": self.initial_energy_threshold_input.text()}))
-        self.initial_energy_threshold_input.setStyleSheet("font-size: 12px; color: black;")
+        self.initial_energy_threshold_input.setStyleSheet(stylesheets.QLineEdit)
         self.initial_energy_threshold_input.setToolTip("Energy difference in kcal/mol between unique conformers for the first filter of only E.")
         advanced_layout.addWidget(self.initial_energy_threshold_input, 3, 1)
 
         self.energy_threshold_label = QLabel("Energy threshold:", self)
-        self.energy_threshold_label.setStyleSheet("font-size: 12px; color: black;")
+        self.energy_threshold_label.setStyleSheet(stylesheets.QLabel)
         advanced_layout.addWidget(self.energy_threshold_label, 4, 0)
 
         self.energy_threshold_input = QLineEdit(self)
         self.energy_threshold_input.setText("0.25")
         self.energy_threshold_input.setValidator(QDoubleValidator())
         self.energy_threshold_input.textChanged.connect(lambda: gen_command.update({"energy_threshold": self.energy_threshold_input.text()}))
-        self.energy_threshold_input.setStyleSheet("font-size: 12px; color: black;")
+        self.energy_threshold_input.setStyleSheet(stylesheets.QLineEdit)
         self.energy_threshold_input.setToolTip("Energy difference in kcal/mol between unique conformers for the second filter of E + RMS")
         advanced_layout.addWidget(self.energy_threshold_input, 4, 1)
 
         self.rms_threshold_label = QLabel("RMS threshold:", self) #(kcal/mol)?
-        self.rms_threshold_label.setStyleSheet("font-size: 12px; color: black;")
+        self.rms_threshold_label.setStyleSheet(stylesheets.QLabel)
         advanced_layout.addWidget(self.rms_threshold_label, 0, 3)
 
         self.rms_threshold_input = QLineEdit(self)
         self.rms_threshold_input.setText("0.25")
         self.rms_threshold_input.setValidator(QDoubleValidator())
         self.rms_threshold_input.textChanged.connect(lambda: gen_command.update({"rms_threshold": self.rms_threshold_input.text()}))
-        self.rms_threshold_input.setStyleSheet("font-size: 12px; color: black;")
+        self.rms_threshold_input.setStyleSheet(stylesheets.QLineEdit)
         self.rms_threshold_input.setToolTip("RMS difference between unique conformers for the second filter of E + RMS")
         advanced_layout.addWidget(self.rms_threshold_input, 0, 4)
 
         self.opt_steps_rdkit_label = QLabel("RDKit opt steps:", self)
-        self.opt_steps_rdkit_label.setStyleSheet("font-size: 12px; color: black;")
+        self.opt_steps_rdkit_label.setStyleSheet(stylesheets.QLabel)
         advanced_layout.addWidget(self.opt_steps_rdkit_label, 1, 3)
 
         self.opt_steps_rdkit_input = QSpinBox(self)
         self.opt_steps_rdkit_input.setRange(1, 10000)
         self.opt_steps_rdkit_input.setValue(1000)
         self.opt_steps_rdkit_input.valueChanged.connect(lambda: gen_command.update({"opt_steps_rdkit": self.opt_steps_rdkit_input.value()}))
-        self.opt_steps_rdkit_input.setStyleSheet("font-size: 12px; color: black;")
+        self.opt_steps_rdkit_input.setStyleSheet(stylesheets.QSpinBox)
         self.opt_steps_rdkit_input.setToolTip("Max cycles used in RDKit optimizations. ")
         advanced_layout.addWidget(self.opt_steps_rdkit_input, 1, 4)
 
         # Column 3 & 4
         self.max_matches_rmsd_label = QLabel("Max matches RMSD:", self)
-        self.max_matches_rmsd_label.setStyleSheet("font-size: 12px; color: black;")
+        self.max_matches_rmsd_label.setStyleSheet(stylesheets.QLabel)
         advanced_layout.addWidget(self.max_matches_rmsd_label, 2, 3)
 
         self.max_matches_rmsd_input = QSpinBox(self)
         self.max_matches_rmsd_input.setRange(1, 10000)
         self.max_matches_rmsd_input.setValue(1000)
         self.max_matches_rmsd_input.valueChanged.connect(lambda: gen_command.update({"max_matches_rmsd": self.max_matches_rmsd_input.value()}))
-        self.max_matches_rmsd_input.setStyleSheet("font-size: 12px; color: black;")
+        self.max_matches_rmsd_input.setStyleSheet(stylesheets.QSpinBox)
         self.max_matches_rmsd_input.setToolTip("Max matches during RMS calculations for filtering \n(maxMatches option in the Chem.rdMolAlign.GetBestRMS() RDKit function)")
         advanced_layout.addWidget(self.max_matches_rmsd_input, 2, 4)
 
         self.max_mol_wt_label = QLabel("Max mol weight:", self)
-        self.max_mol_wt_label.setStyleSheet("font-size: 12px; color: black;")
+        self.max_mol_wt_label.setStyleSheet(stylesheets.QLabel)
         advanced_layout.addWidget(self.max_mol_wt_label, 3, 3)
 
         self.max_mol_wt_input = QSpinBox(self)
@@ -407,19 +404,19 @@ class CSEARCH(QWidget):
         self.max_mol_wt_input.setValue(0)
         self.max_mol_wt_input.valueChanged.connect(lambda: gen_command.update({"max_mol_wt": self.max_mol_wt_input.value()}))
         self.max_mol_wt_input.setSuffix(" g/mol")
-        self.max_mol_wt_input.setStyleSheet("font-size: 12px; color: black;")
+        self.max_mol_wt_input.setStyleSheet(stylesheets.QSpinBox)
         self.max_mol_wt_input.setToolTip("Discard systems with molecular weights higher than this parameter (in g/mol). \nIf 0 is set, this filter is off.")
         advanced_layout.addWidget(self.max_mol_wt_input, 3, 4)
 
         self.max_torsions_label = QLabel("Max torsions:", self)
-        self.max_torsions_label.setStyleSheet("font-size: 12px; color: black;")
+        self.max_torsions_label.setStyleSheet(stylesheets.QLabel)
         advanced_layout.addWidget(self.max_torsions_label, 4, 3)
 
         self.max_torsions_input = QSpinBox(self)
         self.max_torsions_input.setRange(0, 1000)
         self.max_torsions_input.setValue(0)
         self.max_torsions_input.valueChanged.connect(lambda: gen_command.update({"max_torsions": self.max_torsions_input.value()}))
-        self.max_torsions_input.setStyleSheet("font-size: 12px; color: black;")
+        self.max_torsions_input.setStyleSheet(stylesheets.QSpinBox)
         self.max_torsions_input.setToolTip("Discard systems with more than this many torsions (relevant to avoid molecules with many rotatable bonds). \nIf 0 is set, this filter is off.")
         advanced_layout.addWidget(self.max_torsions_input, 4, 4)
 
@@ -427,67 +424,67 @@ class CSEARCH(QWidget):
         self.heavyonly_checkbox = QCheckBox("Heavy Only", self)
         self.heavyonly_checkbox.setChecked(True)
         self.heavyonly_checkbox.stateChanged.connect(lambda: gen_command.update({"heavyonly": self.heavyonly_checkbox.isChecked()}))
-        self.heavyonly_checkbox.setStyleSheet("font-size: 12px; color: black;")
+        self.heavyonly_checkbox.setStyleSheet(stylesheets.QCheckBox)
         self.heavyonly_checkbox.setToolTip("Only consider heavy atoms during RMS calculations for filtering \n(in the Chem.rdMolAlign.GetBestRMS() RDKit function)")
         advanced_layout.addWidget(self.heavyonly_checkbox, 0, 6)
 
         self.auto_metal_atoms_checkbox = QCheckBox("Auto Metal Atoms", self)
         self.auto_metal_atoms_checkbox.setChecked(True)
         self.auto_metal_atoms_checkbox.stateChanged.connect(lambda: gen_command.update({"auto_metal_atoms": self.auto_metal_atoms_checkbox.isChecked()}))
-        self.auto_metal_atoms_checkbox.setStyleSheet("font-size: 12px; color: black;")
+        self.auto_metal_atoms_checkbox.setStyleSheet(stylesheets.QCheckBox)
         self.auto_metal_atoms_checkbox.setToolTip("Automatically detect metal atoms for the RDKit conformer generation. \nCharge and mult should be specified as well since the automatic charge and mult detection might not be precise.")
         advanced_layout.addWidget(self.auto_metal_atoms_checkbox, 0, 5)
 
         self.seed_label = QLabel("Seed:", self)
-        self.seed_label.setStyleSheet("font-size: 12px; color: black;")
+        self.seed_label.setStyleSheet(stylesheets.QLabel)
         advanced_layout.addWidget(self.seed_label, 1, 5)
 
         self.seed_input = QLineEdit(self)
         self.seed_input.setValidator(QIntValidator())  
         self.seed_input.setText("62609")
         self.seed_input.textChanged.connect(lambda: gen_command.update({"seed": self.seed_input.text()}))
-        self.seed_input.setStyleSheet("font-size: 12px; color: black;")
+        self.seed_input.setStyleSheet(stylesheets.QLineEdit)
         self.seed_input.setToolTip("Random seed used during RDKit embedding \n(in the Chem.rdDistGeom.EmbedMultipleConfs() RDKit function)")
         advanced_layout.addWidget(self.seed_input, 1, 6)
 
         self.bond_thres_label = QLabel("Bond threshold:", self)
-        self.bond_thres_label.setStyleSheet("font-size: 12px; color: black;")
+        self.bond_thres_label.setStyleSheet(stylesheets.QLabel)
         advanced_layout.addWidget(self.bond_thres_label, 2, 5)
 
         self.bond_thres_input = QDoubleSpinBox(self)
         self.bond_thres_input.setRange(0.0, 10.0)
         self.bond_thres_input.setValue(0.2)
         self.bond_thres_input.valueChanged.connect(lambda: gen_command.update({"bond_thres": self.bond_thres_input.value()}))
-        self.bond_thres_input.setStyleSheet("font-size: 12px; color: black;")
+        self.bond_thres_input.setStyleSheet(stylesheets.QDoubleSpinBox)
         self.bond_thres_input.setToolTip("Threshold used to discard bonds in the geom option (+-0.2 A)")
         advanced_layout.addWidget(self.bond_thres_input, 2, 6)
 
         self.angle_thres_label = QLabel("Angle threshold:", self)
-        self.angle_thres_label.setStyleSheet("font-size: 12px; color: black;")
+        self.angle_thres_label.setStyleSheet(stylesheets.QLabel)
         advanced_layout.addWidget(self.angle_thres_label, 3, 5)
 
         self.angle_thres_input = QDoubleSpinBox(self)
         self.angle_thres_input.setRange(0.0, 360.0)
         self.angle_thres_input.setValue(30.0)
         self.angle_thres_input.valueChanged.connect(lambda: gen_command.update({"angle_thres": self.angle_thres_input.value()}))
-        self.angle_thres_input.setStyleSheet("font-size: 12px; color: black;")
+        self.angle_thres_input.setStyleSheet(stylesheets.QDoubleSpinBox)
         self.angle_thres_input.setToolTip("Threshold used to discard angles in the geom option (+-30 degrees)")
         advanced_layout.addWidget(self.angle_thres_input, 3, 6)
 
         self.dihedral_thres_label = QLabel("Dihedral threshold:", self)
-        self.dihedral_thres_label.setStyleSheet("font-size: 12px; color: black;")
+        self.dihedral_thres_label.setStyleSheet(stylesheets.QLabel)
         advanced_layout.addWidget(self.dihedral_thres_label, 4, 5)
 
         self.dihedral_thres_input = QDoubleSpinBox(self)
         self.dihedral_thres_input.setRange(0.0, 360.0)
         self.dihedral_thres_input.setValue(30.0) 
         self.dihedral_thres_input.valueChanged.connect(lambda: gen_command.update({"dihedral_thres": self.dihedral_thres_input.value()}))
-        self.dihedral_thres_input.setStyleSheet("font-size: 12px; color: black;")
+        self.dihedral_thres_input.setStyleSheet(stylesheets.QDoubleSpinBox)
         self.dihedral_thres_input.setToolTip("Threshold used to discard dihedrals in the geom option (+-30 degrees)")
         advanced_layout.addWidget(self.dihedral_thres_input, 4, 6)
 
         self.crest_force_label = QLabel("CREST force:", self)
-        self.crest_force_label.setStyleSheet("font-size: 12px; color: black;")
+        self.crest_force_label.setStyleSheet(stylesheets.QLabel)
         advanced_layout.addWidget(self.crest_force_label, 0, 7)
 
         self.crest_force_input = QDoubleSpinBox(self)
@@ -495,40 +492,40 @@ class CSEARCH(QWidget):
         self.crest_force_input.setValue(0.5)
         self.crest_force_input.setSingleStep(0.1)
         self.crest_force_input.valueChanged.connect(lambda: crest_command.update({"crest_force": self.crest_force_input.value()}))
-        self.crest_force_input.setStyleSheet("font-size: 12px; color: black;")
+        self.crest_force_input.setStyleSheet(stylesheets.QDoubleSpinBox)
         self.crest_force_input.setToolTip("CREST ONLY: Force constant for constraints in the .xcontrol.sample file for CREST jobs.")
         advanced_layout.addWidget(self.crest_force_input, 0, 8)
 
         self.crest_keywords_input = QLineEdit(self)
         self.crest_keywords_input.setPlaceholderText("CREST keywords...")
         self.crest_keywords_input.textChanged.connect(lambda: crest_command.update({"crest_keywords": self.crest_keywords_input.text()}))
-        self.crest_keywords_input.setStyleSheet("font-size: 12px; color: black;")
+        self.crest_keywords_input.setStyleSheet(stylesheets.QLineEdit)
         self.crest_keywords_input.setToolTip("CREST ONLY: KDefine additional keywords to use in CREST that are not included in --chrg, --uhf, -T and -cinp. For example: '--alpb ch2cl2 --nci --cbonds 0.5'.")
         advanced_layout.addWidget(self.crest_keywords_input, 1, 7)
 
         self.xtb_keywords_input = QLineEdit(self)
         self.xtb_keywords_input.setPlaceholderText("xTB keywords...")
         self.xtb_keywords_input.textChanged.connect(lambda: crest_command.update({"xtb_keywords": self.xtb_keywords_input.text()}))
-        self.xtb_keywords_input.setStyleSheet("font-size: 12px; color: black;")
+        self.xtb_keywords_input.setStyleSheet(stylesheets.QLineEdit)
         self.xtb_keywords_input.setToolTip("CREST ONLY: Define additional keywords to use in the xTB pre-optimization that are not included in -c, --uhf, -P and --input. For example: '--alpb ch2cl2 --gfn 1'.")
         advanced_layout.addWidget(self.xtb_keywords_input, 1, 8)
 
         self.cregen_checkbox = QCheckBox("CREGEN", self)
         self.cregen_checkbox.setChecked(True)
         self.cregen_checkbox.stateChanged.connect(lambda: crest_command.update({"cregen": self.cregen_checkbox.isChecked()}))
-        self.cregen_checkbox.setStyleSheet("font-size: 12px; color: black;")
+        self.cregen_checkbox.setStyleSheet(stylesheets.QCheckBox)
         self.cregen_checkbox.setToolTip("If True, perform a CREGEN analysis after CREST.")
         advanced_layout.addWidget(self.cregen_checkbox, 2, 7)
 
         self.cregen_keywords_input = QLineEdit(self)
         self.cregen_keywords_input.setPlaceholderText("CREGEN keywords...")
         self.cregen_keywords_input.textChanged.connect(lambda: crest_command.update({"cregen_keywords": self.cregen_keywords_input.text()}))
-        self.cregen_keywords_input.setStyleSheet("font-size: 12px; color: black;")
+        self.cregen_keywords_input.setStyleSheet(stylesheets.QLineEdit)
         self.cregen_keywords_input.setToolTip("Additional keywords for CREGEN (i.e. cregen_keywords='--ethr 0.02').")
         advanced_layout.addWidget(self.cregen_keywords_input, 2, 8)
 
         self.crest_runs_label = QLabel("CREST runs:", self)
-        self.crest_runs_label.setStyleSheet("font-size: 12px; color: black;")
+        self.crest_runs_label.setStyleSheet(stylesheets.QLabel)
         advanced_layout.addWidget(self.crest_runs_label, 3, 7)
 
         self.crest_runs_input = QSpinBox(self)
@@ -536,7 +533,7 @@ class CSEARCH(QWidget):
         self.crest_runs_input.setValue(1)
         self.crest_runs_input.setSingleStep(1)
         self.crest_runs_input.valueChanged.connect(lambda: crest_command.update({"crest_runs": self.crest_runs_input.value()}))
-        self.crest_runs_input.setStyleSheet("font-size: 12px; color: black;")
+        self.crest_runs_input.setStyleSheet(stylesheets.QSpinBox)
         self.crest_runs_input.setToolTip("Specify as number of runs if multiple starting points from RDKit starting points is required.")
         advanced_layout.addWidget(self.crest_runs_input, 3, 8)
 

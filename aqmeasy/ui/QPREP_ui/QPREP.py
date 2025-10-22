@@ -9,6 +9,7 @@ from aqmeasy.ui.QPREP_ui.QPREP_molecularviewer import MoleculeViewer
 from aqmeasy.ui.QPREP_ui.QPREP_parameterpanel import ParameterPanel 
 from aqmeasy.ui.QPREP_ui.QPREP_filepanel import FilePanel   
 from aqmeasy.models.QPREP_model import InputModel
+from aqmeasy.ui.stylesheets import stylesheets
 
 class QPREP(QWidget):
     """QPREP Widget opens a window"""
@@ -26,6 +27,7 @@ class QPREP(QWidget):
         # Left Panel - Parameters
         left_panel = QVBoxLayout()
         param_label = QLabel("Calculation Parameters")
+        param_label.setStyleSheet(stylesheets.QLabel)
         param_label.setAlignment(Qt.AlignCenter)
         param_label.setObjectName("panelTitle")
         
@@ -38,6 +40,7 @@ class QPREP(QWidget):
         # Middle Panel - File operations
         middle_panel = QVBoxLayout()
         file_label = QLabel("File Operations")
+        file_label.setStyleSheet(stylesheets.QLabel)
         file_label.setAlignment(Qt.AlignCenter)
         file_label.setObjectName("panelTitle")
         
@@ -54,6 +57,7 @@ class QPREP(QWidget):
         # Right panel - Molecular Analysis (options part)
         right_panel = QVBoxLayout()
         viewer_label = QLabel("Molecular Analysis")
+        viewer_label.setStyleSheet(stylesheets.QLabel)
         viewer_label.setAlignment(Qt.AlignCenter)
         viewer_label.setObjectName("panelTitle")
         

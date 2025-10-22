@@ -1,10 +1,11 @@
 import os
 import sys
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QFileDialog, QListWidget, QListWidgetItem
+    QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QFileDialog, QListWidget, QListWidgetItem, QSizePolicy
 )
 from PySide6.QtCore import QThread, Signal
 from aqmeasy.controllers.QPREP_worker import QPrepWorker
+from aqmeasy.ui.stylesheets import stylesheets
 
 FILE_FILTERS = [
     "Structured Data Files (*.sdf)",
@@ -25,6 +26,7 @@ class FilePanel(QWidget):
 
     def __init__(self, model=None, parameter_panel=None, molecular_viewer=None):
         super().__init__()
+        self.setAcceptDrops(True)
         self.model = model
         self.parameter_panel = parameter_panel
         self.molecular_viewer = molecular_viewer
@@ -45,13 +47,16 @@ class FilePanel(QWidget):
 
         # Input File Section
         input_group = QGroupBox("Input Files")
+        input_group.setStyleSheet(stylesheets.QGroupBox)
         input_layout = QVBoxLayout()
         
         # File selection buttons
         button_row = QHBoxLayout()
         self.browse_multiple_btn = QPushButton("Browse Files")
+        self.browse_multiple_btn.setStyleSheet(stylesheets.QPushButton)
         self.browse_multiple_btn.clicked.connect(self.get_multiple_filenames)
         self.clear_files_btn = QPushButton("Clear Files")
+        self.clear_files_btn.setStyleSheet(stylesheets.QPushButton)
         self.clear_files_btn.clicked.connect(self.clear_files)
         
         button_row.addWidget(self.browse_multiple_btn)
@@ -60,9 +65,8 @@ class FilePanel(QWidget):
         
         # File list display
         self.file_list = QListWidget()
+        self.file_list.setStyleSheet(stylesheets.QListWidget)
         self.file_list.setMaximumHeight(120)
-        self.file_list.setStyleSheet(
-            "QListWidget { background-color: #edf2f4; color: #2b2d42; border: 1px solid #8d99ae; border-radius: 3px; padding: 5px; }")
         # Connect the itemClicked signal to the new method
         self.file_list.itemClicked.connect(self.on_file_list_item_clicked)
         input_layout.addWidget(self.file_list)
@@ -71,15 +75,16 @@ class FilePanel(QWidget):
 
         # Output Directory Section
         output_group = QGroupBox("Output")
+        output_group.setStyleSheet(stylesheets.QGroupBox)
         output_layout = QVBoxLayout()
         output_row = QHBoxLayout()
         output_row.addWidget(QLabel("Output Directory"))
         self.output_dir_edit = QLineEdit()
+        self.output_dir_edit.setStyleSheet(stylesheets.QLineEdit)
         self.output_dir_edit.setPlaceholderText("Select output directory")
-        self.output_dir_edit.setStyleSheet(
-            "QLineEdit { background-color: #edf2f4; color: #2b2d42; border: 1px solid #8d99ae; border-radius: 3px; padding: 5px; }")
         output_row.addWidget(self.output_dir_edit)
         self.browse_output_btn = QPushButton("Browse")
+        self.browse_output_btn.setStyleSheet(stylesheets.QPushButton)
         self.browse_output_btn.clicked.connect(self.get_output_directory)
         output_row.addWidget(self.browse_output_btn)
         output_layout.addLayout(output_row)
@@ -87,26 +92,30 @@ class FilePanel(QWidget):
 
         # Buttons
         self.make_btn = QPushButton("Make Input Files")
+        self.make_btn.setStyleSheet(stylesheets.QPushButton)
         self.make_btn.setMinimumHeight(40)
         self.make_btn.clicked.connect(self.run_qprep)
         self.preview_btn = QPushButton("Preview Input")
+        self.preview_btn.setStyleSheet(stylesheets.QPushButton)
         self.preview_btn.setMinimumHeight(30)
         self.preview_btn.clicked.connect(self.preview_input)
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.preview_btn)
         button_layout.addWidget(self.make_btn)
         self.slurm_btn = QPushButton("SLURM")
+        self.slurm_btn.setStyleSheet(stylesheets.QPushButton)
         self.slurm_btn.setMinimumHeight(30)
         self.slurm_btn.clicked.connect(self.generate_slurm_script)
         button_layout.addWidget(self.slurm_btn)
 
         # Status Display
         status_group = QGroupBox("Status / Preview")
+        status_group.setStyleSheet(stylesheets.QGroupBox)
         status_layout = QVBoxLayout()
+
         self.status_text = QTextEdit()
-        self.status_text.setStyleSheet(
-            "QTextEdit { background-color: #edf2f4; color: #2b2d42; border: 1px solid #8d99ae; border-radius: 3px; padding: 5px; }")
-        self.status_text.setMaximumHeight(200)
+        self.status_text.setStyleSheet(stylesheets.ShellOutput)
+        self.status_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.status_text.setPlaceholderText("Ready to create input files")
         self.status_text.setReadOnly(True)
         status_layout.addWidget(self.status_text)
@@ -152,12 +161,9 @@ class FilePanel(QWidget):
                 self.update_button_color()
 
     def update_button_color(self):
-        style = ""
-        slurm_style = ""
-
-        self.preview_btn.setStyleSheet(style)
-        self.make_btn.setStyleSheet(style)
-        self.slurm_btn.setStyleSheet(slurm_style)
+        self.preview_btn.setStyleSheet(stylesheets.QPushButton)
+        self.make_btn.setStyleSheet(stylesheets.QPushButton)
+        self.slurm_btn.setStyleSheet(stylesheets.QPushButton)
 
     def clear_files(self):
         """Clear all selected files"""
@@ -305,6 +311,30 @@ class FilePanel(QWidget):
         except Exception as e:
             self.status_text.setPlainText(f"Error generating preview: {str(e)}")
         self.preview_btn.setEnabled(True)
+
+################################################################################
+    # Drag and drop events
+    def dragEnterEvent(self, event):
+        urls = event.mimeData().urls()
+        if not urls:
+            event.ignore()
+            return
+        for url in urls:
+            if not url.isLocalFile():
+                event.ignore()
+                return
+        event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        urls = event.mimeData().urls()
+        dirs = [url.toLocalFile() for url in urls if url.isLocalFile() and os.path.isdir(url.toLocalFile())]
+        if not dirs:
+            event.ignore()
+            return
+        folder_path = dirs[0] if len(dirs) == 1 else dirs
+        event.acceptProposedAction()
+
+################################################################################
 
     def generate_orca_preview(self, params):
         calc_line = f"! {params['functional']} {params['basis']}"

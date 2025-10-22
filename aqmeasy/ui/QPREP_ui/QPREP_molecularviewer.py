@@ -12,6 +12,8 @@ from rdkit.Chem import AllChem, SDWriter
 import py3Dmol
 import math
 
+from aqmeasy.ui.stylesheets import stylesheets
+
 
 class MoleculeViewer(QWidget):
     """
@@ -38,8 +40,10 @@ class MoleculeViewer(QWidget):
 
         # File Information Section
         file_group = QGroupBox("File Information")
+        file_group.setStyleSheet(stylesheets.QGroupBox)
         file_layout = QVBoxLayout()
         self.file_info_label = QLabel("No files selected")
+        self.file_info_label.setStyleSheet(stylesheets.QLabel)
         self.file_info_label.setWordWrap(True)
         file_layout.addWidget(self.file_info_label)
         file_group.setLayout(file_layout)
@@ -47,23 +51,13 @@ class MoleculeViewer(QWidget):
 
         # Display Options Section
         display_group = QGroupBox("Display Options")
+        display_group.setStyleSheet(stylesheets.QGroupBox)
         display_layout = QVBoxLayout()
-
-        combo_style = """
-            QComboBox { 
-                background-color: #edf2f4; 
-                color: #2b2d42; 
-                border: 1px solid #8d99ae; 
-                border-radius: 3px; 
-                padding: 2px; 
-                combobox-popup: 0;
-            }
-        """
 
         style_row = QHBoxLayout()
         style_row.addWidget(QLabel("Display Style:"))
         self.style_selector = QComboBox()
-        self.style_selector.setStyleSheet(combo_style)
+        self.style_selector.setStyleSheet(stylesheets.QComboBox)
         self.style_selector.addItems(['Stick', 'Ball and Stick', 'Surface'])
         self.style_selector.currentIndexChanged.connect(self.render_selected_molecule)
         style_row.addWidget(self.style_selector)
@@ -72,7 +66,7 @@ class MoleculeViewer(QWidget):
         molecule_row = QHBoxLayout()
         molecule_row.addWidget(QLabel("Molecule:"))
         self.molecule_selector = QComboBox()
-        self.molecule_selector.setStyleSheet(combo_style)
+        self.molecule_selector.setStyleSheet(stylesheets.QComboBox)
         self.molecule_selector.currentIndexChanged.connect(self.on_molecule_change)
         self.molecule_selector.setMaxVisibleItems(10)
         molecule_row.addWidget(self.molecule_selector)
@@ -82,6 +76,7 @@ class MoleculeViewer(QWidget):
         list_slider_row = QHBoxLayout()
         list_slider_row.addWidget(QLabel("Molecule List:"))
         self.list_slider = QSlider(Qt.Horizontal)
+        self.list_slider.setStyleSheet(stylesheets.QSlider)
         self.list_slider.setMinimum(0)
         self.list_slider.setMaximum(0)  # until file uploaded
         self.list_slider.setValue(0)
@@ -96,36 +91,48 @@ class MoleculeViewer(QWidget):
         display_group.setLayout(display_layout)
         options_layout.addWidget(display_group)
 
-        # Buttons Section
-        button_layout = QHBoxLayout()
+        # # Buttons Section
+        # button_layout = QHBoxLayout()
 
-        self.export_sdf_button = QPushButton("Export Selected")
-        self.export_sdf_button.setMinimumHeight(30)
-        self.export_sdf_button.clicked.connect(self.on_export_sdf)
-        self.export_sdf_button.setEnabled(False)
+        # self.export_sdf_button = QPushButton("Export Selected")
+        # self.export_sdf_button.setStyleSheet(stylesheets.QPushButton)
+        # self.export_sdf_button.setMinimumHeight(30)
+        # self.export_sdf_button.clicked.connect(self.on_export_sdf)
+        # self.export_sdf_button.setEnabled(False)
 
-        # Button for exporting lowest energy molecules
-        self.export_lowest_energy_molecules_btn = QPushButton("Export 10 Lowest Energy")
-        self.export_lowest_energy_molecules_btn.setMinimumHeight(30)
-        self.export_lowest_energy_molecules_btn.clicked.connect(self.export_lowest_energy_molecules)
-        self.export_lowest_energy_molecules_btn.setEnabled(False)
+        # # Button for exporting lowest energy molecules
+        # self.export_lowest_energy_molecules_btn = QPushButton("Export 10 Lowest Energy")
+        # self.export_lowest_energy_molecules_btn.setStyleSheet(stylesheets.QPushButton)
+        # self.export_lowest_energy_molecules_btn.setMinimumHeight(30)
+        # self.export_lowest_energy_molecules_btn.clicked.connect(self.export_lowest_energy_molecules)
+        # self.export_lowest_energy_molecules_btn.setEnabled(False)
 
-        button_layout.addWidget(self.export_sdf_button)
-        button_layout.addWidget(self.export_lowest_energy_molecules_btn)
-        options_layout.addLayout(button_layout)
+        # button_layout.addWidget(self.export_sdf_button)
+        # button_layout.addWidget(self.export_lowest_energy_molecules_btn)
+        # options_layout.addLayout(button_layout)
 
         # Molecular Information Section
         self.info_group = QGroupBox("Molecular Information")
+        self.info_group.setStyleSheet(stylesheets.QGroupBox)
         self.info_layout = QFormLayout()
 
-        self.formula_label = QLabel("N/A")  # all states N/A before file imported.
-        self.weight_label = QLabel("N/A")
-        self.atoms_label = QLabel("N/A")
-        self.bonds_label = QLabel("N/A")
-        self.charge_label = QLabel("N/A")
-        self.mult_label = QLabel("N/A")
-        self.energy_label = QLabel("N/A")
         self.source_file_label = QLabel("N/A")
+        self.source_file_label.setStyleSheet(stylesheets.QLabel)
+        self.formula_label = QLabel("N/A")  # all states N/A before file imported.
+        self.formula_label.setStyleSheet(stylesheets.QLabel)
+        self.weight_label = QLabel("N/A")
+        self.weight_label.setStyleSheet(stylesheets.QLabel)
+        self.atoms_label = QLabel("N/A")
+        self.atoms_label.setStyleSheet(stylesheets.QLabel)
+        self.bonds_label = QLabel("N/A")
+        self.bonds_label.setStyleSheet(stylesheets.QLabel)
+        self.charge_label = QLabel("N/A")
+        self.charge_label.setStyleSheet(stylesheets.QLabel)
+        self.mult_label = QLabel("N/A")
+        self.mult_label.setStyleSheet(stylesheets.QLabel)
+        self.energy_label = QLabel("N/A")
+        self.energy_label.setStyleSheet(stylesheets.QLabel)
+
 
         self.info_layout.addRow("Source File:", self.source_file_label)
         self.info_layout.addRow("Formula:", self.formula_label)
@@ -143,8 +150,10 @@ class MoleculeViewer(QWidget):
 
         # 3D Viewer Section - This is the part that will be hidden/shown
         self.viewer_group = QGroupBox("3D Viewer")
+        self.viewer_group.setStyleSheet(stylesheets.QGroupBox)
         viewer_layout = QVBoxLayout()
         self.web_view = QWebEngineView()
+        self.web_view.setStyleSheet(stylesheets.QWebEngineView)
         viewer_layout.addWidget(self.web_view)
         self.viewer_group.setLayout(viewer_layout)
 
@@ -238,8 +247,8 @@ class MoleculeViewer(QWidget):
 
             self.molecule_selector.currentIndexChanged.connect(self.on_molecule_change)
 
-            self.export_sdf_button.setEnabled(True)
-            self.export_lowest_energy_molecules_btn.setEnabled(True)
+            # self.export_sdf_button.setEnabled(True)
+            # self.export_lowest_energy_molecules_btn.setEnabled(True)
 
             if self.molecules:
                 self.molecule_selector.setCurrentIndex(0)
@@ -267,8 +276,8 @@ class MoleculeViewer(QWidget):
         self.loaded_files = []
         self.file_info_label.setText("No files selected")
         self.molecule_selector.clear()
-        self.export_sdf_button.setEnabled(False)
-        self.export_lowest_energy_molecules_btn.setEnabled(False)
+        # self.export_sdf_button.setEnabled(False)
+        # self.export_lowest_energy_molecules_btn.setEnabled(False)
         self.web_view.setHtml("")
         self.viewer_group.setVisible(False)
         self.formula_label.setText("N/A")
@@ -398,89 +407,89 @@ class MoleculeViewer(QWidget):
         html = viewer._make_html()
         self.web_view.setHtml(html)
 
-    def on_export_sdf(self):
-        if not self.molecules:
-            QMessageBox.warning(self, "Error", "No molecules available. Please select SDF files in File Operations.")
-            return
+    # def on_export_sdf(self):
+    #     if not self.molecules:
+    #         QMessageBox.warning(self, "Error", "No molecules available. Please select SDF files in File Operations.")
+    #         return
 
-        current_index = self.molecule_selector.currentIndex()
-        if current_index == -1:
-            QMessageBox.warning(self, "Error", "No molecule selected. Please select a molecule to export.")
-            return
+    #     current_index = self.molecule_selector.currentIndex()
+    #     if current_index == -1:
+    #         QMessageBox.warning(self, "Error", "No molecule selected. Please select a molecule to export.")
+    #         return
 
-        mol_data = self.molecules[current_index]
-        mol = mol_data['mol']
+    #     mol_data = self.molecules[current_index]
+    #     mol = mol_data['mol']
 
-        filename, _ = QFileDialog.getSaveFileName(self, "Save SDF File", "molecule.sdf", "SDF Files (*.sdf)")
+    #     filename, _ = QFileDialog.getSaveFileName(self, "Save SDF File", "molecule.sdf", "SDF Files (*.sdf)")
 
-        if filename:
-            try:
-                writer = SDWriter(filename)
-                writer.write(mol)
-                writer.close()
+    #     if filename:
+    #         try:
+    #             writer = SDWriter(filename)
+    #             writer.write(mol)
+    #             writer.close()
 
-                export_message = f"SUCCESS: SDF file exported!\n\n"
-                export_message += f"File saved to: {filename}\n"
-                export_message += f"Molecule: {self.molecule_selector.currentText()}\n"
-                export_message += f"Source: {mol_data['source_file']}"
+    #             export_message = f"SUCCESS: SDF file exported!\n\n"
+    #             export_message += f"File saved to: {filename}\n"
+    #             export_message += f"Molecule: {self.molecule_selector.currentText()}\n"
+    #             export_message += f"Source: {mol_data['source_file']}"
 
-                QMessageBox.information(self, "Export Successful", export_message)
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to export SDF file.\n\n{str(e)}")
+    #             QMessageBox.information(self, "Export Successful", export_message)
+    #         except Exception as e:
+    #             QMessageBox.critical(self, "Error", f"Failed to export SDF file.\n\n{str(e)}")
 
-    def export_lowest_energy_molecules(self):
-        if not self.molecules:
-            QMessageBox.warning(self, "Error", "No molecules available. Please select SDF files.")
-            return
+    # def export_lowest_energy_molecules(self):
+    #     if not self.molecules:
+    #         QMessageBox.warning(self, "Error", "No molecules available. Please select SDF files.")
+    #         return
 
-        QMessageBox.information(self, "Calculation",
-                                f"Calculating energies for {len(self.molecules)} molecules... This may take a moment.")
-        QApplication.processEvents()
+    #     QMessageBox.information(self, "Calculation",
+    #                             f"Calculating energies for {len(self.molecules)} molecules... This may take a moment.")
+    #     QApplication.processEvents()
 
-        molecules_with_energy = []
-        for mol_data in self.molecules:
-            mol = mol_data['mol']
-            try:
-                # Ensure the molecule has 3D coordinates
-                if mol.GetNumConformers() == 0:
-                    AllChem.EmbedMolecule(mol, AllChem.ETKDG())
+    #     molecules_with_energy = []
+    #     for mol_data in self.molecules:
+    #         mol = mol_data['mol']
+    #         try:
+    #             # Ensure the molecule has 3D coordinates
+    #             if mol.GetNumConformers() == 0:
+    #                 AllChem.EmbedMolecule(mol, AllChem.ETKDG())
 
-                # Perform energy minimization and get the energy
-                ff = AllChem.MMFFGetMoleculeForceField(mol, AllChem.MMFFGetMoleculeProperties(mol))
-                ff.Minimize()
-                energy = ff.CalcEnergy()
+    #             # Perform energy minimization and get the energy
+    #             ff = AllChem.MMFFGetMoleculeForceField(mol, AllChem.MMFFGetMoleculeProperties(mol))
+    #             ff.Minimize()
+    #             energy = ff.CalcEnergy()
 
-                # Store the molecule data and its calculated energy
-                molecules_with_energy.append((mol_data, energy))
-            except Exception:
-                # If energy calculation fails, skip this molecule
-                continue
+    #             # Store the molecule data and its calculated energy
+    #             molecules_with_energy.append((mol_data, energy))
+    #         except Exception:
+    #             # If energy calculation fails, skip this molecule
+    #             continue
 
-        if not molecules_with_energy:
-            QMessageBox.critical(self, "Error", "No molecules could be processed for energy calculation.")
-            return
+    #     if not molecules_with_energy:
+    #         QMessageBox.critical(self, "Error", "No molecules could be processed for energy calculation.")
+    #         return
 
-        # Sort molecules by energy
-        molecules_with_energy.sort(key=lambda x: x[1])
+    #     # Sort molecules by energy
+    #     molecules_with_energy.sort(key=lambda x: x[1])
 
-        # Get the top 10 lowest energy molecules, or fewer if not available
-        lowest_10_molecules = [item[0]['mol'] for item in molecules_with_energy[:10]]
+    #     # Get the top 10 lowest energy molecules, or fewer if not available
+    #     lowest_10_molecules = [item[0]['mol'] for item in molecules_with_energy[:10]]
 
-        filename, _ = QFileDialog.getSaveFileName(self, "Save Lowest Energy Molecules", "lowest_energy_molecules.sdf",
-                                                  "SDF Files (*.sdf)")
+    #     filename, _ = QFileDialog.getSaveFileName(self, "Save Lowest Energy Molecules", "lowest_energy_molecules.sdf",
+    #                                               "SDF Files (*.sdf)")
 
-        if filename:
-            try:
-                writer = SDWriter(filename)
-                for mol in lowest_10_molecules:
-                    writer.write(mol)
-                writer.close()
+    #     if filename:
+    #         try:
+    #             writer = SDWriter(filename)
+    #             for mol in lowest_10_molecules:
+    #                 writer.write(mol)
+    #             writer.close()
 
-                export_message = f"SUCCESS: Exported {len(lowest_10_molecules)} lowest energy molecules!\n\n"
-                export_message += f"File saved to: {filename}\n"
-                export_message += f"Selected from {len(self.molecules)} total molecules across {len(self.loaded_files)} files"
-                QMessageBox.information(self, "Export Successful", export_message)
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to export SDF file.\n\n{str(e)}")
-        else:
-            QMessageBox.information(self, "Export Cancelled", "Export cancelled by user.")
+    #             export_message = f"SUCCESS: Exported {len(lowest_10_molecules)} lowest energy molecules!\n\n"
+    #             export_message += f"File saved to: {filename}\n"
+    #             export_message += f"Selected from {len(self.molecules)} total molecules across {len(self.loaded_files)} files"
+    #             QMessageBox.information(self, "Export Successful", export_message)
+    #         except Exception as e:
+    #             QMessageBox.critical(self, "Error", f"Failed to export SDF file.\n\n{str(e)}")
+    #     else:
+    #         QMessageBox.information(self, "Export Cancelled", "Export cancelled by user.")

@@ -2,15 +2,20 @@ import os
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
     QPushButton,
     QFileDialog,
     QLabel,
     QProgressBar,
     QFileSystemModel,
-    QTreeView
+    QTreeView,
+    QListWidget, 
+    QListWidgetItem
 )
 from PySide6.QtCore import QMimeData, Qt, Signal
 from PySide6.QtGui import QDrag
+from aqmeasy.ui.stylesheets import stylesheets
+
 
 FILE_FILTERS = [
     "Gaussian Output Files (*.log)",
@@ -30,26 +35,33 @@ class FilePanel(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
         self.setLayout(layout)
+        selecting_layout = QHBoxLayout()
+        layout.addLayout(selecting_layout)
 
         select_files = QPushButton("Select Files")
+        select_files.setStyleSheet(stylesheets.QPushButton)
         select_files.clicked.connect(self.get_filenames)
-        layout.addWidget(select_files)
+        selecting_layout.addWidget(select_files)
 
         select_directory = QPushButton("Select Folder")
+        select_directory.setStyleSheet(stylesheets.QPushButton)
         select_directory.clicked.connect(self.get_directory)
-        layout.addWidget(select_directory)
+        selecting_layout.addWidget(select_directory)
 
-        self.files = QFileSystemModel(self)
-        self.files.setNameFilters(['*.log', '*.out'])
-        self.files.setNameFilterDisables(False)
-        self.files.setRootPath('')
+        # file list view
 
-        self.file_view = QTreeView()
-        # hide kind column
-        self.file_view.setModel(self.files)
-        self.file_view.setColumnWidth(0,200)
-        self.file_view.setColumnHidden(2, True)
-        layout.addWidget(self.file_view)
+        # self.files = QFileSystemModel(self)
+        # self.files.setNameFilters(['*.log', '*.out'])
+        # self.files.setNameFilterDisables(False)
+        # self.files.setRootPath('')
+
+        # self.file_view = QTreeView()
+        # self.file_view.setStyleSheet(stylesheets.QTreeView)
+        # # hide kind column
+        # self.file_view.setModel(self.files)
+        # self.file_view.setColumnWidth(0,200)
+        # self.file_view.setColumnHidden(2, True)
+        # layout.addWidget(self.file_view)
 
     def get_filenames(self):
         filters = ';;'.join(FILE_FILTERS)
@@ -74,6 +86,7 @@ class FilePanel(QWidget):
                     if file.lower().endswith(('.log', '.out')):
                         matched_files.append(os.path.join(file))
                         self.file_view.setRootIndex(self.files.index(root))
+
 
     def dragEnterEvent(self, event):
         urls = event.mimeData().urls()
@@ -100,5 +113,3 @@ class FilePanel(QWidget):
             self.display_folder_contents(dirs)
         
         event.acceptProposedAction()
-
-    

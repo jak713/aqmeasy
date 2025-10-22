@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QWidget, QComboBox, QLabel, QGroupBox, QVBoxLayout, QHBoxLayout, QSpinBox, QSlider
 from PySide6.QtCore import Qt
 from aqmeasy.models.QPREP_model import InputModel
+from aqmeasy.ui.stylesheets import stylesheets
 
 class ParameterPanel(QWidget): 
     """Parameter selection panel, Deals with all calculation selections for GAUSSIAN and ORCA """
@@ -39,10 +40,11 @@ class ParameterPanel(QWidget):
         
         # Software selection
         software_group = QGroupBox("Software")
+        software_group.setStyleSheet(stylesheets.QGroupBox)
         software_layout = QHBoxLayout()
         
         self.software_combo = QComboBox()
-        self.software_combo.setStyleSheet("QComboBox { background-color: #edf2f4; color: #2b2d42; border: 1px solid #8d99ae; border-radius: 3px; padding: 2px;combobox-popup: 0; }")
+        self.software_combo.setStyleSheet(stylesheets.QComboBox)
         self.software_combo.addItems(["Orca", "Gaussian"]) 
         self.software_combo.currentTextChanged.connect(self.on_software_changed)
         self.software_combo.currentTextChanged.connect(self.model.setSoftware)
@@ -52,12 +54,13 @@ class ParameterPanel(QWidget):
         
         # Functional selection
         functional_group = QGroupBox("Method")
+        functional_group.setStyleSheet(stylesheets.QGroupBox)
         functional_layout = QVBoxLayout()
         
         func_row = QHBoxLayout()
         func_row.addWidget(QLabel("Functional"))
         self.functional_combo = QComboBox()
-        self.functional_combo.setStyleSheet("QComboBox { background-color: #edf2f4; color: #2b2d42; border: 1px solid #8d99ae; border-radius: 3px; padding: 2px; combobox-popup: 0;}")
+        self.functional_combo.setStyleSheet(stylesheets.QComboBox)
         self.functional_combo.currentTextChanged.connect(self.model.setFunctional)
         func_row.addWidget(self.functional_combo)
         functional_layout.addLayout(func_row)
@@ -65,7 +68,7 @@ class ParameterPanel(QWidget):
         basis_row = QHBoxLayout()
         basis_row.addWidget(QLabel("Basis Set"))
         self.basis_combo = QComboBox()
-        self.basis_combo.setStyleSheet("QComboBox { background-color: #edf2f4; color: #2b2d42; border: 1px solid #8d99ae; border-radius: 3px; padding: 2px; combobox-popup: 0;}")
+        self.basis_combo.setStyleSheet(stylesheets.QComboBox)
         self.basis_combo.currentTextChanged.connect(self.model.setBasisSet)
         basis_row.addWidget(self.basis_combo)
         functional_layout.addLayout(basis_row)
@@ -74,6 +77,7 @@ class ParameterPanel(QWidget):
         
         # Processor count selection
         processor_group = QGroupBox("Computational Resources")
+        processor_group.setStyleSheet(stylesheets.QGroupBox)
         processor_layout = QVBoxLayout()
         
         proc_row = QHBoxLayout()
@@ -83,6 +87,7 @@ class ParameterPanel(QWidget):
         processor_layout.addLayout(proc_row)
         
         self.nprocs_slider = QSlider(Qt.Horizontal)
+        self.nprocs_slider.setStyleSheet(stylesheets.QSlider)
         self.nprocs_slider.setRange(1, 60)
         self.nprocs_slider.setValue(8)
         self.nprocs_slider.valueChanged.connect(self.on_nprocs_changed)
@@ -91,27 +96,27 @@ class ParameterPanel(QWidget):
         
         processor_group.setLayout(processor_layout)
 
-        # Memory 
-        memory_group = QGroupBox("Memory")
-        memory_layout = QVBoxLayout()
+        # Memory in computational resources
 
         mem_row = QHBoxLayout()
         mem_row.addWidget(QLabel('Memory:'))
         self.mem_label = QLabel("1")
         mem_row.addWidget(self.mem_label)
-        memory_layout.addLayout(mem_row)
+        processor_layout.addLayout(mem_row)
 
         self.mem_slider = QSlider(Qt.Horizontal)
+        self.mem_slider.setStyleSheet(stylesheets.QSlider)
         self.mem_slider.setRange(1, 16)
         self.mem_slider.setValue(1)
         self.mem_slider.valueChanged.connect(self.on_mem_changed)
         self.mem_slider.valueChanged.connect(self.model.setMem)
-        memory_layout.addWidget(self.mem_slider)
+        processor_layout.addWidget(self.mem_slider)
 
-        memory_group.setLayout(memory_layout)
+        processor_group.setLayout(processor_layout)
         
         # Solvation model
         solvation_group = QGroupBox("Solvation")
+        solvation_group.setStyleSheet(stylesheets.QGroupBox)
         solvation_layout = QVBoxLayout()
         
         self.ORCA_SOLVENT_MODELS = ["None", "CPCM", "SMD", "COSMORS", "DRACO"]
@@ -126,7 +131,7 @@ class ParameterPanel(QWidget):
         solv_row = QHBoxLayout()
         solv_row.addWidget(QLabel("Solvent Model"))
         self.solvation_combo = QComboBox()
-        self.solvation_combo.setStyleSheet("QComboBox { background-color: #edf2f4; color: #2b2d42; border: 1px solid #8d99ae; border-radius: 3px; padding: 2px; combobox-popup: 0;}")
+        self.solvation_combo.setStyleSheet(stylesheets.QComboBox)
         self.solvation_combo.addItems(self.ORCA_SOLVENT_MODELS)
         solv_row.addWidget(self.solvation_combo)
         solvation_layout.addLayout(solv_row)
@@ -134,7 +139,7 @@ class ParameterPanel(QWidget):
         solvent_row = QHBoxLayout()
         solvent_row.addWidget(QLabel("Solvent"))
         self.solvent_combo = QComboBox()
-        self.solvent_combo.setStyleSheet("QComboBox { background-color: #edf2f4; color: #2b2d42; border: 1px solid #8d99ae; border-radius: 3px; padding: 2px; combobox-popup: 0;}")
+        self.solvent_combo.setStyleSheet(stylesheets.QComboBox)
         self.solvent_combo.addItems(self.ORCA_SOLVENTS)
         solvent_row.addWidget(self.solvent_combo)
         solvation_layout.addLayout(solvent_row)
@@ -146,12 +151,13 @@ class ParameterPanel(QWidget):
         
         # Calculation type
         calc_group = QGroupBox("Calculation Type")
+        calc_group.setStyleSheet(stylesheets.QGroupBox)
         calc_layout = QVBoxLayout()
         
         calc_row = QHBoxLayout()
         calc_row.addWidget(QLabel("Job Type:"))
         self.calc_combo = QComboBox()
-        self.calc_combo.setStyleSheet("QComboBox { background-color: #edf2f4; color: #2b2d42; border: 1px solid #8d99ae; border-radius: 3px; padding: 2px;combobox-popup: 0; }")
+        self.calc_combo.setStyleSheet(stylesheets.QComboBox)
         self.calc_combo.addItems(["Single Point", "Geometry Optimization", "Frequency", "TD-DFT", "Opt+Freq"])
         calc_row.addWidget(self.calc_combo)
         calc_layout.addLayout(calc_row)
@@ -159,14 +165,14 @@ class ParameterPanel(QWidget):
         charge_spin_row = QHBoxLayout()
         charge_spin_row.addWidget(QLabel("Charge:"))
         self.charge_spin = QSpinBox()
-        self.charge_spin.setStyleSheet("QSpinBox { background-color: #edf2f4; color: #2b2d42; border: 1px solid #8d99ae; border-radius: 3px; padding: 2px; }")
+        self.charge_spin.setStyleSheet(stylesheets.QSpinBox)
         self.charge_spin.setRange(-10, 10)
         self.charge_spin.setValue(0)
         charge_spin_row.addWidget(self.charge_spin)
         
         charge_spin_row.addWidget(QLabel("Multiplicity:"))
         self.multiplicity_spin = QSpinBox()
-        self.multiplicity_spin.setStyleSheet("QSpinBox { background-color: #edf2f4; color: #2b2d42; border: 1px solid #8d99ae; border-radius: 3px; padding: 2px; }")
+        self.multiplicity_spin.setStyleSheet(stylesheets.QSpinBox)
         self.multiplicity_spin.setRange(1, 10)
         self.multiplicity_spin.setValue(1)
         charge_spin_row.addWidget(self.multiplicity_spin)
@@ -177,7 +183,6 @@ class ParameterPanel(QWidget):
         layout.addWidget(software_group)
         layout.addWidget(functional_group)
         layout.addWidget(processor_group)
-        layout.addWidget(memory_group)
         layout.addWidget(solvation_group)
         layout.addWidget(calc_group)
         layout.addStretch()
