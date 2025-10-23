@@ -26,7 +26,7 @@ from aqmeasy.models.CSEARCH_model.CSEARCH_command import (
     )
 from aqmeasy.controllers.CSEARCH_controller import csv_controller as control
 from aqmeasy.ui.stylesheets import stylesheets
-from aqmeasy.ui.icons import red_icon, green_icon, plus_icon
+from aqmeasy.ui.icons import red_icon, green_icon, blue_icon, plus_icon
 
 
 class CSEARCH(QWidget):
@@ -134,6 +134,7 @@ class CSEARCH(QWidget):
         self.smiles_input.setPlaceholderText("Enter SMILES, search PubChem below or drop in a ChemDraw/csv/sdf file...")
         self.smiles_input.setStyleSheet(stylesheets.QTextEdit)
         self.smiles_input.setAutoFillBackground(True)
+        self.smiles_input.setAcceptDrops(False)
         self.smiles_input.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.right_layout.addWidget(self.smiles_input, 1)
 
@@ -741,15 +742,16 @@ class CSEARCH(QWidget):
 
     def closeEvent(self, event):
         """Handle the close event to prompt saving the CSV file, with the added icon."""
-        pixmap = QPixmap(red_icon)
+        pixmap = QPixmap(blue_icon)
         icon = QIcon(pixmap)
         
         if self.file_name is None: 
             msgBox = QMessageBox(self)
+            msgBox.setStyleSheet(stylesheets.QMessageBox)
             msgBox.setWindowTitle("Save CSV")
             msgBox.setText("Would you like to save the CSV file before exiting?")
             msgBox.setWindowIcon(icon)
-            msgBox.setIconPixmap(pixmap)
+            msgBox.setIconPixmap(icon.pixmap(64, 64))
             msgBox.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
             reply = msgBox.exec()
             
@@ -1067,22 +1069,30 @@ class CSEARCH(QWidget):
 # random 
     def success(self, message):
         pixmap = QPixmap(green_icon)
-        icon = QIcon(pixmap)
         msg = QMessageBox(self)
+        msg.setStyleSheet(stylesheets.QMessageBox)
         msg.setWindowTitle("Success")
         msg.setText(message)
-        msg.setWindowIcon(icon)
-        msg.setIconPixmap(pixmap)
+        if not pixmap.isNull():
+            icon = QIcon(pixmap)
+            msg.setWindowIcon(icon)
+            msg.setIconPixmap(icon.pixmap(64, 64))
+        else:
+            msg.setIcon(QMessageBox.Information)
         msg.exec()
 
     def failure(self, message):
         pixmap = QPixmap(red_icon)
-        icon = QIcon(pixmap)
         msg = QMessageBox(self)
+        msg.setStyleSheet(stylesheets.QMessageBox)
         msg.setWindowTitle("Failure")
         msg.setText(message)
-        msg.setWindowIcon(icon)
-        msg.setIconPixmap(pixmap)
+        if not pixmap.isNull():
+            icon = QIcon(pixmap)
+            msg.setWindowIcon(icon)
+            msg.setIconPixmap(icon.pixmap(64, 64))
+        else:
+            msg.setIcon(QMessageBox.Critical)
         msg.exec()
 
     def _drag_enter(self,event):

@@ -1,3 +1,4 @@
+from pathlib import Path
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
@@ -188,9 +189,16 @@ def command2clipboard(command):
         return True
     except Exception:
         return False
-    
+
+
 
 def resource_path(relative_path):
-    """Get absolute path to resource, works for PyInstaller."""
-    base_path = sys._MEIPASS if getattr(sys, 'frozen', False) else os.path.abspath(".")
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except AttributeError:
+        # If not running as bundled app, use the script's directory
+        base_path = Path(__file__).resolve().parent
+    
     return os.path.join(base_path, relative_path)

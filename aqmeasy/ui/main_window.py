@@ -126,7 +126,7 @@ class MainWindow(QMainWindow):
 
     def showAboutDialog(self):
         about_text = """
-        <div style="font-size:10pt;">
+        <div>
             <h3>Automated Quantum Mechanical Environments</h3>
             <p>Code <a href="https://github.com/jvalegre/aqme">here</a> (Github)</p>
             <p>ReadTheDocs <a href="https://aqme.readthedocs.io/en/latest/">here</a></p>
@@ -141,7 +141,7 @@ class MainWindow(QMainWindow):
 
     def aboutRDKit(self):
         rdkit_text = """
-        <div style="font-size:10pt;">
+        <div >
             <h3>RDKit</h3>
             <p>RDKit is an open-source cheminformatics software.</p>
             <p>Find out more at: <a href="https://www.rdkit.org/">https://www.rdkit.org/</a></p>
@@ -151,7 +151,7 @@ class MainWindow(QMainWindow):
 
     def aboutXTB(self):
         xtb_text = """
-        <div style="font-size:10pt;">
+        <div>
             <h3>xTB</h3>
             <p>xTB is a semiempirical tight-binding quantum chemistry software.</p>
             <p>Find out more at: <a href="https://xtb-docs.readthedocs.io/en/latest/">https://xtb-docs.readthedocs.io/en/latest/</a></p>
@@ -161,7 +161,7 @@ class MainWindow(QMainWindow):
 
     def aboutCREST(self):
         crest_text = """
-        <div style="font-size:10pt;">
+        <div>
             <h3>CREST</h3>
             <p>CREST is a conformer-rotamer ensemble sampling tool based on xTB.</p>
             <p>Find out more at: <a href="https://xtb-docs.readthedocs.io/en/latest/crest.html">https://xtb-docs.readthedocs.io/en/latest/crest.html</a></p>

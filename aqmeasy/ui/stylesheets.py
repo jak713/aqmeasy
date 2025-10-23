@@ -3,32 +3,54 @@
 ##########################################
 class stylesheets:
 
-    QMainWindow = """
-QMainWindow {
-    background-color:#03045E; 
-    color: #90E0EF;
+    QMessageBox = """
+QMessageBox {
+    background-color:#03045E;
 }
-"""
 
-    QWidget = """
-QWidget {
-    background-color: #03045E;
+QMessageBox QLabel {
+    font-size: 12pt;
     color: #CAF0EF;
 }
 
-QInputDialog {
-    background-color: #03045E;
-    color: #CAF0EF;
+QMessageBox QLabel:hyperlink:hover {
+    color: #00B4D8;
+    text-decoration: underline;
 }
 
-QToolTip {
+QMessageBox QComboBox {
     background-color: #03045E;
-    color: #CAF0EF;
+    color: #CAF0F8;
+    border: 1px solid #00B4D8;
+    border-radius: 3px;
+    padding: 2px;
+    combobox-popup: 0;
+}
+
+QMessageBox QComboBox:hover {
+    background-color: #0077B6;
+}
+
+QMessageBox QComboBox QAbstractItemView {
+    background-color: #03045E;
+    color: #CAF0F8;
+    selection-background-color: #0077B6;
+}
+
+QMessageBox QPushButton {
+    background-color: #0077B6;
+    color: #CAF0F8;
     border: 1px solid #0077B6;
-    padding: 3px;
-    font-size: 12px;
-}   
+    border-radius: 5px;
+    padding: 5px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+QMessageBox QPushButton:hover {
+    background-color: #00B4D8;
+}"""
 
+    QScrollBar = """
 QScrollBar:vertical {
     background: #03045E;
     width: 10px;
@@ -51,13 +73,83 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
     background: none;
 }
-"""
+QScrollBar:horizontal {
+    background: #03045E;
+    height: 10px;
+    margin: 0px 0px 0px 0px;
+    border: 1px solid #00B4D8;
+    border-radius: 5px;
+}   
+QScrollBar::handle:horizontal {
+    background: #00B4D8;
+    min-width: 10px;
+    border-radius: 5px;
+}
+QScrollBar::handle:horizontal:hover {
+    background: #0077B6;
+}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+}"""
 
-# Placeholder hover style for drag and drop file widgets
-#     QWidget_file_hover = """
-# QWidget {
-#     background-color: #41dc8e; 
-# }"""
+    QMainWindow = """
+QMainWindow {
+    background-color:#03045E; 
+    color: #90E0EF;
+}
+""" + QMessageBox
+
+    QWidget = """
+QWidget {
+    background-color: #03045E;
+    color: #CAF0EF;
+}
+
+QInputDialog {
+    background-color: #03045E;
+    color: #CAF0EF;
+}
+QInputDialog QLabel {
+    color: #CAF0EF;
+    font-size: 12pt;
+}
+QInputDialog QComboBox {
+    background-color: #03045E;
+    color: #CAF0F8;
+    border: 1px solid #00B4D8;
+    border-radius: 3px;
+    padding: 2px;
+    combobox-popup: 0;
+}
+QInputDialog QComboBox:hover {
+    background-color: #0077B6;
+}
+QInputDialog QComboBox QAbstractItemView {
+    background-color: #03045E;
+    color: #CAF0F8;
+    selection-background-color: #0077B6;
+}
+QInputDialog QPushButton {
+    background-color: #0077B6;
+    color: #CAF0F8;
+    border: 1px solid #0077B6;
+    border-radius: 5px;
+    padding: 5px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+QInputDialog QPushButton:hover {
+    background-color: #00B4D8;
+}
+
+QToolTip {
+    background-color: #03045E;
+    color: #CAF0EF;
+    border: 1px solid #0077B6;
+    padding: 3px;
+    font-size: 12px;
+}   
+""" + QScrollBar
 
     QMenuBar = """
 QMenuBar {
@@ -325,49 +417,7 @@ QTableCornerButton::section {
     background-color: #03045E;
     border: 1px solid #00B4D8;
 }
-
-QScrollBar:vertical {
-    background: #03045E;
-    width: 10px;
-    margin: 0px 0px 0px 0px;
-    border: 1px solid #00B4D8;
-    border-radius: 5px;
-}
-
-QScrollBar::handle:vertical {
-    background: #00B4D8;
-    min-height: 10px;
-    border-radius: 5px;
-}       
-QScrollBar::handle:vertical:hover {
-    background: #0077B6;
-}
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-    height: 0px;
-}
-QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-    background: none;
-}
-QScrollBar:horizontal {
-    background: #03045E;
-    height: 10px;
-    margin: 0px 0px 0px 0px;
-    border: 1px solid #00B4D8;
-    border-radius: 5px;
-}   
-QScrollBar::handle:horizontal {
-    background: #00B4D8;
-    min-width: 10px;
-    border-radius: 5px;
-}
-QScrollBar::handle:horizontal:hover {
-    background: #0077B6;
-}
-QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
-    width: 0px;
-}
-
-"""
+""" + QScrollBar
 
     QWebEngineView = """
 QWebEngineView {

@@ -67,7 +67,7 @@ class CsvController:
         selected_code_names = [self.model["code_name"][item.row()] for item in items]
         # print(selected_items)
         if len(selected_items) < 2:
-            return self.parent.failure("Please select two or more items to add an intermediate.")
+            return False
         
         smiles = ".".join(selected_items)
         self.new_molecule()
@@ -90,7 +90,7 @@ class CsvController:
         # print(selected_code_names)
         # print(selected_items)
         if len(selected_items) < 1:
-            return self.parent.failure("Please select one or more items to add a transition state.")
+            return False
         
         smiles = ".".join(selected_items)
         self.new_molecule()
