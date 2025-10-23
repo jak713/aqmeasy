@@ -30,6 +30,7 @@ from aqmeasy.ui.stylesheets import stylesheets
 class QCORR(QWidget):
     def __init__(self):
         super().__init__()
+        self.setStyleSheet(stylesheets.QWidget)
         # control.set_parent(self)
         self.setWindowTitle("QCORR")
 

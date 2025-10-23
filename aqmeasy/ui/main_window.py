@@ -13,6 +13,7 @@ class MainWindow(QMainWindow):
 #84A1FD light blue
     def __init__(self):
         super().__init__()
+        self.setStyleSheet(stylesheets.QMainWindow)
         self.setWindowTitle("AQMEasy 0.1")
         self.create_menu()
         self.move(0, 0)
@@ -20,7 +21,7 @@ class MainWindow(QMainWindow):
         central_widget = QWidget(self)
         layout = QVBoxLayout(central_widget)
         self.logo = QLabel(self)
-        logo_path = os.path.join(os.path.dirname(__file__), "resources", "aqme-logo-transparent.svg")
+        logo_path = os.path.join(os.path.dirname(__file__), "resources", "aqme-logo-blue.svg")
         logo = QPixmap(logo_path)
         if not logo.isNull():
             self.logo.setPixmap(logo)
@@ -32,13 +33,17 @@ class MainWindow(QMainWindow):
 
         readthedocs_label = QLabel(self)
         readthedocs_label.setStyleSheet(stylesheets.QLabel)
-        readthedocs_icon = QPixmap(os.path.join(os.path.dirname(__file__), "resources", "readthedocs_logo.png"))
+        readthedocs_label.setOpenExternalLinks(True)
+        readthedocs_path = os.path.join(os.path.dirname(__file__), "resources", "readthedocs_logo.png")
+        readthedocs_icon = QPixmap(readthedocs_path)
         if not readthedocs_icon.isNull():
+            img = readthedocs_icon.toImage()
+            img.invertPixels()
+            readthedocs_icon = QPixmap.fromImage(img)
             readthedocs_icon = readthedocs_icon.scaled(self.logo.pixmap().size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
             readthedocs_label.setPixmap(readthedocs_icon)
         else:
             readthedocs_label.setText('<a href="https://aqme.readthedocs.io/en/latest/">Docs</a>')
-            readthedocs_label.setOpenExternalLinks(True)
         readthedocs_label.mousePressEvent = lambda event: QDesktopServices.openUrl(QUrl("https://aqme.readthedocs.io/en/latest/"))
         layout.addWidget(readthedocs_label,1, alignment=Qt.AlignCenter)
 
@@ -48,7 +53,6 @@ class MainWindow(QMainWindow):
         button_layout = QHBoxLayout()
 
         label_for_csearch = QLabel("Conformational\nSearch:")
-        label_for_csearch.setStyleSheet(stylesheets.QLabel)
         label_layout.addWidget(label_for_csearch)
         self.button_for_csearch = QPushButton("CSEARCH")
         self.button_for_csearch.setStyleSheet(stylesheets.QPushButton)
@@ -57,7 +61,6 @@ class MainWindow(QMainWindow):
         button_layout.addWidget(self.button_for_csearch)
         
         label_for_qprep = QLabel("Quantum Chem\nPreprocessing:")
-        label_for_qprep.setStyleSheet(stylesheets.QLabel)
         label_layout.addWidget(label_for_qprep)
         button_for_qprep = QPushButton("QPREP")
         button_for_qprep.setStyleSheet(stylesheets.QPushButton)
@@ -66,7 +69,6 @@ class MainWindow(QMainWindow):
         button_layout.addWidget(button_for_qprep)
         
         label_for_qcorr = QLabel("Quantum Chem\nCorrections:")
-        label_for_qcorr.setStyleSheet(stylesheets.QLabel)
         label_layout.addWidget(label_for_qcorr)
         button_for_qcorr = QPushButton("QCORR")
         button_for_qcorr.setStyleSheet(stylesheets.QPushButton)
@@ -75,7 +77,6 @@ class MainWindow(QMainWindow):
         button_layout.addWidget(button_for_qcorr)
 
         label_for_qdescp = QLabel("Quantum Chem\nDescriptors:")
-        label_for_qdescp.setStyleSheet(stylesheets.QLabel)
         label_layout.addWidget(label_for_qdescp)
         button_for_qdescp = QPushButton("QDESCP")
         button_for_qdescp.setStyleSheet(stylesheets.QPushButton)
@@ -85,13 +86,12 @@ class MainWindow(QMainWindow):
         
         labels = [label_for_csearch, label_for_qprep, label_for_qcorr, label_for_qdescp]
         label_font = labels[0].font()
-        label_font.setPointSize(10)
         label_font.setBold(True)
 
         for label in labels:
             label.setFont(label_font)
             label.setAlignment(Qt.AlignCenter)
-            label.setStyleSheet(f"color: {self.palette().color(self.foregroundRole()).name()};")
+            label.setStyleSheet(stylesheets.QLabelMain)
 
         layout.addStretch()  
         layout.addLayout(label_layout)  

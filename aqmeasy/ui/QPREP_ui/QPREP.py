@@ -15,6 +15,7 @@ class QPREP(QWidget):
     """QPREP Widget opens a window"""
     def __init__(self):
         super().__init__()
+        self.setStyleSheet(stylesheets.QWidget)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.setWindowTitle("QPREP")
         # self.resize(1200, 800) 

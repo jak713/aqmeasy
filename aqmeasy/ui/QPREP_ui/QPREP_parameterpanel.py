@@ -119,7 +119,7 @@ class ParameterPanel(QWidget):
         solvation_group.setStyleSheet(stylesheets.QGroupBox)
         solvation_layout = QVBoxLayout()
         
-        self.ORCA_SOLVENT_MODELS = ["None", "CPCM", "SMD", "COSMORS", "DRACO"]
+        self.ORCA_SOLVENT_MODELS = ["None", "CPCM", "SMD", "COSMO-RS", "DRACO"]
         self.ORCA_SOLVENTS = [
             "None", "Water", "Methanol", "Ethanol", "Acetone", "DMSO", 'Toluene', 'Aniline', 'Benzene', 'Chloroform', 'Carbon Disulfide', 'DCM', 'diethyl ether', 'DMF', 'Ethyl Acetate', 'Nitromethane', 'THF',
         ]

@@ -9,7 +9,7 @@ import os
 import subprocess
 import tempfile
 
-from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QTextEdit, QCheckBox, QMessageBox, QSizePolicy, QFileDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem, QFrame, QGridLayout, QDoubleSpinBox
+from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QTextEdit, QCheckBox, QMessageBox, QSizePolicy, QFileDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem, QFrame, QGridLayout, QDoubleSpinBox, QGroupBox
 from PySide6.QtCore import Qt, QProcess
 from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, QDoubleValidator, QTextCursor, QIntValidator
 
@@ -33,7 +33,13 @@ class CSEARCH(QWidget):
     def __init__(self):
         super().__init__()
         control.set_parent(self)
+        self.setStyleSheet(stylesheets.QWidget)
+
         self.setAcceptDrops(True)
+        self.dragEnterEvent = self._drag_enter
+        self.dragLeaveEvent = self._drag_leave 
+        self.dropEvent = self._drop_event 
+
         self.file_name = None # this actually not needed but i need to fix the logic when nothing has been changed in the UI and we want to close the app (i.e. no need to save)
 
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
@@ -61,7 +67,9 @@ class CSEARCH(QWidget):
         self.main_layout.addLayout(self.bottom_layout, 1)
         self.setLayout(self.main_layout)
 
-        self.index_and_total_label = QLabel(f"{control.current_index}/{control.total_index}", self)
+        self.index_and_total_label = QLabel(f"{control.current_index}/{control.total_index}")
+        self.index_and_total_label.setStyleSheet(stylesheets.QLabel)
+        self.index_and_total_label.setFixedWidth(60)
         self.control1_layout.addWidget(self.index_and_total_label)
 
         self.import_button = QPushButton("Import", self)
@@ -89,20 +97,29 @@ class CSEARCH(QWidget):
         self.save_csv_button.clicked.connect(lambda: (logging.debug("at save_csv_button >>> save_csv"), control.save_csv_file()))
         self.control1_layout.addWidget(self.save_csv_button)
 
-        self.how_to_label = QLabel("Click to select atoms and add constraints, click again to deselect.", self)
-        self.how_to_label.setStyleSheet("background-color: rgba(255, 255, 255, 0); border: none; font-size: 10px; color: black;")
-        self.how_to_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.left_layout.addWidget(self.how_to_label)
-
     # THIS IS WHERE THE MOLECULE IS DISPLAYED
-        self.molecule_label = QLabel("Enter SMILES in the box on the right...", self)
-        self.molecule_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        molecule_group = QGroupBox("Click to select atoms and add constraints, click again to deselect.")
+        molecule_group.setStyleSheet(stylesheets.QGroupBox)
+
+        self.molecule_label = QLabel()
         self.molecule_label.setStyleSheet(stylesheets.MoleculeLabel)
+        self.molecule_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.molecule_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)  
         self.molecule_label.setMinimumSize(250, 200)  
+        
+        molecule_layout = QVBoxLayout(molecule_group)
+        molecule_layout.addWidget(self.molecule_label)
 
-        # Pass the molecule_label to the controller
-        self.left_layout.addWidget(self.molecule_label)
+        self.molecule_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        def _molecule_label_mouse_press(event):
+            if event.button() == Qt.MouseButton.LeftButton:
+                pos = event.position()
+            control.mousePressEvent(pos)
+            QLabel.mousePressEvent(self.molecule_label, event)
+
+        self.molecule_label.mousePressEvent = _molecule_label_mouse_press
+        self.left_layout.addWidget(molecule_group)
+
 
         self.atom_electron_label = QLabel(self.molecule_label)
         self.atom_electron_label.setStyleSheet("background-color: rgba(255, 255, 255, 0); border: none; font-size: 10px; color: black;")
@@ -114,7 +131,7 @@ class CSEARCH(QWidget):
 
     # VARIOUS INPUTS
         self.smiles_input = QTextEdit(self)
-        self.smiles_input.setPlaceholderText("Enter SMILES here or search PubChem below...")
+        self.smiles_input.setPlaceholderText("Enter SMILES, search PubChem below or drop in a ChemDraw/csv/sdf file...")
         self.smiles_input.setStyleSheet(stylesheets.QTextEdit)
         self.smiles_input.setAutoFillBackground(True)
         self.smiles_input.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -198,12 +215,18 @@ class CSEARCH(QWidget):
         self.properties_table.setStyleSheet(stylesheets.QTableWidget)
         self.right_layout.addWidget(self.properties_table, 2)
 
+        shell_group = QGroupBox("Shell Output")
+        shell_group.setStyleSheet(stylesheets.QGroupBox)
+
         self.shell_output = QTextBrowser(self)
         self.shell_output.setStyleSheet(stylesheets.ShellOutput)
         self.shell_output.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.shell_output.setReadOnly(True)
-        self.bottom_layout.addWidget(self.shell_output, 2)
-    
+        shell_layout = QVBoxLayout(shell_group)
+        shell_layout.addWidget(self.shell_output)
+
+        self.bottom_layout.addWidget(shell_group, 2)
+
         # AQME SETUP
         self.aqme_setup_grid = QGridLayout()
         self.bottom_layout.addLayout(self.aqme_setup_grid, 1)
@@ -285,7 +308,7 @@ class CSEARCH(QWidget):
             palette.setColor(widget.backgroundRole(), self.palette().color(self.backgroundRole()))
             widget.setPalette(palette)
 
-        # ADVANCED SETTINGS 
+        # ADVANCED SETTINGS
 
         # Column 1 & 2
         self.advanced_settings_button = QPushButton("Show Advanced Settings", self)
@@ -300,6 +323,11 @@ class CSEARCH(QWidget):
 
         advanced_layout = QGridLayout()
         self.advanced_panel.setLayout(advanced_layout)
+        advanced_settings_group = QGroupBox("Advanced Settings")
+        advanced_settings_group.setStyleSheet(stylesheets.QGroupBox)
+        self.advanced_panel.layout().addWidget(advanced_settings_group)
+        advanced_layout = QGridLayout()
+        advanced_settings_group.setLayout(advanced_layout)
 
         self.sample_size_label = QLabel("Sample size:", self)
         self.sample_size_label.setStyleSheet(stylesheets.QLabel)
@@ -452,10 +480,10 @@ class CSEARCH(QWidget):
         advanced_layout.addWidget(self.bond_thres_label, 2, 5)
 
         self.bond_thres_input = QDoubleSpinBox(self)
+        self.bond_thres_input.setStyleSheet(stylesheets.QDoubleSpinBox)
         self.bond_thres_input.setRange(0.0, 10.0)
         self.bond_thres_input.setValue(0.2)
         self.bond_thres_input.valueChanged.connect(lambda: gen_command.update({"bond_thres": self.bond_thres_input.value()}))
-        self.bond_thres_input.setStyleSheet(stylesheets.QDoubleSpinBox)
         self.bond_thres_input.setToolTip("Threshold used to discard bonds in the geom option (+-0.2 A)")
         advanced_layout.addWidget(self.bond_thres_input, 2, 6)
 
@@ -488,11 +516,12 @@ class CSEARCH(QWidget):
         advanced_layout.addWidget(self.crest_force_label, 0, 7)
 
         self.crest_force_input = QDoubleSpinBox(self)
+        self.crest_force_input.setStyleSheet(stylesheets.QDoubleSpinBox)
+
         self.crest_force_input.setRange(0.0, 10.0)
         self.crest_force_input.setValue(0.5)
         self.crest_force_input.setSingleStep(0.1)
         self.crest_force_input.valueChanged.connect(lambda: crest_command.update({"crest_force": self.crest_force_input.value()}))
-        self.crest_force_input.setStyleSheet(stylesheets.QDoubleSpinBox)
         self.crest_force_input.setToolTip("CREST ONLY: Force constant for constraints in the .xcontrol.sample file for CREST jobs.")
         advanced_layout.addWidget(self.crest_force_input, 0, 8)
 
@@ -500,7 +529,7 @@ class CSEARCH(QWidget):
         self.crest_keywords_input.setPlaceholderText("CREST keywords...")
         self.crest_keywords_input.textChanged.connect(lambda: crest_command.update({"crest_keywords": self.crest_keywords_input.text()}))
         self.crest_keywords_input.setStyleSheet(stylesheets.QLineEdit)
-        self.crest_keywords_input.setToolTip("CREST ONLY: KDefine additional keywords to use in CREST that are not included in --chrg, --uhf, -T and -cinp. For example: '--alpb ch2cl2 --nci --cbonds 0.5'.")
+        self.crest_keywords_input.setToolTip("CREST ONLY: Define additional keywords to use in CREST that are not included in --chrg, --uhf, -T and -cinp. For example: '--alpb ch2cl2 --nci --cbonds 0.5'.")
         advanced_layout.addWidget(self.crest_keywords_input, 1, 7)
 
         self.xtb_keywords_input = QLineEdit(self)
@@ -542,7 +571,7 @@ class CSEARCH(QWidget):
         self.update_ui()
 
     def toggle_panel(self):
-        expanded_height = 130
+        expanded_height = 200
         if self.advanced_settings_button.isChecked():
             self.advanced_panel.setFixedHeight(expanded_height)
             self.resize(self.width(), self.height() + expanded_height)
@@ -738,13 +767,11 @@ class CSEARCH(QWidget):
 
 
 # CHEMDRAW FUNCTIONS
-    def import_file(self):
+    def import_file(self,file_name=None):
         """Import an SDF or ChemDraw file, extract SMILES, and display them. For CSV files, read the data and update the model."""
 
-        file_name, _ = QFileDialog.getOpenFileName(self, "Import File", "", "ChemDraw Files (*.cdx *.cdxml);;SDF Files (*.sdf);;CSV files (*.csv)")
-
         if not file_name:
-            return
+            file_name, _ = QFileDialog.getOpenFileName(self, "Import File", "", "ChemDraw Files (*.cdx *.cdxml);;SDF Files (*.sdf);;CSV files (*.csv)")
         try:
             for key in csv_model.keys():
                 csv_model[key].clear()
@@ -1016,9 +1043,9 @@ class CSEARCH(QWidget):
             os.makedirs(destination)
         if not os.path.exists(destination):
             self.failure("Output directory does not exist.")
-            return 
-        
-        aqme_rungen = f'python -u -m aqme --csearch --program {program} --input {input_file}  --destination {destination} --stacksize {stacksize} --sample {sample} --auto_sample {auto_sample} --ewin_csearch {ewin_csearch} --initial_energy_threshold {initial_energy_threshold} --energy_threshold {energy_threshold} --rms_threshold {rms_threshold} --opt_steps_rdkit {opt_steps_rdkit} --heavyonly {heavyonly} --max_matches_rmsd {max_matches_rmsd} --max_mol_wt {max_mol_wt} --max_torsions {max_torsions} --seed {seed} --geom "{geom}" --bond_thres {bond_thres} --angle_thres {angle_thres} --dihedral_thres {dihedral_thres} --auto_metal_atoms {auto_metal_atoms}'
+            return
+
+        aqme_rungen = f'python -u -m aqme --csearch --program "{program}" --input "{input_file}" --destination "{destination}" --stacksize {stacksize} --sample {sample} --auto_sample "{auto_sample}" --ewin_csearch {ewin_csearch} --initial_energy_threshold {initial_energy_threshold} --energy_threshold {energy_threshold} --rms_threshold {rms_threshold} --opt_steps_rdkit {opt_steps_rdkit} --heavyonly {heavyonly} --max_matches_rmsd {max_matches_rmsd} --max_mol_wt {max_mol_wt} --max_torsions {max_torsions} --seed {seed} --geom "{geom}" --bond_thres {bond_thres} --angle_thres {angle_thres} --dihedral_thres {dihedral_thres} --auto_metal_atoms {auto_metal_atoms}'
 
         if program == "CREST":
             nprocs, crest_force, crest_keywords, cregen, cregen_keywords, xtb_keywords, crest_runs = (
@@ -1058,7 +1085,38 @@ class CSEARCH(QWidget):
         msg.setIconPixmap(pixmap)
         msg.exec()
 
+    def _drag_enter(self,event):
+        mime = event.mimeData()
+        if mime and mime.hasUrls():
+            event.acceptProposedAction()
+            try:
+                self.molecule_label.setStyleSheet(stylesheets.MoleculeLabelHover)
+                self.molecule_label.setText("Drop in a ChemDraw, CSV or SDF file to import or input SMILES")
+            except Exception:
+                logging.debug("file hovered over widget")
+        else:
+            event.ignore()
 
+    def _drag_leave(self,event):
+        try:
+            self.molecule_label.setStyleSheet(stylesheets.MoleculeLabel)
+        except Exception:
+            logging.debug("file unhovered")
+
+    def _drop_event(self,event):
+        mime = event.mimeData()
+        if mime and mime.hasUrls():
+            event.acceptProposedAction()
+            try:
+                self.molecule_label.setStyleSheet(stylesheets.MoleculeLabel)
+            except Exception:
+                logging.debug("file dropped over widget")
+            urls = mime.urls()
+            if urls:
+                file_path = urls[0].toLocalFile()
+                self.import_file(file_path)
+        else:
+            event.ignore()
 # TODO:
 # - Add the complex_type option when TM is found !
 # - Fix run aqme command  !!!!
@@ -1066,4 +1124,4 @@ class CSEARCH(QWidget):
 
 # ---- fix the warning where the smiles entered are not valid (rn nothing really happens but the change is only regirestered when the smiles are valid (or thats how it should be)), similarly changing smiles removes the view of the constraints but doesnt remove them completely at the index level, which I think should be done?
 
-# add intermedaite plus transition state option in the show all 
+# add intermediate plus transition state option in the show all

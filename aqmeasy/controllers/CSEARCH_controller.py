@@ -5,8 +5,9 @@ import sys
 from aqmeasy.models.CSEARCH_model.CSEARCH_model import csv_dictionary as csv_model
 from aqmeasy.models.CSEARCH_model.CSEARCH_command import general_command_dictionary as gen_command, crest_command_dictionary as crest_command
 
-import aqmeasy.ui.dialogs.smiles2csv_table_dialog as csv_table
+import aqmeasy.ui.CSEARCH_ui.CSEARCH_csvtable as csv_table
 from aqmeasy.utils import smiles2pixmap, smiles2enumerate, smiles2charge, smiles2multiplicity, smiles2findmetal
+from aqmeasy.ui import stylesheets
 import rdkit.rdBase
 from rdkit import Chem
 from rdkit.Chem import Draw as rdMolDraw2D, rdDepictor
@@ -187,7 +188,7 @@ class CsvController:
                 self.parent.failure("Please enter a file name before saving.")
                 return False  # for the closing event
 
-            gen_command["input"] = file_name
+            gen_command["input"] = _name
             with open(gen_command["input"], 'w', newline='') as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerow(csv_model.keys())
@@ -240,7 +241,7 @@ class CsvController:
             
             if hasattr(self, 'selected_atoms') and self.selected_atoms:
                 highlight_atoms = [atom_idx - 1 for atom_idx in self.selected_atoms]
-                highlight_colors = {idx: (0.5176, 0.6314, 0.9922) for idx in highlight_atoms}
+                highlight_colors = {idx: (0.565, 0.878, 0.937) for idx in highlight_atoms} #normalised RGB
 
             drawer.DrawMolecule(mol, highlightAtoms=highlight_atoms, highlightAtomColors=highlight_colors)
             drawer.FinishDrawing()
@@ -260,9 +261,10 @@ class CsvController:
         """Handle mouse press events to select atoms and add constraints.
         The logic is to check if the mouse press event is within the molecule_label"""
         if self.parent.molecule_label and self.parent.molecule_label.geometry().contains(pos.toPoint()):
-            x = pos.x() - self.parent.molecule_label.x()
-            y = pos.y() - self.parent.molecule_label.y()
+            x = pos.x() - self.parent.molecule_label.x() +15 # Offset for the electron label
+            y = pos.y() - self.parent.molecule_label.y() +25 
             selected_atom = self.get_atom_at_position(x, y)
+            # print(f"Mouse pressed within molecule label at ({x}, {y}).")
             if selected_atom is not None:
                 self.handle_atom_selection(selected_atom)
                 self.display_molecule(self.parent.show_numbered_atoms_toggle.isChecked())  
@@ -274,14 +276,17 @@ class CsvController:
         The logic is to check if the distance between the mouse click
         and the atom coordinates is less than a threshold."""
         if not hasattr(self, 'atom_coords'):
+            print("Atom coordinates not available.")
             return None
         elif self.atom_coords is not None:
             for idx, coord in enumerate(self.atom_coords):
                 if len(csv_model["SMILES"][self.current_index - 1]) <= 50: # small molecule = bigger click area
                     if (coord.x - x) ** 2 + (coord.y - y) ** 2 < 100: 
+                        # print(f"Atom {idx + 1} selected at coordinates ({coord.x}, {coord.y}).")
                         return idx + 1
                 elif len(csv_model["SMILES"][self.current_index - 1]) > 50 : # big molecule = smaller click area BUT should probs keep playing around with these
                     if (coord.x - x) ** 2 + (coord.y - y) ** 2 < 40: 
+                        # print(f"Atom {idx + 1} selected at coordinates ({coord.x}, {coord.y}).")
                         return idx + 1
             return None
 
@@ -571,3 +576,4 @@ csv_controller = CsvController(csv_model)
 #             QApplication.processEvents()
 #     def flush(self):
 #         pass
+
