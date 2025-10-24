@@ -1,7 +1,34 @@
 ##########################################
 #  Stylesheets for AQMEasy UI components #
 ##########################################
+
+# Made very ad-hoc, based on the ocean breeze scheme on coolors.co and WILL NEED a cleanup...
 class stylesheets:
+
+    QPushButton = """
+QPushButton {
+    background-color: #0077B6;
+    color: #CAF0F8;
+    border-radius: 5px;
+    padding: 5px;
+}
+QPushButton:hover {
+    background-color: #00B4D8;
+}"""
+
+    QLabelMain = """
+QLabel {
+    color: #90E0EF;
+    padding: 2px;
+    font-size: 10pt;
+}"""
+
+    QLabel = """
+QLabel {
+    color: #90E0EF;
+    padding: 2px;
+    font-size: 12pt; 
+}"""
 
     QMessageBox = """
 QMessageBox {
@@ -11,11 +38,6 @@ QMessageBox {
 QMessageBox QLabel {
     font-size: 12pt;
     color: #CAF0EF;
-}
-
-QMessageBox QLabel:hyperlink:hover {
-    color: #00B4D8;
-    text-decoration: underline;
 }
 
 QMessageBox QComboBox {
@@ -90,67 +112,11 @@ QScrollBar::handle:horizontal:hover {
 }
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     width: 0px;
+}
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: none;
 }"""
-
-    QMainWindow = """
-QMainWindow {
-    background-color:#03045E; 
-    color: #90E0EF;
-}
-""" + QMessageBox
-
-    QWidget = """
-QWidget {
-    background-color: #03045E;
-    color: #CAF0EF;
-}
-
-QInputDialog {
-    background-color: #03045E;
-    color: #CAF0EF;
-}
-QInputDialog QLabel {
-    color: #CAF0EF;
-    font-size: 12pt;
-}
-QInputDialog QComboBox {
-    background-color: #03045E;
-    color: #CAF0F8;
-    border: 1px solid #00B4D8;
-    border-radius: 3px;
-    padding: 2px;
-    combobox-popup: 0;
-}
-QInputDialog QComboBox:hover {
-    background-color: #0077B6;
-}
-QInputDialog QComboBox QAbstractItemView {
-    background-color: #03045E;
-    color: #CAF0F8;
-    selection-background-color: #0077B6;
-}
-QInputDialog QPushButton {
-    background-color: #0077B6;
-    color: #CAF0F8;
-    border: 1px solid #0077B6;
-    border-radius: 5px;
-    padding: 5px;
-    padding-left: 10px;
-    padding-right: 10px;
-}
-QInputDialog QPushButton:hover {
-    background-color: #00B4D8;
-}
-
-QToolTip {
-    background-color: #03045E;
-    color: #CAF0EF;
-    border: 1px solid #0077B6;
-    padding: 3px;
-    font-size: 12px;
-}   
-""" + QScrollBar
-
+    
     QMenuBar = """
 QMenuBar {
     background-color:#03045E;
@@ -176,7 +142,6 @@ QMenu::item:selected {
     background-color: #03045E;
 }"""
 
-
     QComboBox = """
 QComboBox {
     background-color: #03045E;
@@ -196,6 +161,17 @@ QComboBox QAbstractItemView {
     color: #CAF0F8;
     selection-background-color: #0077B6;
 }
+
+QComboBox:drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 15px;
+    border-left: 1px solid #00B4D8;
+}
+
+QComboBox:disabled {
+    color: #000000;
+}
 """
 
     QSpinBox = """
@@ -209,6 +185,10 @@ QSpinBox {
 
 QSpinBox:hover {
     background-color: #0077B6;
+}
+
+QSpinBox:disabled {
+    color: #000000;
 }"""
 
     QDoubleSpinBox = """
@@ -228,17 +208,7 @@ QAbstractSpinBox:disabled {
     color: #000000;
 }
 """
-    QPushButton = """
-QPushButton {
-    background-color: #0077B6;
-    color: #CAF0F8;
-    border: 1px solid #0077B6;
-    border-radius: 5px;
-    padding: 5px;
-}
-QPushButton:hover {
-    background-color: #00B4D8;
-}"""
+
 
     QLineEdit = """
 QLineEdit {
@@ -256,7 +226,10 @@ QTextEdit {
     border: 1px solid #00B4D8;
     border-radius: 3px;
     padding: 2px;
+}
 
+QTextEdit::selection {
+    background-color: #00B4D8;
 }"""
 
     QTextBrowser = """
@@ -267,24 +240,12 @@ QTextBrowser {
     border-radius: 3px;
     padding: 2px;
 }
+QTextBrowser::selection {
+    background: #00B4D8;
+}
 
 QScrollBar:vertical {
     background: #0077B6;
-
-}"""
-
-    QLabelMain = """
-QLabel {
-    color: #90E0EF;
-    padding: 2px;
-    font-size: 10pt;
-}"""
-
-    QLabel = """
-QLabel {
-    color: #90E0EF;
-    padding: 2px;
-    font-size: 12pt; 
 }"""
 
     QCheckBox = """
@@ -309,7 +270,7 @@ QSlider {
 }
 
 QSlider::groove:horizontal {
-    border: 1px solid #CAF0F8;
+    border: 1px solid #00B4D8;
     height: 3px;
     background: #CAF0F8;
     margin: 2px 0;
@@ -329,7 +290,7 @@ QSlider::handle:horizontal:hover {
 QSlider::sub-page:horizontal {
     background: #0077B6;
     margin: 2px 0;
-    border: 1px solid #CAF0F8;
+    border: 1px solid #00B4D8;
     height: 3px;
     border-radius: 4px;
 }"""
@@ -421,7 +382,8 @@ QTableCornerButton::section {
 
     QWebEngineView = """
 QWebEngineView {
-    border: 1px solid #3c3c3c;
+    background-color: #03045E;
+    color: #CAF0EF;
 }"""
 
     QDialog = """
@@ -430,6 +392,43 @@ QDialog {
     color: #CAF0EF;
 }"""
 
+    QInputDialog = """
+    QInputDialog {
+    background-color: #03045E;
+    color: #CAF0EF;
+}
+QInputDialog QLabel {
+    color: #CAF0EF;
+    font-size: 12pt;
+}
+QInputDialog QComboBox {
+    background-color: #03045E;
+    color: #CAF0F8;
+    border: 1px solid #00B4D8;
+    border-radius: 3px;
+    padding: 2px;
+    combobox-popup: 0;
+}
+QInputDialog QComboBox:hover {
+    background-color: #0077B6;
+}
+QInputDialog QComboBox QAbstractItemView {
+    background-color: #03045E;
+    color: #CAF0F8;
+    selection-background-color: #0077B6;
+}
+QInputDialog QPushButton {
+    background-color: #0077B6;
+    color: #CAF0F8;
+    border: 1px solid #0077B6;
+    border-radius: 5px;
+    padding: 5px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+QInputDialog QPushButton:hover {
+    background-color: #00B4D8;
+}"""
 
     ShellOutput = """
 QTextBrowser {
@@ -440,6 +439,9 @@ QTextBrowser {
     border-radius: 5px;
     font-family: menlo,"Lucida Console", "Courier New", monospace;
     font-size: 12px;
+}
+QTextBrowser::selection {
+    background: #00B4D8;
 }"""
 
     MoleculeLabel = """
@@ -462,4 +464,24 @@ QLabel {
 
 ##########################################
 
-# Custom title bar?
+    QWidget = """
+QWidget {
+    background-color: #03045E;
+    color: #CAF0EF;
+}
+
+QToolTip {
+    background-color: #03045E;
+    color: #CAF0EF;
+    border: 1px solid #0077B6;
+    padding: 3px;
+    font-size: 12px;
+}   
+""" + QScrollBar + QLabel + QPushButton + QComboBox + QLineEdit + QTextEdit + QCheckBox + QSlider + QGroupBox + QTableWidget + QListWidget + QTreeView + QSpinBox + QDoubleSpinBox + QDialog + QInputDialog + QWebEngineView 
+
+    QMainWindow = """
+QMainWindow {
+    background-color:#03045E; 
+    color: #90E0EF;
+}
+""" + QMessageBox + QMenuBar + QPushButton + QLabelMain

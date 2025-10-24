@@ -7,6 +7,7 @@ from aqmeasy.ui.QCORR_ui.QCORR import QCORR
 from aqmeasy.ui.stylesheets import stylesheets
 from PySide6.QtCore import Qt, QUrl
 import os
+import requests
 
 class MainWindow(QMainWindow):
 #FE6253 coral
@@ -32,7 +33,6 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.logo,2, alignment=Qt.AlignCenter)
 
         readthedocs_label = QLabel(self)
-        readthedocs_label.setStyleSheet(stylesheets.QLabel)
         readthedocs_label.setOpenExternalLinks(True)
         readthedocs_path = os.path.join(os.path.dirname(__file__), "resources", "readthedocs_logo.png")
         readthedocs_icon = QPixmap(readthedocs_path)
@@ -55,7 +55,6 @@ class MainWindow(QMainWindow):
         label_for_csearch = QLabel("Conformational\nSearch:")
         label_layout.addWidget(label_for_csearch)
         self.button_for_csearch = QPushButton("CSEARCH")
-        self.button_for_csearch.setStyleSheet(stylesheets.QPushButton)
         self.button_for_csearch.setFixedHeight(50)
         self.button_for_csearch.clicked.connect(self.new_smiles2csv_window)
         button_layout.addWidget(self.button_for_csearch)
@@ -63,7 +62,6 @@ class MainWindow(QMainWindow):
         label_for_qprep = QLabel("Quantum Chem\nPreprocessing:")
         label_layout.addWidget(label_for_qprep)
         button_for_qprep = QPushButton("QPREP")
-        button_for_qprep.setStyleSheet(stylesheets.QPushButton)
         button_for_qprep.setFixedHeight(50)
         button_for_qprep.clicked.connect(self.new_qprep_widget)
         button_layout.addWidget(button_for_qprep)
@@ -71,7 +69,6 @@ class MainWindow(QMainWindow):
         label_for_qcorr = QLabel("Quantum Chem\nCorrections:")
         label_layout.addWidget(label_for_qcorr)
         button_for_qcorr = QPushButton("QCORR")
-        button_for_qcorr.setStyleSheet(stylesheets.QPushButton)
         button_for_qcorr.setFixedHeight(50)
         button_for_qcorr.clicked.connect(self.new_qcorr_widget)
         button_layout.addWidget(button_for_qcorr)
@@ -79,7 +76,6 @@ class MainWindow(QMainWindow):
         label_for_qdescp = QLabel("Quantum Chem\nDescriptors:")
         label_layout.addWidget(label_for_qdescp)
         button_for_qdescp = QPushButton("QDESCP")
-        button_for_qdescp.setStyleSheet(stylesheets.QPushButton)
         button_for_qdescp.setFixedHeight(50)
         button_for_qdescp.clicked.connect(self.new_qdescp_widget)
         button_layout.addWidget(button_for_qdescp)
@@ -91,7 +87,6 @@ class MainWindow(QMainWindow):
         for label in labels:
             label.setFont(label_font)
             label.setAlignment(Qt.AlignCenter)
-            label.setStyleSheet(stylesheets.QLabelMain)
 
         layout.addStretch()  
         layout.addLayout(label_layout)  
@@ -101,7 +96,6 @@ class MainWindow(QMainWindow):
     def create_menu(self):
         menu = self.menuBar()
         menu.setNativeMenuBar(False)
-        menu.setStyleSheet(stylesheets.QMenuBar)
 
         help_menu = menu.addMenu("Help")
         about_action = QAction("About AQME", self)
@@ -123,6 +117,16 @@ class MainWindow(QMainWindow):
         about_action = QAction("About CREST", self)
         about_action.triggered.connect(self.aboutCREST)
         help_menu.addAction(about_action)
+
+        about_action = QAction("About cclib", self)
+        about_action.triggered.connect(self.aboutcclib)
+        help_menu.addAction(about_action)
+
+        about_action = QAction("About py3Dmol", self)
+        about_action.triggered.connect(self.aboutpy3Dmol)
+        help_menu.addAction(about_action)
+
+        # should one include check for updates?
 
     def showAboutDialog(self):
         about_text = """
@@ -169,6 +173,12 @@ class MainWindow(QMainWindow):
         """
         QMessageBox.about(self, "About CREST", crest_text)
 
+    def aboutcclib(self):
+        pass
+
+    def aboutpy3Dmol(self):
+        pass
+
     def new_smiles2csv_window(self):
         """Opens a new window for converting SMILES to CSV"""
         self.new_csearch = CSEARCH()
@@ -176,12 +186,10 @@ class MainWindow(QMainWindow):
 
     def new_qprep_widget(self):
         self.new_qprep = QPREP()
-        print("QPREP created:", self.new_qprep)
         self.new_qprep.show()
 
     def new_qcorr_widget(self):
         self.new_qcorr = QCORR()
-        print("QCORR created:", self.new_qcorr)
         self.new_qcorr.show()
 
     def new_qdescp_widget(self):

@@ -1,12 +1,13 @@
 import os
 import sys
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QFileDialog, QListWidget, QListWidgetItem, QSizePolicy
+    QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QFileDialog, QListWidget, QListWidgetItem, QSizePolicy, 
 )
 from PySide6.QtCore import QThread, Signal
+from PySide6.QtGui import QIcon
 from aqmeasy.controllers.QPREP_worker import QPrepWorker
 from aqmeasy.ui.stylesheets import stylesheets
-
+from aqmeasy.ui.icons import Icons
 FILE_FILTERS = [
     "Structured Data Files (*.sdf)",
     "XYZ (*.xyz)",
@@ -52,11 +53,13 @@ class FilePanel(QWidget):
         
         # File selection buttons
         button_row = QHBoxLayout()
-        self.browse_multiple_btn = QPushButton("Browse Files")
+        self.browse_multiple_btn = QPushButton()
         self.browse_multiple_btn.setStyleSheet(stylesheets.QPushButton)
+        self.browse_multiple_btn.setIcon(QIcon(Icons.file_open))
         self.browse_multiple_btn.clicked.connect(self.get_multiple_filenames)
-        self.clear_files_btn = QPushButton("Clear Files")
+        self.clear_files_btn = QPushButton()
         self.clear_files_btn.setStyleSheet(stylesheets.QPushButton)
+        self.clear_files_btn.setIcon(QIcon(Icons.trash))
         self.clear_files_btn.clicked.connect(self.clear_files)
         
         button_row.addWidget(self.browse_multiple_btn)
@@ -83,7 +86,8 @@ class FilePanel(QWidget):
         self.output_dir_edit.setStyleSheet(stylesheets.QLineEdit)
         self.output_dir_edit.setPlaceholderText("Select output directory")
         output_row.addWidget(self.output_dir_edit)
-        self.browse_output_btn = QPushButton("Browse")
+        self.browse_output_btn = QPushButton()
+        self.browse_output_btn.setIcon(QIcon(Icons.folder_open))
         self.browse_output_btn.setStyleSheet(stylesheets.QPushButton)
         self.browse_output_btn.clicked.connect(self.get_output_directory)
         output_row.addWidget(self.browse_output_btn)
@@ -95,7 +99,7 @@ class FilePanel(QWidget):
         self.make_btn.setStyleSheet(stylesheets.QPushButton)
         self.make_btn.setMinimumHeight(40)
         self.make_btn.clicked.connect(self.run_qprep)
-        self.preview_btn = QPushButton("Preview Input")
+        self.preview_btn = QPushButton("Preview")
         self.preview_btn.setStyleSheet(stylesheets.QPushButton)
         self.preview_btn.setMinimumHeight(30)
         self.preview_btn.clicked.connect(self.preview_input)
@@ -114,10 +118,11 @@ class FilePanel(QWidget):
         status_layout = QVBoxLayout()
 
         self.status_text = QTextEdit()
-        self.status_text.setStyleSheet(stylesheets.ShellOutput)
+        self.status_text.setStyleSheet(stylesheets.QTextEdit)
         self.status_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.status_text.setPlaceholderText("Ready to create input files")
         self.status_text.setReadOnly(True)
+        self.status_text.setMinimumHeight(300)
         status_layout.addWidget(self.status_text)
         status_group.setLayout(status_layout)
 

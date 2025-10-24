@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QComboBox, QLabel, QGroupBox, QVBoxLayout, QHBoxLayout, QSpinBox, QSlider
+from PySide6.QtWidgets import QWidget, QComboBox, QLabel, QGroupBox, QVBoxLayout, QHBoxLayout, QSpinBox, QSlider, QCheckBox
 from PySide6.QtCore import Qt
 from aqmeasy.models.QPREP_model import InputModel
 from aqmeasy.ui.stylesheets import stylesheets
@@ -13,7 +13,10 @@ class ParameterPanel(QWidget):
     
     def setup_software_data(self):
         """Define software-specific functionals and basis sets"""
-        self.ORCA_FUNCTIONALS = ["HF", "MP2", "CCSD", "CCSD(T)", "BLYP", "PBE",
+
+        self.ORCA_METHODS = ["HF", "DFT", "MP2", "CCSD", "CCSD(T)", "DLPNO-CCSD(T)"]
+
+        self.ORCA_FUNCTIONALS = ["BLYP", "PBE",
             "revPBE", "B3LYP", "MO6L", "MO62X", "B97-3C"
         ]
         
@@ -23,6 +26,8 @@ class ParameterPanel(QWidget):
             'def2-TVZPP', 'def2-QZVPP', 'def2-TZVPPD', 'def2-QZVPPD', 'ma-def2-SVP',
             'ma-def2-TZVP', 'ma-def2-QZVP',
         ]
+
+        self.GAUSSIAN_METHODS = ["HF", "DFT", "MP2", "CCSD", "CCSD(T)",]
         
         self.GAUSSIAN_FUNCTIONALS =['APFD', 'B3LYP', 'BPV86', 'B3PW91', 'CAM-B3LYP', 'HCTH', 'HSEH1PBE', 'LSDA', 'MPW1PW91', 'PBEPBE', 'TPSSTPSS', 'WB97XD']
         
@@ -53,14 +58,23 @@ class ParameterPanel(QWidget):
         software_group.setLayout(software_layout)
         
         # Functional selection
-        functional_group = QGroupBox("Method")
+        functional_group = QGroupBox("Level of Theory")
         functional_group.setStyleSheet(stylesheets.QGroupBox)
         functional_layout = QVBoxLayout()
         
+        method_row = QHBoxLayout()
+        method_row.addWidget(QLabel("Method"))
+        self.method_combo = QComboBox()
+        self.method_combo.setStyleSheet(stylesheets.QComboBox)
+        self.method_combo.currentTextChanged.connect(lambda text: self.setMethod(text))
+        method_row.addWidget(self.method_combo)
+        functional_layout.addLayout(method_row)
+
         func_row = QHBoxLayout()
         func_row.addWidget(QLabel("Functional"))
         self.functional_combo = QComboBox()
         self.functional_combo.setStyleSheet(stylesheets.QComboBox)
+        self.functional_combo.setDisabled(True)
         self.functional_combo.currentTextChanged.connect(self.model.setFunctional)
         func_row.addWidget(self.functional_combo)
         functional_layout.addLayout(func_row)
@@ -161,13 +175,19 @@ class ParameterPanel(QWidget):
         self.calc_combo.addItems(["Single Point", "Geometry Optimization", "Frequency", "TD-DFT", "Opt+Freq"])
         calc_row.addWidget(self.calc_combo)
         calc_layout.addLayout(calc_row)
-        
+
+        self.disable_auto_charge_mult = QCheckBox("Disable Auto Charge/Multiplicity Detection")
+        self.disable_auto_charge_mult.setStyleSheet(stylesheets.QCheckBox)
+        self.disable_auto_charge_mult.stateChanged.connect(lambda state: self.setDisableAutoChargeMult(state))
+        calc_layout.addWidget(self.disable_auto_charge_mult)
+
         charge_spin_row = QHBoxLayout()
         charge_spin_row.addWidget(QLabel("Charge:"))
         self.charge_spin = QSpinBox()
         self.charge_spin.setStyleSheet(stylesheets.QSpinBox)
         self.charge_spin.setRange(-10, 10)
         self.charge_spin.setValue(0)
+        self.charge_spin.setDisabled(True)
         charge_spin_row.addWidget(self.charge_spin)
         
         charge_spin_row.addWidget(QLabel("Multiplicity:"))
@@ -175,6 +195,7 @@ class ParameterPanel(QWidget):
         self.multiplicity_spin.setStyleSheet(stylesheets.QSpinBox)
         self.multiplicity_spin.setRange(1, 10)
         self.multiplicity_spin.setValue(1)
+        self.multiplicity_spin.setDisabled(True)
         charge_spin_row.addWidget(self.multiplicity_spin)
         calc_layout.addLayout(charge_spin_row)
         
@@ -190,10 +211,12 @@ class ParameterPanel(QWidget):
         self.setLayout(layout)
     
     def on_software_changed(self, software_name):
+        self.method_combo.clear()
         self.functional_combo.clear()
         self.basis_combo.clear()
         
         if software_name == "Orca":
+            self.method_combo.addItems(self.ORCA_METHODS)
             self.functional_combo.addItems(self.ORCA_FUNCTIONALS)
             self.basis_combo.addItems(self.ORCA_BASIS_SETS)
             self.solvation_combo.clear()
@@ -201,6 +224,7 @@ class ParameterPanel(QWidget):
             self.solvent_combo.clear()
             self.solvent_combo.addItems(self.ORCA_SOLVENTS)
         elif software_name == "Gaussian":
+            self.method_combo.addItems(self.GAUSSIAN_METHODS)
             self.functional_combo.addItems(self.GAUSSIAN_FUNCTIONALS)
             self.basis_combo.addItems(self.GAUSSIAN_BASIS_SETS)
             self.solvation_combo.clear()
@@ -243,3 +267,14 @@ class ParameterPanel(QWidget):
 
     def get_current_multiplicity(self):
         return self.multiplicity_spin.value()
+
+    def setDisableAutoChargeMult(self, state):
+        self.charge_spin.setDisabled(not state)
+        self.multiplicity_spin.setDisabled(not state)
+
+    def setMethod(self, method):
+        if not method == "DFT":
+            self.functional_combo.setDisabled(True)
+            self.model.setFunctional(method)
+        else:
+            self.functional_combo.setDisabled(False)

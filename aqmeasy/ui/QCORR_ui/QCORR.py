@@ -23,6 +23,8 @@ from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, 
 from aqmeasy.ui.QCORR_ui.QCORR_filepanel import FilePanel
 from aqmeasy.ui.QCORR_ui.QCORR_viewpanel import ViewPanel
 from aqmeasy.ui.QCORR_ui.QCORR_parampanel import ParamPanel
+from aqmeasy.ui.QCORR_ui.QCORR_jsonpanel import JSONpanel
+
 from aqmeasy.ui.stylesheets import stylesheets
 
 
@@ -37,16 +39,22 @@ class QCORR(QWidget):
         # main layout = horizontal box
         main_layout = QHBoxLayout()
         self.setLayout(main_layout)
-        # left panel, right panel = vertical box
-        left_panel = QVBoxLayout()
+        panel1 = QVBoxLayout()
+        panel2 = QVBoxLayout()
+        panel3 = QVBoxLayout()
 
         self.file_panel = FilePanel()
-        left_panel.addWidget(self.file_panel)
+        panel1.addWidget(self.file_panel)
         self.param_panel = ParamPanel()
-        left_panel.addWidget(self.param_panel)
-        
-        right_panel = QVBoxLayout()
-        
-        main_layout.addLayout(left_panel)
-        main_layout.addLayout(right_panel)
+        panel1.addWidget(self.param_panel)
+
+        self.view_panel = ViewPanel()
+        panel2.addWidget(self.view_panel)
+
+        self.json_panel = JSONpanel()
+        panel3.addWidget(self.json_panel)
+
+        main_layout.addLayout(panel1)
+        main_layout.addLayout(panel2)
+        main_layout.addLayout(panel3)
 

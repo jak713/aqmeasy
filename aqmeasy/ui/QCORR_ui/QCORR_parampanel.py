@@ -177,9 +177,19 @@ class ParamPanel(QWidget):
         isom_layout.addWidget(self.covfrac_input, 3, 1)
         self.covfrac_input.valueChanged.connect(lambda value: self.model.covfracChanged.emit(float(value)))
 
+        qm_input_group = QGroupBox("QM Input Parameters")
+        qm_input_group.setStyleSheet(stylesheets.QGroupBox)
+        param_layout.addWidget(qm_input_group)
+        qm_input_layout = QHBoxLayout()
+        qm_input_group.setLayout(qm_input_layout)
+
+        qm_input = QLabel("QM Input Parameters (optional): ")
+        qm_input.setStyleSheet(stylesheets.QLabel)
+        qm_input_layout.addWidget(qm_input)
+
         qprep_button = QPushButton("Set QPREP Parameters")
         qprep_button.setStyleSheet(stylesheets.QPushButton)
-        param_layout.addWidget(qprep_button)
+        qm_input_layout.addWidget(qprep_button)
         qprep_button.clicked.connect(self.open_qprep_parameters)
 
         # Adjust view on model changes
