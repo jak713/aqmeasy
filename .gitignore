@@ -3,5 +3,3 @@ build/
 dist/
 run_app.py
 test-files/
-__pycache__/
-*.pyc
