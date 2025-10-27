@@ -78,7 +78,18 @@ class ParameterPanel(QWidget):
         self.functional_combo.currentTextChanged.connect(self.model.setFunctional)
         func_row.addWidget(self.functional_combo)
         functional_layout.addLayout(func_row)
-        
+
+        # TODO: Dispersion schemes ? Seek advice 
+        disp_row = QHBoxLayout()
+        self.dispersion_scheme = QLabel("Dispersion Scheme")
+        disp_row.addWidget(self.dispersion_scheme)
+        self.dispersion_combo = QComboBox()
+        self.dispersion_combo.setStyleSheet(stylesheets.QComboBox)
+        self.dispersion_combo.setDisabled(True)
+        # self.dispersion_combo.currentTextChanged.connect(self.model.setDispersion)
+        disp_row.addWidget(self.dispersion_combo)
+        functional_layout.addLayout(disp_row)
+
         basis_row = QHBoxLayout()
         basis_row.addWidget(QLabel("Basis Set"))
         self.basis_combo = QComboBox()

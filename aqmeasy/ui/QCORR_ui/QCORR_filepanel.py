@@ -4,38 +4,41 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QPushButton,
-    QFileDialog,
     QLabel,
     QListWidget, 
     QListWidgetItem,
     QGroupBox,
     QLineEdit,
+    QApplication,
+    QSizePolicy,
+    QStyle
 )
 from PySide6.QtCore import QMimeData, Qt, Signal
-from PySide6.QtGui import QDrag
+from PySide6.QtGui import QDrag, QIcon
 from aqmeasy.ui.stylesheets import stylesheets
+from aqmeasy.ui.icons import Icons
 
+from aqmeasy.controllers.QCORR_controller import FileController
 
-FILE_FILTERS = [
-    "Gaussian Output Files (*.log)",
-    "ORCA Output Files (*.out)",
-]
 
 class FilePanel(QWidget):
     """File browser, batch file selection, drag and drop, file status"""
+    
+    # fileSelected = Signal(str)
 
-    # Space for signals when the model is ready
-
-    def __init__(self):
+    def __init__(self, model, view_panel):
         super().__init__()
+        self.model = model
+        self.controller = FileController(model, self)
+        self.view_panel = view_panel
         self.init_ui()
         self.setAcceptDrops(True)
+
 
     def init_ui(self):
         layout = QVBoxLayout()
         self.setLayout(layout)
         input_group = QGroupBox("Drop in files or folders below")
-        input_group.setStyleSheet(stylesheets.QGroupBox)
         layout.addWidget(input_group)
         layout = QVBoxLayout()
         input_group.setLayout(layout)
@@ -43,53 +46,61 @@ class FilePanel(QWidget):
         selecting_layout = QHBoxLayout()
         layout.addLayout(selecting_layout)
 
-        select_files = QPushButton("Browse Files")
-        select_files.setStyleSheet(stylesheets.QPushButton)
-        select_files.clicked.connect(self.get_filenames)
+        select_files = QPushButton()
+        select_files.setIcon(QIcon(Icons.file_open))
+        select_files.clicked.connect(self.controller.open_file_dialog)
         selecting_layout.addWidget(select_files)
 
-        clear_files = QPushButton("Clear Files")
-        clear_files.setStyleSheet(stylesheets.QPushButton)
-        clear_files.clicked.connect(self.clear_file_list)
+        run_button = QPushButton("Run QCORR")
+        run_button.setStyleSheet(stylesheets.RunButton)
+
+        run_button.clicked.connect(self.controller.run_qcorr)
+        # run_button.clicked.connect(lambda: self.view_panel.results_view.setRootIndex(root for root,dirs in self.model.__get__w_dir_main__()))
+
+        run_button.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
+        run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+        selecting_layout.addWidget(run_button)
+
+        clear_files = QPushButton()
+        clear_files.setIcon(QIcon(Icons.trash))
+        clear_files.clicked.connect(self.controller.clear_file_list)
         selecting_layout.addWidget(clear_files)
 
         # file list view
         self.file_view = QListWidget()
-        self.file_view.setStyleSheet(stylesheets.QListWidget)
+        self.file_view.itemSelectionChanged.connect(lambda: self.view_panel.display_file_contents(self.file_view.currentItem().toolTip()))
+
         layout.addWidget(self.file_view)
 
         # output dir selection
         output_layout = QHBoxLayout()
         layout.addLayout(output_layout)
+        
         output_label = QLabel("Output Directory:")
-        output_label.setStyleSheet(stylesheets.QLabel)
         output_layout.addWidget(output_label)
-        self.output_dir_label = QLineEdit("Not selected")
-        self.output_dir_label.setStyleSheet(stylesheets.QLineEdit)
+
+        self.output_dir_label = QLineEdit()
+        self.output_dir_label.setPlaceholderText("Select output directory...")
         self.output_dir_label.setReadOnly(True)
         output_layout.addWidget(self.output_dir_label)
-        select_output_dir = QPushButton("Browse")
-        select_output_dir.setStyleSheet(stylesheets.QPushButton)
-        select_output_dir.clicked.connect(self.get_output_directory)
+
+        select_output_dir = QPushButton()
+        select_output_dir.setIcon(QIcon(Icons.folder_open))
+        select_output_dir.clicked.connect(self.controller.select_output_directory)
         output_layout.addWidget(select_output_dir)
 
-    def get_filenames(self):
-        filters = ';;'.join(FILE_FILTERS)
-        filenames,selected_filter = QFileDialog.getOpenFileNames(self, filter=filters)
-        ######
-        # need to store filenames on model
-        ######
 
-    def clear_file_list(self):
+    def _display_selected_files(self, filenames):
+        for file in filenames:
+            # check if file is already in the list
+            if not any(item.toolTip() == file for item in self.file_view.findItems("*", Qt.MatchFlag.MatchWildcard)):
+                item = QListWidgetItem(os.path.basename(file))
+                item.setToolTip(file)
+                self.file_view.addItem(item)
+
+    def _clear_file_list(self):
         self.file_view.clear()
-
-    def get_output_directory(self):
-        directory = QFileDialog.getExistingDirectory(self, "Select Output Directory")
-        if directory:
-            self.output_dir_label.setText(directory)
-            ######
-            # need to store output directory on model
-            ######
+        self.view_panel.file_viewer.clear()
 
     def dragEnterEvent(self, event):
         urls = event.mimeData().urls()
@@ -106,14 +117,9 @@ class FilePanel(QWidget):
     def dropEvent(self, event):
         urls = event.mimeData().urls()
         dirs = [url.toLocalFile() for url in urls if url.isLocalFile() and os.path.isdir(url.toLocalFile())]
-        if not dirs:
-            event.ignore()
+        if len(dirs) == 0 and len(urls) == 1 and os.path.isfile(urls[0].toLocalFile()):
+            self.controller.open_drop_file(urls[0].toLocalFile())
             return
-        folder_path = dirs[0] if len(dirs) == 1 else dirs
-
-        if folder_path:
-            self.display_folder_contents(folder_path)
         else:
-            self.display_folder_contents(dirs)
-        
+            self.controller.open_drop_folder(dirs)
         event.acceptProposedAction()

@@ -195,6 +195,7 @@ class CSEARCH(QWidget):
 
         self.properties_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.properties_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+
         self.right_layout.addWidget(self.properties_table, 2)
 
         shell_group = QGroupBox("Shell Output")
@@ -269,10 +270,9 @@ class CSEARCH(QWidget):
         self.aqme_setup_grid.addWidget(self.copy_command_button, 4,0)
 
         # Row 5 - Run button
-        self.run_button = QPushButton("Run AQME", self)
-        self.run_button.setStyleSheet("font-size: 12px; color: black; background-color: lightblue;")
+        self.run_button = QPushButton("Run CSEARCH", self)
+        self.run_button.setStyleSheet(stylesheets.RunButton)
         self.run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
-        self.run_button.setFixedHeight(55)
         self.run_button.clicked.connect(self.run_aqme)
         self.aqme_setup_grid.addWidget(self.run_button, 4, 1, 2, 1)
 
@@ -287,7 +287,7 @@ class CSEARCH(QWidget):
         self.advanced_settings_button = QPushButton("Advanced Settings", self)
         self.advanced_settings_button.setIcon(QIcon(Icons.eye))
         self.advanced_settings_button.setCheckable(True)
-        self.advanced_settings_button.clicked.connect(self.toggle_panel)
+        self.advanced_settings_button.clicked.connect(lambda: self.toggle_panel(self.height(), self.width()))
         self.aqme_setup_grid.addWidget(self.advanced_settings_button, 5, 0)
 
         self.advanced_panel = QFrame()
@@ -504,15 +504,15 @@ class CSEARCH(QWidget):
         csv_model.signals.updated.connect(self.update_ui)
         self.update_ui()
 
-    def toggle_panel(self):
+    def toggle_panel(self, height, width):
         expanded_height = 200
         if self.advanced_settings_button.isChecked():
             self.advanced_panel.setFixedHeight(expanded_height)
-            self.resize(self.width(), self.height() + expanded_height)
+            self.resize(width, height + expanded_height)
             self.advanced_settings_button.setIcon(QIcon(Icons.eye_crossed))
         else:
             self.advanced_panel.setFixedHeight(0)
-            self.resize(self.width(), self.height() - expanded_height)
+            self.resize(width, height- expanded_height)
             self.advanced_settings_button.setIcon(QIcon(Icons.eye))
 
 
@@ -558,7 +558,7 @@ class CSEARCH(QWidget):
             msgBox.setWindowTitle("Error")
             msgBox.setText("No compound found for the given input. Please check the CID or name.")
             msgBox.setWindowIcon(icon)
-            msgBox.setIconPixmap(pixmap)
+            msgBox.setIconPixmap(icon.pixmap(64, 64))
             msgBox.setStandardButtons(QMessageBox.Ok)
             msgBox.exec()
         except Exception as e:
@@ -906,14 +906,14 @@ class CSEARCH(QWidget):
             self.shell_output.append("AQME process finished.")
             self.run_button.setText("Run AQME")
             self.run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
-            self.run_button.setStyleSheet("font-size: 12px; color: black; background-color: lightblue;")
+            self.run_button.setStyleSheet(stylesheets.RunButton)
             self.run_button.clicked.disconnect()
             self.run_button.clicked.connect(self.run_aqme)
         elif state == QProcess.ProcessState.Running:
             self.shell_output.append("AQME process running...")
             self.run_button.setText("Stop AQME")
             self.run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaStop))
-            self.run_button.setStyleSheet("font-size: 12px; color: black; background-color: #E06666;")
+            self.run_button.setStyleSheet(stylesheets.StopButton)
             self.run_button.clicked.disconnect()
             self.run_button.clicked.connect(self.stop_aqme)
         elif state == QProcess.ProcessState.Starting:
@@ -925,7 +925,7 @@ class CSEARCH(QWidget):
             self.process.kill()
             self.shell_output.append("AQME process stopped.")
             self.run_button.setText("Run AQME")
-            self.run_button.setStyleSheet("font-size: 12px; color: black; background-color: lightblue;")
+            self.run_button.setStyleSheet(stylesheets.RunButton)
             self.run_button.clicked.disconnect()
             self.run_button.clicked.connect(self.run_aqme)
         else:
@@ -1035,16 +1035,16 @@ class CSEARCH(QWidget):
             try:
                 self.molecule_label.setStyleSheet(stylesheets.MoleculeLabelHover)
                 self.molecule_label.setText("Drop in a ChemDraw, CSV or SDF file to import or input SMILES")
-            except Exception:
-                logging.debug("file hovered over widget")
+            except Exception as e:
+                print(f"file hovered over widget, exception thrown: {e}")
         else:
             event.ignore()
 
     def _drag_leave(self,event):
         try:
             self.molecule_label.setStyleSheet(stylesheets.MoleculeLabel)
-        except Exception:
-            logging.debug("file unhovered")
+        except Exception as e:
+            print(f"file unhovered, exception thrown: {e}")
 
     def _drop_event(self,event):
         mime = event.mimeData()
@@ -1052,8 +1052,8 @@ class CSEARCH(QWidget):
             event.acceptProposedAction()
             try:
                 self.molecule_label.setStyleSheet(stylesheets.MoleculeLabel)
-            except Exception:
-                logging.debug("file dropped over widget")
+            except Exception as e:
+                print(f"file dropped over widget, exception thrown: {e}")
             urls = mime.urls()
             if urls:
                 file_path = urls[0].toLocalFile()

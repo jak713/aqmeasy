@@ -38,10 +38,8 @@ class MoleculeViewer(QWidget):
 
         # File Information Section
         file_group = QGroupBox("File Information")
-        file_group.setStyleSheet(stylesheets.QGroupBox)
         file_layout = QVBoxLayout()
         self.file_info_label = QLabel("No files selected")
-        self.file_info_label.setStyleSheet(stylesheets.QLabel)
         self.file_info_label.setWordWrap(True)
         file_layout.addWidget(self.file_info_label)
         file_group.setLayout(file_layout)
@@ -49,13 +47,11 @@ class MoleculeViewer(QWidget):
 
         # Display Options Section
         display_group = QGroupBox("Display Options")
-        display_group.setStyleSheet(stylesheets.QGroupBox)
         display_layout = QVBoxLayout()
 
         style_row = QHBoxLayout()
         style_row.addWidget(QLabel("Display Style:"))
         self.style_selector = QComboBox()
-        self.style_selector.setStyleSheet(stylesheets.QComboBox)
         self.style_selector.addItems(['Stick', 'Ball and Stick', 'Surface'])
         self.style_selector.currentIndexChanged.connect(self.render_selected_molecule)
         style_row.addWidget(self.style_selector)
@@ -64,7 +60,6 @@ class MoleculeViewer(QWidget):
         molecule_row = QHBoxLayout()
         molecule_row.addWidget(QLabel("Molecule:"))
         self.molecule_selector = QComboBox()
-        self.molecule_selector.setStyleSheet(stylesheets.QComboBox)
         self.molecule_selector.currentIndexChanged.connect(self.on_molecule_change)
         self.molecule_selector.setMaxVisibleItems(10)
         molecule_row.addWidget(self.molecule_selector)
@@ -74,7 +69,6 @@ class MoleculeViewer(QWidget):
         list_slider_row = QHBoxLayout()
         list_slider_row.addWidget(QLabel("Molecule List:"))
         self.list_slider = QSlider(Qt.Horizontal)
-        self.list_slider.setStyleSheet(stylesheets.QSlider)
         self.list_slider.setMinimum(0)
         self.list_slider.setMaximum(0)  # until file uploaded
         self.list_slider.setValue(0)
@@ -91,23 +85,15 @@ class MoleculeViewer(QWidget):
 
         # Molecular Information Section
         self.info_group = QGroupBox("Molecular Information")
-        self.info_group.setStyleSheet(stylesheets.QGroupBox)
         self.info_layout = QFormLayout()
 
         self.source_file_label = QLabel("N/A")
-        self.source_file_label.setStyleSheet(stylesheets.QLabel)
         self.formula_label = QLabel("N/A")  # all states N/A before file imported.
-        self.formula_label.setStyleSheet(stylesheets.QLabel)
         self.weight_label = QLabel("N/A")
-        self.weight_label.setStyleSheet(stylesheets.QLabel)
         self.atoms_label = QLabel("N/A")
-        self.atoms_label.setStyleSheet(stylesheets.QLabel)
         self.bonds_label = QLabel("N/A")
-        self.bonds_label.setStyleSheet(stylesheets.QLabel)
         self.charge_label = QLabel("N/A")
-        self.charge_label.setStyleSheet(stylesheets.QLabel)
         self.mult_label = QLabel("N/A")
-        self.mult_label.setStyleSheet(stylesheets.QLabel)
         # self.energy_label = QLabel("N/A")
         # self.energy_label.setStyleSheet(stylesheets.QLabel)
 
@@ -128,10 +114,8 @@ class MoleculeViewer(QWidget):
 
         # 3D Viewer Section - This is the part that will be hidden/shown
         self.viewer_group = QGroupBox("3D Viewer")
-        self.viewer_group.setStyleSheet(stylesheets.QGroupBox)
         viewer_layout = QVBoxLayout()
         self.web_view = QWebEngineView()
-        self.web_view.setStyleSheet(stylesheets.QWebEngineView)
         self.web_view.setVisible(False)
         viewer_layout.addWidget(self.web_view)
         self.viewer_group.setLayout(viewer_layout)

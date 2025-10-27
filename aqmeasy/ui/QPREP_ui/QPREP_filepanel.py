@@ -1,7 +1,7 @@
 import os
 import sys
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QFileDialog, QListWidget, QListWidgetItem, QSizePolicy, 
+    QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QFileDialog, QListWidget, QListWidgetItem, QSizePolicy, QApplication, QStyle
 )
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtGui import QIcon
@@ -33,7 +33,6 @@ class FilePanel(QWidget):
         self.molecular_viewer = molecular_viewer
         self.selected_files = []
         self.setup_ui()
-        self.connect_model_signals()
 
         if self.molecular_viewer:
             self.filesSelected.connect(self.molecular_viewer.load_molecules_from_files)
@@ -48,17 +47,14 @@ class FilePanel(QWidget):
 
         # Input File Section
         input_group = QGroupBox("Input Files")
-        input_group.setStyleSheet(stylesheets.QGroupBox)
         input_layout = QVBoxLayout()
         
         # File selection buttons
         button_row = QHBoxLayout()
         self.browse_multiple_btn = QPushButton()
-        self.browse_multiple_btn.setStyleSheet(stylesheets.QPushButton)
         self.browse_multiple_btn.setIcon(QIcon(Icons.file_open))
         self.browse_multiple_btn.clicked.connect(self.get_multiple_filenames)
         self.clear_files_btn = QPushButton()
-        self.clear_files_btn.setStyleSheet(stylesheets.QPushButton)
         self.clear_files_btn.setIcon(QIcon(Icons.trash))
         self.clear_files_btn.clicked.connect(self.clear_files)
         
@@ -68,7 +64,6 @@ class FilePanel(QWidget):
         
         # File list display
         self.file_list = QListWidget()
-        self.file_list.setStyleSheet(stylesheets.QListWidget)
         self.file_list.setMaximumHeight(120)
         # Connect the itemClicked signal to the new method
         self.file_list.itemClicked.connect(self.on_file_list_item_clicked)
@@ -78,47 +73,42 @@ class FilePanel(QWidget):
 
         # Output Directory Section
         output_group = QGroupBox("Output")
-        output_group.setStyleSheet(stylesheets.QGroupBox)
         output_layout = QVBoxLayout()
         output_row = QHBoxLayout()
         output_row.addWidget(QLabel("Output Directory"))
         self.output_dir_edit = QLineEdit()
-        self.output_dir_edit.setStyleSheet(stylesheets.QLineEdit)
         self.output_dir_edit.setPlaceholderText("Select output directory")
         output_row.addWidget(self.output_dir_edit)
         self.browse_output_btn = QPushButton()
         self.browse_output_btn.setIcon(QIcon(Icons.folder_open))
-        self.browse_output_btn.setStyleSheet(stylesheets.QPushButton)
         self.browse_output_btn.clicked.connect(self.get_output_directory)
         output_row.addWidget(self.browse_output_btn)
         output_layout.addLayout(output_row)
         output_group.setLayout(output_layout)
 
         # Buttons
-        self.make_btn = QPushButton("Make Input Files")
-        self.make_btn.setStyleSheet(stylesheets.QPushButton)
+        self.make_btn = QPushButton("Run QPREP")
+        self.make_btn.setStyleSheet(stylesheets.RunButton)
+        self.make_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
+        self.make_btn.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
         self.make_btn.setMinimumHeight(40)
         self.make_btn.clicked.connect(self.run_qprep)
         self.preview_btn = QPushButton("Preview")
-        self.preview_btn.setStyleSheet(stylesheets.QPushButton)
         self.preview_btn.setMinimumHeight(30)
         self.preview_btn.clicked.connect(self.preview_input)
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.preview_btn)
         button_layout.addWidget(self.make_btn)
         self.slurm_btn = QPushButton("SLURM")
-        self.slurm_btn.setStyleSheet(stylesheets.QPushButton)
         self.slurm_btn.setMinimumHeight(30)
         self.slurm_btn.clicked.connect(self.generate_slurm_script)
         button_layout.addWidget(self.slurm_btn)
 
         # Status Display
         status_group = QGroupBox("Status / Preview")
-        status_group.setStyleSheet(stylesheets.QGroupBox)
         status_layout = QVBoxLayout()
 
         self.status_text = QTextEdit()
-        self.status_text.setStyleSheet(stylesheets.QTextEdit)
         self.status_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.status_text.setPlaceholderText("Ready to create input files")
         self.status_text.setReadOnly(True)
@@ -133,23 +123,7 @@ class FilePanel(QWidget):
         layout.addWidget(status_group)
         layout.addStretch()
         self.setLayout(layout)
-        self.update_button_color()
 
-    def connect_model_signals(self):
-        if self.model:
-            try:
-                if hasattr(self.model, 'softwareChanged'):
-                    self.model.softwareChanged.connect(self.update_button_color)
-                elif hasattr(self.model, 'software_changed'):
-                    self.model.software_changed.connect(self.update_button_color)
-                elif hasattr(self.model, 'dataChanged'):
-                    self.model.dataChanged.connect(self.update_button_color)
-                elif hasattr(self.model, 'modelChanged'):
-                    self.model.modelChanged.connect(self.update_button_color)
-            except Exception:
-                self.setup_fallback_timer()
-        else:
-            self.setup_fallback_timer()
 
     def setup_fallback_timer(self):
         from PySide6.QtCore import QTimer
@@ -165,10 +139,6 @@ class FilePanel(QWidget):
                 self.last_software = current_software
                 self.update_button_color()
 
-    def update_button_color(self):
-        self.preview_btn.setStyleSheet(stylesheets.QPushButton)
-        self.make_btn.setStyleSheet(stylesheets.QPushButton)
-        self.slurm_btn.setStyleSheet(stylesheets.QPushButton)
 
     def clear_files(self):
         """Clear all selected files"""
