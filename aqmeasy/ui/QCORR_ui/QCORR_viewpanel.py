@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
 # from PySide6.QtCore import Qt, QRunnable, Slot
 from PySide6.QtGui import QTextOption
 from aqmeasy.ui.icons import Icons
-from aqmeasy.controllers.QCORR_ViewController import ViewController
+from aqmeasy.controllers.QCORR_controllers.QCORR_ViewController import ViewController
 
 class ViewPanel(QWidget):
 

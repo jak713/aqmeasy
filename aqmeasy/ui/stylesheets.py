@@ -467,6 +467,18 @@ QLabel {
     color: black;
 }"""
 
+    ToggleButton = """
+QPushButton {
+    background-color: #020338;
+    color: #CAF0F8;
+    font-size: 15px;
+    font-weight: bold;
+}
+QPushButton:hover {
+    color: #FE6253;
+}
+"""
+
 ##########################################
 
     QWidget = """

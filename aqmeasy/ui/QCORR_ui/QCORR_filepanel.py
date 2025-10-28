@@ -14,19 +14,22 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QStyle
 )
-from PySide6.QtCore import QMimeData, Qt, Signal
-from PySide6.QtGui import QDrag, QIcon
+from PySide6.QtCore import  Qt
+from PySide6.QtGui import  QIcon
 from aqmeasy.ui.stylesheets import stylesheets
 from aqmeasy.ui.icons import Icons
 
-from aqmeasy.controllers.QCORR_controller import FileController
+from aqmeasy.controllers.QCORR_controllers.QCORR_controller import FileController
+from aqmeasy.controllers.QCORR_controllers.QCORR_worker import QCORRWorker
+
 
 
 class FilePanel(QWidget):
     """File browser, batch file selection, drag and drop, file status"""
 
-    def __init__(self, model):
+    def __init__(self, parent, model):
         super().__init__()
+        self.parent = parent
         self.model = model
         self.controller = FileController(model, self)
         self.init_ui()
@@ -52,7 +55,7 @@ class FilePanel(QWidget):
         run_button = QPushButton("Run QCORR")
         run_button.setStyleSheet(stylesheets.RunButton)
 
-        run_button.clicked.connect(self.controller.run_qcorr)
+        run_button.clicked.connect(self.parent.run_qcorr)
 
         run_button.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
         run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))

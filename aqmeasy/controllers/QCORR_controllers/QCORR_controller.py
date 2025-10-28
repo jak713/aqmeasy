@@ -1,8 +1,8 @@
 from PySide6.QtWidgets import QFileDialog
 from PySide6.QtCore import Signal, QObject, Slot, QRunnable
 from aqme.qcorr import qcorr
+
 import os
-import shutil
 
 FILE_FILTERS = [
     "Gaussian Output Files (*.log)",
@@ -60,15 +60,3 @@ class FileController(QObject):
         if file.endswith(('.log', '.out')):
             self.model.files.append(file)
             self.view._display_selected_files([file])
-        
-    def run_qcorr(self):
-        """From my understanding,
-        QCORR runs on the basis of *.log etc, so I am likely to copy all the selected files the output directory, in a subdir and run it there."""
-        thread = Worker()
-
-
-
-class Worker(QRunnable):
-
-    def process_qcorr(self):
-        pass

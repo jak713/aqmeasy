@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt
+
 from aqmeasy.ui.QPREP_ui.QPREP_parameterpanel import ParameterPanel
 from aqmeasy.models.QCORR_model.QCORR_parammodel import ParamModel
 from aqmeasy.ui.stylesheets import stylesheets
@@ -134,7 +135,7 @@ class ParamPanel(QWidget):
         isom_layout.addWidget(self.isom_type_input, 0, 1)
         self.isom_type_input.currentTextChanged.connect(lambda value: self.model.isomTypeChanged.emit(value))
 
-        self.isom_inputs_label = QLabel("Isomerisation Input Files (optional): ")
+        self.isom_inputs_label = QLabel("Isomerisation Inputs (optional): ")
         isom_layout.addWidget(self.isom_inputs_label, 1, 0)
 
         # input line for isomerisation input files
@@ -145,7 +146,7 @@ class ParamPanel(QWidget):
         self.isom_input_line.setReadOnly(True)
         # add a button to open file dialog
         self.isom_input_button = QPushButton()
-        self.isom_input_button.setIcon(QIcon(Icons.file_open))
+        self.isom_input_button.setIcon(QIcon(Icons.folder_open))
         isom_input_layout.addWidget(self.isom_input_button)
         # self.isom_input_button.clicked.connect(self.browse_isom_inputs)
 
@@ -179,7 +180,7 @@ class ParamPanel(QWidget):
         qm_input_layout.addWidget(qprep_button)
         qprep_button.clicked.connect(self.open_qprep_parameters)
 
-        advanced_settings_button = QPushButton("QPREP Settings")
+        advanced_settings_button = QPushButton("QCORR Settings")
         layout.addWidget(advanced_settings_button)
         advanced_settings_button.setIcon(QIcon(Icons.eye))
         advanced_settings_button.setCheckable(True)

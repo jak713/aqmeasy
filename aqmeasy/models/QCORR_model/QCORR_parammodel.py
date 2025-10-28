@@ -30,7 +30,7 @@ class ParamModel(QObject):
         
         self.ifreq_cutoff = 0.0 # Ignore -ve frequencies above this
         self.amplitude_ifreq = 0.2 # Scale for imaginary normal mode displacement
-
+        
         self.freq_conv = None # If a string is defined, it will remove calculations that converged during optimization but did not convergence in the subsequent frequency calculation. <<< ask juanvi what this means
 
         self.s2_threshold = 10.0 # Cutoff for spin contamination in terms of % i.e. ± 10%
@@ -71,3 +71,20 @@ class ParamModel(QObject):
             'covfrac': self.covfrac,
             'qm_input': self.qm_input
         }
+    
+default_values = {
+    'fullcheck': True,
+    'varfile': None,
+    'ifreq_cutoff': 0.0,
+    'amplitude_ifreq': 0.2,
+    'freq_conv': None,
+    's2_threshold': 10.0,
+    'nodup_check': False,
+    'dup_threshold': 0.0001,
+    'ro_threshold': 0.1,
+    'isom_type': None,
+    'isom_inputs': None,
+    'vdwfrac': 0.50,
+    'covfrac': 1.10,
+    'qm_input': ""
+}
