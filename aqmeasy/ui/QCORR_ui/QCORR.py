@@ -25,7 +25,6 @@ from aqmeasy.ui.QCORR_ui.QCORR_viewpanel import ViewPanel
 from aqmeasy.ui.QCORR_ui.QCORR_parampanel import ParamPanel
 from aqmeasy.ui.QCORR_ui.QCORR_jsonpanel import JSONpanel
 
-from aqmeasy.controllers.QCORR_controller import FileController
 from aqmeasy.models.QCORR_model.QCORR_filemodel import FileModel
 
 from aqmeasy.ui.stylesheets import stylesheets
@@ -39,9 +38,7 @@ class QCORR(QWidget):
         self.view_panel = ViewPanel(self.file_model)
         self.file_panel = FilePanel(self.file_model)
 
-
         self.setStyleSheet(stylesheets.QWidget)
-        # control.set_parent(self)
         self.setWindowTitle("QCORR")
 
         # main layout = horizontal box

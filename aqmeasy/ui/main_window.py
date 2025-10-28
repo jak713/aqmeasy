@@ -19,6 +19,9 @@ class MainWindow(QMainWindow):
         self.create_menu()
         self.move(0, 0)
 
+        #on close destroy all child windows too
+        self.setAttribute(Qt.WA_DeleteOnClose)
+
         central_widget = QWidget(self)
         layout = QVBoxLayout(central_widget)
 
@@ -65,7 +68,7 @@ class MainWindow(QMainWindow):
         label_layout.addWidget(label_for_csearch)
         self.button_for_csearch = QPushButton("CSEARCH")
         self.button_for_csearch.setFixedHeight(50)
-        self.button_for_csearch.clicked.connect(self.new_smiles2csv_window)
+        self.button_for_csearch.clicked.connect(self.new_csearch_widget)
         button_layout.addWidget(self.button_for_csearch)
         
         label_for_qprep = QLabel("Quantum Chem\nPreprocessing:")
@@ -188,7 +191,7 @@ class MainWindow(QMainWindow):
     def aboutpy3Dmol(self):
         pass
 
-    def new_smiles2csv_window(self):
+    def new_csearch_widget(self):
         """Opens a new window for converting SMILES to CSV"""
         self.new_csearch = CSEARCH()
         self.new_csearch.show()

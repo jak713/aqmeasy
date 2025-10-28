@@ -42,23 +42,23 @@ class ViewPanel(QWidget):
         self.processed_files.setRootPath('')
         self.results_view = QTreeView()
         self.results_view.setModel(self.processed_files)
-        self.results_view.setRootIsDecorated(False)
+        # self.results_view.setRootIsDecorated(False)
         results_layout.addWidget(self.results_view)
 
         layout.addWidget(view_group)
         layout.addWidget(results_group)
 
-    # def display_folder_contents(self, folder_path):
-    #     """Display files in the selected folder in selected_paths QLabel, that match the file filters."""
-    #     matched_files = []
-    #     folders = folder_path if isinstance(folder_path, list) else [folder_path]
+    def display_folder_contents(self, folder_path):
+        """Display files in the selected folder in selected_paths QLabel, that match the file filters."""
+        matched_files = []
+        folders = folder_path if isinstance(folder_path, list) else [folder_path]
 
-    #     for single_folder in folders:
-    #         for root, dirs, files in os.walk(single_folder):
-    #             for file in files:
-    #                 if file.lower().endswith(('.log', '.out')):
-    #                     matched_files.append(os.path.join(file))
-    #                     self.file_view.setRootIndex(self.files.index(root))
+        for single_folder in folders:
+            for root, dirs, files in os.walk(single_folder):
+                for file in files:
+                    if file.lower().endswith(('.log', '.out')):
+                        matched_files.append(os.path.join(file))
+                        self.processed_files.setRootIndex(self.processed_files.index(root))
 
 
     def update_ui(self):
@@ -66,6 +66,7 @@ class ViewPanel(QWidget):
         w_dir = self.model.__get__w_dir_main__()
         if w_dir:
             self.results_view.setRootIndex(self.processed_files.index(w_dir))
+
 
     #TODO:
     # Implement search functionality within the file viewer.

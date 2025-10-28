@@ -25,12 +25,13 @@ class FileController(QObject):
             self.model.filesChanged.emit(filenames)
             self.view.display_selected_files(filenames)
         
-
     def clear_file_list(self):
         """Clears the file list in the model and view."""
+        self.model.isSelectable = False
+        self.view.file_view.clear()
         self.model.files = []
         self.model.filesChanged.emit([])
-        self.view._clear_file_list()
+        self.model.isSelectable = True
 
     def select_output_directory(self):
         """Opens a dialog to select the output directory and updates the model."""
@@ -60,7 +61,14 @@ class FileController(QObject):
             self.model.files.append(file)
             self.view._display_selected_files([file])
         
-
     def run_qcorr(self):
         """From my understanding,
         QCORR runs on the basis of *.log etc, so I am likely to copy all the selected files the output directory, in a subdir and run it there."""
+        thread = Worker()
+
+
+
+class Worker(QRunnable):
+
+    def process_qcorr(self):
+        pass

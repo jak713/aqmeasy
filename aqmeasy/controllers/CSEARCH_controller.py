@@ -1,22 +1,18 @@
 import logging
 import csv
-import io
 import sys
-from aqmeasy.models.CSEARCH_model.CSEARCH_model import csv_dictionary as csv_model
 from aqmeasy.models.CSEARCH_model.CSEARCH_command import general_command_dictionary as gen_command, crest_command_dictionary as crest_command
+from aqmeasy.ui.CSEARCH_ui.CSEARCH_csvtable import csv_table
 
-import aqmeasy.ui.CSEARCH_ui.CSEARCH_csvtable as csv_table
-from aqmeasy.utils import smiles2pixmap, smiles2enumerate, smiles2charge, smiles2multiplicity, smiles2findmetal
-from aqmeasy.ui import stylesheets
+from aqmeasy.utils import smiles2enumerate, smiles2charge, smiles2multiplicity, smiles2findmetal
 import rdkit.rdBase
 from rdkit import Chem
 from rdkit.Chem import Draw as rdMolDraw2D, rdDepictor
-from PySide6.QtWidgets import QInputDialog, QMessageBox, QFileDialog, QApplication
+from PySide6.QtWidgets import QInputDialog, QMessageBox, QFileDialog
 from PySide6.QtGui import QPixmap
-from PySide6.QtCore import QTimer
-# from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QRunnable, Slot
 from aqme.csearch import csearch
-import threading
+
 
 class CsvController:
     """Controller for the CSV model"""
@@ -24,6 +20,7 @@ class CsvController:
         self.model = model
         self.current_index = 1
         self.total_index = self.get_total_index()
+        self.model.signals.updated.connect(self.update_table_from_model)
 
     def set_parent(self, parent):
         """Set the parent of the controller"""
@@ -31,35 +28,35 @@ class CsvController:
 
     def get_total_index(self):
         return len(self.model["SMILES"])
-        
-    # def update_gen_command_input(self):
-    #     """Update gen_command input if the csv_model changes."""
-    #     csv_model.signals.updated.connect(self.sync_gen_command_input)
-
-    # def sync_gen_command_input(self):
-    #     """Synchronize gen_command input with the current state of csv_model."""
-    #     gen_command["input"] = None
 
     # # messing with the csv_table
     def show_csv(self):
-        csv = csv_table.csv_table(
+        self.csv = csv_table(
             csv_model=self.model,
-            smiles2pixmap=smiles2pixmap,
-            parent=None 
         )
-        csv.table.itemChanged.connect(lambda item: self.update_model_table(item))
-        csv.intermediate_button.clicked.connect(lambda: csv.refresh_view() if self.add_intermediate(csv.table.selectedItems()) else self.parent.failure("Please select two or more items to add an intermediate."))
-        csv.ts_button.clicked.connect(lambda: csv.refresh_view() if self.add_transition_state(csv.table.selectedItems()) else self.parent.failure("Please select one or more items to add a transition state."))
+        self.csv.table.itemChanged.connect(lambda item: self.update_model_from_table(item))
 
-        csv.exec()
+        self.csv.intermediate_button.clicked.connect(lambda: self.csv.refresh_view() if self.add_intermediate(self.csv.table.selectedItems()) else self.parent.failure("Please select two or more items to add an intermediate."))
 
-    def update_model_table(self, item):
+        self.csv.ts_button.clicked.connect(lambda: self.csv.refresh_view() if self.add_transition_state(self.csv.table.selectedItems()) else self.parent.failure("Please select one or more items to add a transition state."))
+        self.csv.show()
+
+    def update_model_from_table(self, item):
         """Update the model when the signals are emitted"""
         row = item.row()
         col = item.column()
         key = list(self.model.keys())[col]
         self.model[key][row] = item.text()
         self.model.signals.updated.emit()
+
+    def update_table_from_model(self):
+        # Disconnect signals to prevent recursive updates
+        if hasattr(self, 'csv'):
+            self.csv.table.blockSignals(True)
+            self.csv.refresh_view()
+            self.csv.table.blockSignals(False)
+        else:
+            return
 
     def add_intermediate(self,items):
         """Add an intermediate to the CSV table by combining the SMILES strings of the selected items in the csv_table."""
@@ -87,8 +84,6 @@ class CsvController:
         """Add a transition state to the CSV table."""
         selected_items = [self.model["SMILES"][item.row()] for item in items]
         selected_code_names = [self.model["code_name"][item.row()] for item in items]
-        # print(selected_code_names)
-        # print(selected_items)
         if len(selected_items) < 1:
             return False
         
@@ -116,7 +111,7 @@ class CsvController:
         self.model.signals.updated.emit()
         return True
 
-    # messing with the csv_model
+    # messing with the self.model
     def update_smiles_model(self, smiles):
         """Update the model with the current SMILES string.
         If constraints are present, update the model["SMILES"] with the enumerated SMILES string.
@@ -178,7 +173,7 @@ class CsvController:
     def save_csv_file(self):
         """Save the csv_dictionary to a file."""
         try:
-            for index, code_name in enumerate(csv_model["code_name"]):
+            for index, code_name in enumerate(self.model["code_name"]):
                 if code_name == "":
                     self.parent.failure("Please enter a code name for the molecule before saving.")
                     return False  # for the closing event
@@ -188,12 +183,12 @@ class CsvController:
                 self.parent.failure("Please enter a file name before saving.")
                 return False  # for the closing event
 
-            gen_command["input"] = _name
+            gen_command["input"] = file_name
             with open(gen_command["input"], 'w', newline='') as csvfile:
                 writer = csv.writer(csvfile)
-                writer.writerow(csv_model.keys())
-                for i in range(len(csv_model["SMILES"])):
-                    writer.writerow([csv_model[key][i] for key in csv_model.keys()])
+                writer.writerow(self.model.keys())
+                for i in range(len(self.model["SMILES"])):
+                    writer.writerow([self.model[key][i] for key in self.model.keys()])
 
             self.parent.success("CSV file saved successfully.")
             return True  # for the closing event
@@ -210,7 +205,7 @@ class CsvController:
         rdkit.rdBase.DisableLog('rdApp.*')
         rdDepictor.SetPreferCoordGen(True)
 
-        smiles = csv_model["SMILES"][self.current_index - 1]
+        smiles = self.model["SMILES"][self.current_index - 1]
         if not smiles:
             self.parent.molecule_label.setText("No SMILES string provided.")
             self.atom_coords = None
@@ -225,7 +220,7 @@ class CsvController:
             for i, atom in enumerate(mol.GetAtoms()):
                 atom.SetAtomMapNum(i + 1)
             
-            width = self.parent.molecule_label.width()
+            width = self.parent.molecule_label.width() # this results in a bug when window is reopened atm
             height = self.parent.molecule_label.height()
             drawer = rdMolDraw2D.MolDraw2DCairo(width, height)
             
@@ -280,11 +275,11 @@ class CsvController:
             return None
         elif self.atom_coords is not None:
             for idx, coord in enumerate(self.atom_coords):
-                if len(csv_model["SMILES"][self.current_index - 1]) <= 50: # small molecule = bigger click area
+                if len(self.model["SMILES"][self.current_index - 1]) <= 50: # small molecule = bigger click area
                     if (coord.x - x) ** 2 + (coord.y - y) ** 2 < 100: 
                         # print(f"Atom {idx + 1} selected at coordinates ({coord.x}, {coord.y}).")
                         return idx + 1
-                elif len(csv_model["SMILES"][self.current_index - 1]) > 50 : # big molecule = smaller click area BUT should probs keep playing around with these
+                elif len(self.model["SMILES"][self.current_index - 1]) > 50 : # big molecule = smaller click area BUT should probs keep playing around with these
                     if (coord.x - x) ** 2 + (coord.y - y) ** 2 < 40: 
                         # print(f"Atom {idx + 1} selected at coordinates ({coord.x}, {coord.y}).")
                         return idx + 1
@@ -307,7 +302,7 @@ class CsvController:
         self.selected_atoms.append(atom_idx)
         self.display_molecule(self.parent.show_numbered_atoms_toggle.isChecked())  # update the highlighted atom
         atom1 = self.selected_atoms[0]
-        mol = Chem.MolFromSmiles(csv_model["SMILES"][self.current_index - 1])
+        mol = Chem.MolFromSmiles(self.model["SMILES"][self.current_index - 1])
         mol = Chem.AddHs(mol) 
         atom1_type = mol.GetAtomWithIdx(atom1 - 1).GetSymbol()
 
@@ -335,7 +330,7 @@ class CsvController:
         """Add distance constraints between two selected atoms."""
         if len(self.selected_atoms) == 2:
             atom1, atom2 = self.selected_atoms
-            mol = Chem.MolFromSmiles(csv_model["SMILES"][self.current_index - 1])
+            mol = Chem.MolFromSmiles(self.model["SMILES"][self.current_index - 1])
             mol = Chem.AddHs(mol) 
             atom1_type = mol.GetAtomWithIdx(atom1 - 1).GetSymbol()
             atom2_type = mol.GetAtomWithIdx(atom2 - 1).GetSymbol()
@@ -350,7 +345,7 @@ class CsvController:
                 if self.current_index not in self.each_dist:
                     self.each_dist[self.current_index] = []
                 self.each_dist[self.current_index].append([atom1, atom2, distance])
-                csv_model["constraints_dist"][self.current_index - 1] = str(self.each_dist[self.current_index])
+                self.model["constraints_dist"][self.current_index - 1] = str(self.each_dist[self.current_index])
                 self.parent.update_properties()
                 self.selected_atoms = []
             else:
@@ -361,7 +356,7 @@ class CsvController:
         """Add angle constraints between three selected atoms."""
         if len(self.selected_atoms) == 3:
             atom1, atom2, atom3 = self.selected_atoms
-            mol = Chem.MolFromSmiles(csv_model["SMILES"][self.current_index - 1])
+            mol = Chem.MolFromSmiles(self.model["SMILES"][self.current_index - 1])
             mol = Chem.AddHs(mol) 
             atom1_type = mol.GetAtomWithIdx(atom1 - 1).GetSymbol()
             atom2_type = mol.GetAtomWithIdx(atom2 - 1).GetSymbol()
@@ -376,7 +371,7 @@ class CsvController:
                 if self.current_index not in self.each_angle:
                     self.each_angle[self.current_index] = []
                 self.each_angle[self.current_index].append([atom1, atom2, atom3, angle])
-                csv_model["constraints_angle"][self.current_index - 1] = str(self.each_angle[self.current_index])
+                self.model["constraints_angle"][self.current_index - 1] = str(self.each_angle[self.current_index])
                 self.parent.update_properties()
                 self.selected_atoms = []
             else:
@@ -387,7 +382,7 @@ class CsvController:
         """Add dihedral constraints between four selected atoms."""
         if len(self.selected_atoms) == 4:
             atom1, atom2, atom3, atom4 = self.selected_atoms
-            mol = Chem.MolFromSmiles(csv_model["SMILES"][self.current_index - 1])
+            mol = Chem.MolFromSmiles(self.model["SMILES"][self.current_index - 1])
             mol = Chem.AddHs(mol)
             atom1_type = mol.GetAtomWithIdx(atom1 - 1).GetSymbol()
             atom2_type = mol.GetAtomWithIdx(atom2 - 1).GetSymbol()
@@ -403,7 +398,7 @@ class CsvController:
                 if self.current_index not in self.each_dihedral:
                     self.each_dihedral[self.current_index] = []
                 self.each_dihedral[self.current_index].append([atom1, atom2, atom3, atom4, dihedral])
-                csv_model["constraints_dihedral"][self.current_index - 1] = str(self.each_dihedral[self.current_index])
+                self.model["constraints_dihedral"][self.current_index - 1] = str(self.each_dihedral[self.current_index])
                 self.parent.update_properties()
                 self.selected_atoms = []
             else:
@@ -415,7 +410,7 @@ class CsvController:
         """Move to the next index in csv dictionary and update display."""
         if self.current_index == self.total_index == 1:
             return
-        self.current_index = (self.current_index + 1) % (len(csv_model["SMILES"]) +1)
+        self.current_index = (self.current_index + 1) % (len(self.model["SMILES"]) +1)
         if self.current_index == 0:
             self.current_index = 1
         self.parent.update_ui()
@@ -424,30 +419,30 @@ class CsvController:
         """Move to the previous molecule and update display."""
         if self.current_index == self.total_index == 1:
             return
-        self.current_index = (self.current_index - 1) % (len(csv_model["SMILES"])+1)
+        self.current_index = (self.current_index - 1) % (len(self.model["SMILES"])+1)
         if self.current_index == 0:
-            self.current_index = len(csv_model["SMILES"])
+            self.current_index = len(self.model["SMILES"])
         self.parent.update_ui()
 
     def new_molecule(self):
         """Create a new empty molecule entry in the csv dictionary and update the display."""
-        for key in csv_model.keys():
-            csv_model[key].append("")
-        self.current_index = len(csv_model["SMILES"]) 
+        for key in self.model.keys():
+            self.model[key].append("")
+        self.current_index = len(self.model["SMILES"]) 
         self.total_index = self.get_total_index()
-        csv_model.signals.updated.emit()
+        self.model.signals.updated.emit()
         self.parent.update_ui()
 
     def delete_molecule(self):
         """Delete the current molecule and all associated data (including constraints) from the csv dictionary and update the display."""
         if self.total_index == 1:
-            for key, value in csv_model.items():
+            for key, value in self.model.items():
                 value.pop(self.current_index - 1)
             self.new_molecule()
             return
 
-        for key in csv_model.keys():
-            csv_model[key].pop(self.current_index - 1)
+        for key in self.model.keys():
+            self.model[key].pop(self.current_index - 1)
 
         for constraint in ['each_dist', 'each_angle', 'each_dihedral']:
             if hasattr(self, constraint):
@@ -465,115 +460,93 @@ class CsvController:
         self.parent.update_ui()
 
 
-    # run aqme from within?
 
-    # def run_aqme(self):
-        # """runs aqme csearch in the background (new QThread when I understand how that works)
-        # and pipes the output to the shell_output window.
-        # Parent UI updates are queued to the main thread since the parent is in a different thread."""
-        # if gen_command["input"] == None or gen_command["input"] == "":
-        #     self.parent.failure("Please save the CSV file before running AQME.")
-        #     return
-        # if gen_command["destination"] == None or gen_command["destination"] == "":
-        #     gen_command["destination"] = gen_command["input"].replace(".csv", "_aqme")
-        # def run_aqme_thread():
-        #     backup_stdout = sys.stdout
-        #     sys.stdout = OutputCatcher()
-        #     if gen_command["program"] == "RDKit":
-        #         QTimer.singleShot(0, lambda: self.parent.shell_output.append("Running RDKit..."))
-        #         QTimer.singleShot(0, lambda: self.parent.shell_output.append("Please wait..."))
-        #         try:
-        #             print("Preparing to run AQME...")
-        #             print("Running AQME...")
-        #             csearch(destination=gen_command["destination"],
-        #                     input=gen_command["input"],
-        #                     program=gen_command["program"],
-        #                     stacksize=gen_command["stacksize"],
-        #                     sample=gen_command["sample"],
-        #                     auto_sample=gen_command["auto_sample"],
-        #                     ewin_csearch=gen_command["ewin_csearch"],
-        #                     initial_energy_threshold=gen_command["initial_energy_threshold"],
-        #                     energy_threshold=gen_command["energy_threshold"],
-        #                     rms_threshold=gen_command["rms_threshold"],
-        #                     opt_steps_rdkit=gen_command["opt_steps_rdkit"],
-        #                     heavyonly=gen_command["heavyonly"],
-        #                     max_matches_rmsd=gen_command["max_matches_rmsd"],
-        #                     max_mol_wt=gen_command["max_mol_wt"],
-        #                     max_torsions=gen_command["max_torsions"],
-        #                     seed=gen_command["seed"],
-        #                     geom=gen_command["geom"],
-        #                     bond_thres=gen_command["bond_thres"],
-        #                     angle_thres=gen_command["angle_thres"],
-        #                     dihedral_thres=gen_command["dihedral_thres"],
-        #                     auto_metal_atoms=gen_command["auto_metal_atoms"]
-        #                     )
-        #         except Exception as e:
-        #             QTimer.singleShot(0, lambda: self.parent.failure(f"An error occurred while running AQME: {str(e)}"))
-        #             logging.error(f"Error running AQME: {str(e)}")
-        #             QTimer.singleShot(0, lambda: self.parent.shell_output.append(f"Error: {str(e)}"))
-        #             QTimer.singleShot(0, lambda: self.parent.shell_output.append("AQME run failed."))
-        #             QTimer.singleShot(0, lambda: self.parent.shell_output.append("Please check the input parameters and try again."))
-        #         finally:
-        #             sys.stdout = backup_stdout
-        #     elif gen_command["program"] == "CREST":
-        #         QTimer.singleShot(0, lambda: self.parent.shell_output.append("Running CREST..."))
-        #         QTimer.singleShot(0, lambda: self.parent.shell_output.append("Please wait..."))
-        #         try:
-        #             print("Preparing to run AQME...")
-        #             print("Running AQME...")
-        #             csearch(destination=gen_command["destination"],
-        #                     input=gen_command["input"],
-        #                     program=gen_command["program"],
-        #                     stacksize=gen_command["stacksize"],
-        #                     sample=gen_command["sample"],
-        #                     auto_sample=gen_command["auto_sample"],
-        #                     ewin_csearch=gen_command["ewin_csearch"],
-        #                     initial_energy_threshold=gen_command["initial_energy_threshold"],
-        #                     energy_threshold=gen_command["energy_threshold"],
-        #                     rms_threshold=gen_command["rms_threshold"],
-        #                     opt_steps_rdkit=gen_command["opt_steps_rdkit"],
-        #                     heavyonly=gen_command["heavyonly"],
-        #                     max_matches_rmsd=gen_command["max_matches_rmsd"],
-        #                     max_mol_wt=gen_command["max_mol_wt"],
-        #                     max_torsions=gen_command["max_torsions"],
-        #                     seed=gen_command["seed"],
-        #                     geom=gen_command["geom"],
-        #                     bond_thres=gen_command["bond_thres"],
-        #                     angle_thres=gen_command["angle_thres"],
-        #                     dihedral_thres=gen_command["dihedral_thres"],
-        #                     auto_metal_atoms=gen_command["auto_metal_atoms"],
-        #                     nprocs=crest_command["nprocs"],
-        #                     constraints_atoms=crest_command["constraints_atoms"],
-        #                     constraints_dist=crest_command["constraints_dist"],
-        #                     constraints_angle=crest_command["constraints_angle"],
-        #                     constraints_dihedral=crest_command["constraints_dihedral"],
-        #                     crest_force=crest_command["crest_force"],
-        #                     crest_keywords=crest_command["crest_keywords"] if crest_command["crest_keywords"] is not None else None,
-        #                     cregen=crest_command["cregen"],
-        #                     cregen_keywords=crest_command["cregen_keywords"] if crest_command["cregen_keywords"] is not None else None,
-        #                     xtb_keywords=crest_command["xtb_keywords"] if crest_command["xtb_keywords"] is not None else None,
-        #                     crest_runs=crest_command["crest_runs"]
-        #                     )
-        #         except Exception as e:
-        #             QTimer.singleShot(0, lambda: self.parent.failure(f"An error occurred while running AQME: {str(e)}"))
-        #             logging.error(f"Error running AQME: {str(e)}")
-        #             QTimer.singleShot(0, lambda: self.parent.shell_output.append(f"Error: {str(e)}"))
-        #             QTimer.singleShot(0, lambda: self.parent.shell_output.append("AQME run failed."))
-        #             QTimer.singleShot(0, lambda: self.parent.shell_output.append("Please check the input parameters and try again."))
-        #         finally:
-        #             sys.stdout = backup_stdout
+### Under construction...
+    def run_csearch(self):
+        """Run the csearch function in a separate thread."""
+        thread = Worker()   
 
-        # threading.Thread(target=run_aqme_thread, daemon=True).start()
-            
 
-csv_controller = CsvController(csv_model)
+class Worker(QRunnable):
+    """Worker for csearch thread"""
 
-# class OutputCatcher:
-#     def write(self, text):
-#         if text.strip():
-#             csv_controller.parent.shell_output.append(text)
-#             # Process events to update the GUI immediately
-#             QApplication.processEvents()
-#     def flush(self):
-#         pass
+    @Slot()
+    def csearch_thread(self):
+        """runs aqme csearch in the background (new QThread when I understand how that works)
+        and pipes the output to the shell_output window.
+        Parent UI updates are queued to the main thread since the parent is in a different thread."""
+        if gen_command["input"] == None or gen_command["input"] == "":
+            self.parent.failure("Please save the CSV file before running AQME.")
+            return
+        if gen_command["destination"] == None or gen_command["destination"] == "":
+            gen_command["destination"] = gen_command["input"].replace(".csv", "_aqme")
+        
+        if gen_command["program"] == "RDKit":
+                try:
+                    print("Preparing to run AQME...")
+                    print("Running AQME...")
+                    csearch(destination=gen_command["destination"],
+                            input=gen_command["input"],
+                            program=gen_command["program"],
+                            stacksize=gen_command["stacksize"],
+                            sample=gen_command["sample"],
+                            auto_sample=gen_command["auto_sample"],
+                            ewin_csearch=gen_command["ewin_csearch"],
+                            initial_energy_threshold=gen_command["initial_energy_threshold"],
+                            energy_threshold=gen_command["energy_threshold"],
+                            rms_threshold=gen_command["rms_threshold"],
+                            opt_steps_rdkit=gen_command["opt_steps_rdkit"],
+                            heavyonly=gen_command["heavyonly"],
+                            max_matches_rmsd=gen_command["max_matches_rmsd"],
+                            max_mol_wt=gen_command["max_mol_wt"],
+                            max_torsions=gen_command["max_torsions"],
+                            seed=gen_command["seed"],
+                            geom=gen_command["geom"],
+                            bond_thres=gen_command["bond_thres"],
+                            angle_thres=gen_command["angle_thres"],
+                            dihedral_thres=gen_command["dihedral_thres"],
+                            auto_metal_atoms=gen_command["auto_metal_atoms"]
+                            )
+                except Exception as e:
+                    return
 
+
+        elif gen_command["program"] == "CREST":
+                try:
+                    print("Preparing to run AQME...")
+                    print("Running AQME...")
+                    csearch(destination=gen_command["destination"],
+                            input=gen_command["input"],
+                            program=gen_command["program"],
+                            stacksize=gen_command["stacksize"],
+                            sample=gen_command["sample"],
+                            auto_sample=gen_command["auto_sample"],
+                            ewin_csearch=gen_command["ewin_csearch"],
+                            initial_energy_threshold=gen_command["initial_energy_threshold"],
+                            energy_threshold=gen_command["energy_threshold"],
+                            rms_threshold=gen_command["rms_threshold"],
+                            opt_steps_rdkit=gen_command["opt_steps_rdkit"],
+                            heavyonly=gen_command["heavyonly"],
+                            max_matches_rmsd=gen_command["max_matches_rmsd"],
+                            max_mol_wt=gen_command["max_mol_wt"],
+                            max_torsions=gen_command["max_torsions"],
+                            seed=gen_command["seed"],
+                            geom=gen_command["geom"],
+                            bond_thres=gen_command["bond_thres"],
+                            angle_thres=gen_command["angle_thres"],
+                            dihedral_thres=gen_command["dihedral_thres"],
+                            auto_metal_atoms=gen_command["auto_metal_atoms"],
+                            nprocs=crest_command["nprocs"],
+                            constraints_atoms=crest_command["constraints_atoms"],
+                            constraints_dist=crest_command["constraints_dist"],
+                            constraints_angle=crest_command["constraints_angle"],
+                            constraints_dihedral=crest_command["constraints_dihedral"],
+                            crest_force=crest_command["crest_force"],
+                            crest_keywords=crest_command["crest_keywords"] if crest_command["crest_keywords"] is not None else None,
+                            cregen=crest_command["cregen"],
+                            cregen_keywords=crest_command["cregen_keywords"] if crest_command["cregen_keywords"] is not None else None,
+                            xtb_keywords=crest_command["xtb_keywords"] if crest_command["xtb_keywords"] is not None else None,
+                            crest_runs=crest_command["crest_runs"]
+                            )
+                except Exception as e:
+                    return

@@ -24,14 +24,11 @@ from aqmeasy.controllers.QCORR_controller import FileController
 
 class FilePanel(QWidget):
     """File browser, batch file selection, drag and drop, file status"""
-    
-    # fileSelected = Signal(str)
 
     def __init__(self, model):
         super().__init__()
         self.model = model
         self.controller = FileController(model, self)
-        # self.view_panel = view_panel
         self.init_ui()
         self.setAcceptDrops(True)
 
@@ -56,7 +53,6 @@ class FilePanel(QWidget):
         run_button.setStyleSheet(stylesheets.RunButton)
 
         run_button.clicked.connect(self.controller.run_qcorr)
-        # run_button.clicked.connect(lambda: self.view_panel.results_view.setRootIndex(root for root,dirs in self.model.__get__w_dir_main__()))
 
         run_button.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
         run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
@@ -100,15 +96,12 @@ class FilePanel(QWidget):
                 item.setToolTip(file)
                 self.file_view.addItem(item)
 
-    # def _clear_file_list(self):
-    #     self.file_view.clear()
-    #     self.view_panel.file_viewer.clear()
-
     def _on_file_selection_changed(self, selected_item):
+        if self.model.isSelectable == False:
+            return
         self.model.currently_selected_file = selected_item
         self.model.currentlySelectedFileChanged.emit(selected_item)
         print(self.model.__get__currently_selected_file__())
-        
 
     def dragEnterEvent(self, event):
         urls = event.mimeData().urls()
