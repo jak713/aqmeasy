@@ -19,7 +19,6 @@ class FileModel(QObject):
     def __get__w_dir_main__(self):
         return self.w_dir_main
 
-
     def __get__currently_selected_file__(self):
         return self.currently_selected_file
 

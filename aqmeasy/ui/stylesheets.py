@@ -331,6 +331,11 @@ QTreeView {
     background-color: #020338;
     color: #CAF0F8;
     border: 1px solid #00B4D8;
+}
+
+QTreeView::item:selected {
+    background-color: #90E0EF;
+    color: #020338;
 }"""
 
     QTableWidget = """

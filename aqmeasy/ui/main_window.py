@@ -1,6 +1,6 @@
 import csv
 from PySide6.QtWidgets import QMainWindow, QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QMessageBox, QApplication
-from PySide6.QtGui import QAction, QPixmap, QDesktopServices
+from PySide6.QtGui import QAction, QPixmap, QDesktopServices, QIcon
 from aqmeasy.ui.CSEARCH_ui.CSEARCH import CSEARCH
 from aqmeasy.ui.QPREP_ui.QPREP import QPREP
 from aqmeasy.ui.QCORR_ui.QCORR import QCORR
@@ -21,32 +21,41 @@ class MainWindow(QMainWindow):
 
         central_widget = QWidget(self)
         layout = QVBoxLayout(central_widget)
-        self.logo = QLabel(self)
+
+        logo = QLabel(self)
         logo_path = os.path.join(os.path.dirname(__file__), "resources", "aqme-logo-blue.svg")
-        logo = QPixmap(logo_path)
-        if not logo.isNull():
-            self.logo.setPixmap(logo)
+
+        logo_icon = QPixmap(logo_path)
+        if not logo_icon.isNull():
+            logo.setPixmap(logo_icon)
         else:
-            self.logo.setText("Logo not found")
-        self.logo.setOpenExternalLinks(True)
-        self.logo.mousePressEvent = lambda event: QDesktopServices.openUrl(QUrl("https://github.com/jvalegre/aqme"))
-        layout.addWidget(self.logo,2, alignment=Qt.AlignCenter)
+            logo.setText("Logo not found")
+        logo.setOpenExternalLinks(True)
+        logo.mousePressEvent = lambda event: QDesktopServices.openUrl(QUrl("https://github.com/jvalegre/aqme"))
+        logo.setCursor(Qt.CursorShape.PointingHandCursor)
+
 
         readthedocs_label = QLabel(self)
+
         readthedocs_label.setOpenExternalLinks(True)
+        readthedocs_label.setCursor(Qt.CursorShape.PointingHandCursor)
         readthedocs_path = os.path.join(os.path.dirname(__file__), "resources", "readthedocs_logo.png")
+
         readthedocs_icon = QPixmap(readthedocs_path)
         if not readthedocs_icon.isNull():
             img = readthedocs_icon.toImage()
             img.invertPixels()
             readthedocs_icon = QPixmap.fromImage(img)
-            readthedocs_icon = readthedocs_icon.scaled(self.logo.pixmap().size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            readthedocs_icon = readthedocs_icon.scaled(logo.pixmap().size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
             readthedocs_label.setPixmap(readthedocs_icon)
         else:
             readthedocs_label.setText('<a href="https://aqme.readthedocs.io/en/latest/">Docs</a>')
+        
         readthedocs_label.mousePressEvent = lambda event: QDesktopServices.openUrl(QUrl("https://aqme.readthedocs.io/en/latest/"))
-        layout.addWidget(readthedocs_label,1, alignment=Qt.AlignCenter)
+        
 
+        layout.addWidget(logo,2, alignment=Qt.AlignCenter)
+        layout.addWidget(readthedocs_label,1, alignment=Qt.AlignCenter)
         self.setCentralWidget(central_widget)
 
         label_layout = QHBoxLayout()

@@ -1,4 +1,5 @@
 import os
+from xml.parsers.expat import model
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -26,11 +27,11 @@ class FilePanel(QWidget):
     
     # fileSelected = Signal(str)
 
-    def __init__(self, model, view_panel):
+    def __init__(self, model):
         super().__init__()
         self.model = model
         self.controller = FileController(model, self)
-        self.view_panel = view_panel
+        # self.view_panel = view_panel
         self.init_ui()
         self.setAcceptDrops(True)
 
@@ -68,7 +69,8 @@ class FilePanel(QWidget):
 
         # file list view
         self.file_view = QListWidget()
-        self.file_view.itemSelectionChanged.connect(lambda: self.view_panel.display_file_contents(self.file_view.currentItem().toolTip()))
+        # Selection updates model's currently selected file
+        self.file_view.itemSelectionChanged.connect(lambda: self._on_file_selection_changed(self.file_view.currentItem().toolTip()))
 
         layout.addWidget(self.file_view)
 
@@ -98,9 +100,15 @@ class FilePanel(QWidget):
                 item.setToolTip(file)
                 self.file_view.addItem(item)
 
-    def _clear_file_list(self):
-        self.file_view.clear()
-        self.view_panel.file_viewer.clear()
+    # def _clear_file_list(self):
+    #     self.file_view.clear()
+    #     self.view_panel.file_viewer.clear()
+
+    def _on_file_selection_changed(self, selected_item):
+        self.model.currently_selected_file = selected_item
+        self.model.currentlySelectedFileChanged.emit(selected_item)
+        print(self.model.__get__currently_selected_file__())
+        
 
     def dragEnterEvent(self, event):
         urls = event.mimeData().urls()

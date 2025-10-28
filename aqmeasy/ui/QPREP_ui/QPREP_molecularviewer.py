@@ -2,7 +2,7 @@ import os
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QLabel,  QComboBox, 
-    QMessageBox, QGroupBox,  QApplication, QSlider, QFormLayout
+    QMessageBox, QGroupBox,  QApplication, QSlider, QFormLayout, QSizePolicy
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtCore import  Qt
@@ -117,6 +117,7 @@ class MoleculeViewer(QWidget):
         viewer_layout = QVBoxLayout()
         self.web_view = QWebEngineView()
         self.web_view.setVisible(False)
+        self.web_view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         viewer_layout.addWidget(self.web_view)
         self.viewer_group.setLayout(viewer_layout)
 

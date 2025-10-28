@@ -36,8 +36,8 @@ class QCORR(QWidget):
     def __init__(self):
         super().__init__()
         self.file_model = FileModel()
-        self.view_panel = ViewPanel()
-        self.file_panel = FilePanel(self.file_model, self.view_panel)
+        self.view_panel = ViewPanel(self.file_model)
+        self.file_panel = FilePanel(self.file_model)
 
 
         self.setStyleSheet(stylesheets.QWidget)

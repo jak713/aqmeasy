@@ -2,23 +2,24 @@ import os
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
-    QLabel,
-    QPlainTextEdit,
-    QTextEdit,
     QGroupBox, 
     QFileSystemModel,
     QTreeView,
     QTextBrowser,
 )
-from PySide6.QtCore import Qt
+# from PySide6.QtCore import Qt, QRunnable, Slot
 from PySide6.QtGui import QTextOption
 from aqmeasy.ui.icons import Icons
+from aqmeasy.controllers.QCORR_ViewController import ViewController
 
 class ViewPanel(QWidget):
 
-    def __init__(self):
+    def __init__(self,model):
         super().__init__()
+        self.model = model
+        self.controller = ViewController(model, self)
         self.init_ui()
+        self.update_ui()
 
     def init_ui(self):
         layout = QVBoxLayout()
@@ -29,7 +30,7 @@ class ViewPanel(QWidget):
         view_group.setLayout(view_layout)
 
         self.file_viewer = QTextBrowser()
-        self.file_viewer.setFontFamily("Courier")
+        self.file_viewer.setFontFamily("Menlo")
         self.file_viewer.setWordWrapMode(QTextOption.WrapMode.NoWrap)
         view_layout.addWidget(self.file_viewer)
 
@@ -42,27 +43,10 @@ class ViewPanel(QWidget):
         self.results_view = QTreeView()
         self.results_view.setModel(self.processed_files)
         self.results_view.setRootIsDecorated(False)
-        self.results_view.setAlternatingRowColors(True)
         results_layout.addWidget(self.results_view)
 
         layout.addWidget(view_group)
         layout.addWidget(results_group)
-
-    def display_file_contents(self, file_path):
-        """Display the contents of the selected file in the text viewer."""
-        print(f"Displaying contents of file: {file_path}")
-        try:
-            with open(file_path, 'r') as file:
-                content = file.read()
-                character_count = len(content)
-                
-                if character_count > 10000000:
-                    self.file_viewer.setText(f"File too large to display efficiently ({character_count} characters).\nThis will be dealt with in due course.")
-                else:
-                    self.file_viewer.setText(content)
-                    
-        except Exception as e:
-            self.file_viewer.setText(f"Error reading {file_path}: {e}")
 
     # def display_folder_contents(self, folder_path):
     #     """Display files in the selected folder in selected_paths QLabel, that match the file filters."""
@@ -75,3 +59,14 @@ class ViewPanel(QWidget):
     #                 if file.lower().endswith(('.log', '.out')):
     #                     matched_files.append(os.path.join(file))
     #                     self.file_view.setRootIndex(self.files.index(root))
+
+
+    def update_ui(self):
+        """Update the UI elements based on the model's state."""
+        w_dir = self.model.__get__w_dir_main__()
+        if w_dir:
+            self.results_view.setRootIndex(self.processed_files.index(w_dir))
+
+    #TODO:
+    # Implement search functionality within the file viewer.
+    

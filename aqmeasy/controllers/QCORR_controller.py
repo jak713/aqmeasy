@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QFileDialog
-from PySide6.QtCore import Signal, QObject, Slot
+from PySide6.QtCore import Signal, QObject, Slot, QRunnable
 from aqme.qcorr import qcorr
 import os
 import shutil
@@ -64,4 +64,3 @@ class FileController(QObject):
     def run_qcorr(self):
         """From my understanding,
         QCORR runs on the basis of *.log etc, so I am likely to copy all the selected files the output directory, in a subdir and run it there."""
-        
