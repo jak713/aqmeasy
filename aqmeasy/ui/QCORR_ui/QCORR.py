@@ -32,6 +32,7 @@ class QCORR(QWidget):
         self.file_model = FileModel()
         self.parameter_model = ParamModel()
         self.worker = QCORRWorker(self)
+        self.worker.result.connect(self.on_qcorr_result)
         
         self.view_panel = ViewPanel(self.file_model)
         self.file_panel = FilePanel(self,self.file_model)
@@ -78,3 +79,6 @@ class QCORR(QWidget):
 
     def run_qcorr(self):
         self.worker.run_qcorr()
+
+    def on_qcorr_result(self, result):
+        self.view_panel.file_viewer.setText(result)

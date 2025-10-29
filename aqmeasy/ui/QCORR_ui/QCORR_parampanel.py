@@ -135,7 +135,7 @@ class ParamPanel(QWidget):
         isom_layout.addWidget(self.isom_type_input, 0, 1)
         self.isom_type_input.currentTextChanged.connect(lambda value: self.model.isomTypeChanged.emit(value))
 
-        self.isom_inputs_label = QLabel("Isomerisation Inputs (optional): ")
+        self.isom_inputs_label = QLabel("Isomerisation Inputs Location (Optional): ")
         isom_layout.addWidget(self.isom_inputs_label, 1, 0)
 
         # input line for isomerisation input files

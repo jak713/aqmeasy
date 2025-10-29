@@ -333,6 +333,10 @@ QTreeView {
     border: 1px solid #00B4D8;
 }
 
+QTreeView::item {
+    padding: 5px;
+}
+
 QTreeView::item:selected {
     background-color: #90E0EF;
     color: #020338;

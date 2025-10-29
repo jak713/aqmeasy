@@ -15,6 +15,7 @@ class FileController(QObject):
         super().__init__()
         self.model = model
         self.view = view
+        self.model.wdirChanged.connect(self.set_wdir)
 
     def open_file_dialog(self):
         """Opens a file dialog to select files and updates the model."""
@@ -39,8 +40,14 @@ class FileController(QObject):
         if directory:
             self.model.w_dir_main = directory
             self.model.wdirChanged.emit(directory)
+            self.set_wdir(directory)
+
+    def set_wdir(self, directory=None):
+        if directory:
             self.view.output_dir_label.setText(directory)
-        print(self.model.__get__w_dir_main__())
+        else:
+            directory = self.model.w_dir_main
+            self.view.output_dir_label.setText(directory)
 
     def open_drop_folder(self, dirs):
         """Processes dropped folders to find relevant files and updates the model."""
@@ -54,6 +61,9 @@ class FileController(QObject):
             self.model.files = all_files
             self.model.filesChanged.emit(all_files)
             self.view._display_selected_files(all_files)
+            self.model.w_dir_main = os.path.dirname(dirs[0])
+            self.model.wdirChanged.emit(self.model.w_dir_main)
+            print(f"Set working directory to: {self.model.w_dir_main}")
 
     def open_drop_file(self, file):
         """Processes dropped files and updates the model."""

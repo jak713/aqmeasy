@@ -6,9 +6,12 @@ from PySide6.QtWidgets import (
     QFileSystemModel,
     QTreeView,
     QTextBrowser,
+    QLineEdit,
+    QPushButton,
 )
-# from PySide6.QtCore import Qt, QRunnable, Slot
-from PySide6.QtGui import QTextOption
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QTextOption, QTextCharFormat, QColor
+
 from aqmeasy.ui.icons import Icons
 from aqmeasy.controllers.QCORR_controllers.QCORR_ViewController import ViewController
 
@@ -40,34 +43,46 @@ class ViewPanel(QWidget):
 
         self.processed_files = QFileSystemModel()
         self.processed_files.setRootPath('')
+
         self.results_view = QTreeView()
         self.results_view.setModel(self.processed_files)
-        # self.results_view.setRootIsDecorated(False)
-        results_layout.addWidget(self.results_view)
+        self.results_view.setRootIsDecorated(True)
+        self.results_view.setColumnWidth(0, 200)
 
+        self.results_view.doubleClicked.connect(
+            lambda index: self.display_file_content(
+                self.processed_files.filePath(index)
+            )
+        )
+        results_layout.addWidget(self.results_view)
         layout.addWidget(view_group)
         layout.addWidget(results_group)
-
-    def display_folder_contents(self, folder_path):
-        """Display files in the selected folder in selected_paths QLabel, that match the file filters."""
-        matched_files = []
-        folders = folder_path if isinstance(folder_path, list) else [folder_path]
-
-        for single_folder in folders:
-            for root, dirs, files in os.walk(single_folder):
-                for file in files:
-                    if file.lower().endswith(('.log', '.out')):
-                        matched_files.append(os.path.join(file))
-                        self.processed_files.setRootIndex(self.processed_files.index(root))
-
 
     def update_ui(self):
         """Update the UI elements based on the model's state."""
         w_dir = self.model.__get__w_dir_main__()
+        print(f"Updating UI with working directory: {w_dir}")
         if w_dir:
+            # self.processed_files.setRootPath(w_dir)
             self.results_view.setRootIndex(self.processed_files.index(w_dir))
 
+    def display_file_content(self, file_path):
+        """Display the content of the selected file in the text viewer."""
+        try:
+            with open(file_path, 'r') as file:
+                content = file.read()
+                self.file_viewer.setPlainText(content)
+        except Exception as e:
+            self.file_viewer.setPlainText(f"Error reading file: {e}")
 
-    #TODO:
-    # Implement search functionality within the file viewer.
-    
+    def _display_selected_files(self, filenames):
+        """Display the list of selected files in the file viewer."""
+        display_text = "\n".join(filenames)
+        self.file_viewer.setPlainText(display_text)
+
+    def clear_file_viewer(self):
+        """Clear the file viewer content."""
+        self.file_viewer.clear()
+
+# TODO
+# class searchDialog

@@ -10,6 +10,7 @@ class ViewController(QObject):
 
         self.model.currentlySelectedFileChanged.connect(self.thread_display_file)
         self.model.filesChanged.connect(self.check_clear_file_viewer)
+        self.model.wdirChanged.connect(self.view.update_ui)
 
     def check_clear_file_viewer(self):
         # if model.files == [], clear the file viewer

@@ -4,6 +4,7 @@ from PySide6.QtCore import QObject, Slot, QRunnable, QThreadPool, Signal
 from aqme.qcorr import qcorr
 from aqmeasy.models.QCORR_model.QCORR_parammodel import default_values
 import os
+import io, contextlib, traceback
 
 class QCORRWorker(QObject):
     result = Signal(str)
@@ -17,15 +18,16 @@ class QCORRWorker(QObject):
         self.threadpool = QThreadPool()
 
     def run_qcorr(self):
-        worker = Worker(self.param_model, self.file_model)
+        worker = Worker(self,self.param_model, self.file_model)
         self.threadpool.start(worker)
 
 
 class Worker(QRunnable):
-    def __init__(self, param_model, file_model):
+    def __init__(self, parent,param_model, file_model):
         super().__init__()
         self.param_model = param_model
         self.file_model = file_model
+        self.parent = parent
 
     @Slot()
     def run(self):
@@ -52,8 +54,31 @@ class Worker(QRunnable):
             print("No files found in the specified working directory. Aborting QCORR run.")
             return
             
-        qcorr(files='*.*', **params)
+        buf_out = io.StringIO()
+        buf_err = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf_out), contextlib.redirect_stderr(buf_err):
+                qcorr(files='*.*', **params)
+        except Exception:
+            buf_err.write(traceback.format_exc())
 
+        stdout_text = buf_out.getvalue()
+        stderr_text = buf_err.getvalue()
+
+        result = ""
+        if stdout_text:
+            result += stdout_text + "\n"
+        if stderr_text:
+            result += "ERROR STREAM:\n" + stderr_text
+
+        self.qcorr_result = result
+
+        # emit if a Signal was provided/attached
+        self.parent.result.emit(result)
+        # After running qcorr, we can set the working directory back
+        self.file_model.w_dir_main = w_dir_main
+        # emit w dir change signal
+        self.file_model.wdirChanged.emit(w_dir_main)
 
     def check_files_exist(self, files_pattern):
         """
@@ -75,9 +100,9 @@ class Worker(QRunnable):
         changed = {}
         for key, value in params.items():
             if key in default_values and default_values[key] != value:
-                if hasattr(self, key):
-                    pass
-                setattr(self, key, value)
+                # if hasattr(self, key):
+                #     pass
+                # setattr(self, key, value)
                 changed[key] = value
         return changed
 
@@ -101,12 +126,24 @@ class Worker(QRunnable):
     
     def set_up_files_in_wdir(self):
         """
-        Sets (moves over, not symlinks) the files in the working directory to be processed by QCORR.
+        Sets (moves over) the files in the working directory to be processed by QCORR.
+
+        need to see whether we want to move files or copy...
         """
-        wdir = self.collect_qcorr_wdir()
+        wdir = self.collect_qcorr_wdir() + '/QCORR'
         files = self.collect_qcorr_files()
-        if not os.path.exists(wdir):
+        if os.path.exists(wdir):
+            # if exists, create new dir with incremented number
+            i = 1
+            new_wdir = f"{wdir}_{i}"
+            while os.path.exists(new_wdir):
+                i += 1
+                new_wdir = f"{wdir}_{i}"
+            os.makedirs(new_wdir)
+            wdir = new_wdir
+        else:
             os.makedirs(wdir)
+        # Move files to wdir (this may have to be changed, feels hacky at the moment)
         for file in files:
             filename = os.path.basename(file)
             dest = os.path.join(wdir, filename)
