@@ -1,7 +1,7 @@
 import logging
 import csv
 import sys
-from aqmeasy.models.CSEARCH_model.CSEARCH_command import general_command_dictionary as gen_command, crest_command_dictionary as crest_command
+from aqmeasy.models.CSEARCH_model.CSEARCH_command import general_command_default, general_command_model as gen_command, summ_command_model, fullmonte_command_model, crest_command_model as crest_command
 from aqmeasy.ui.CSEARCH_ui.CSEARCH_csvtable import csv_table
 
 from aqmeasy.utils import smiles2enumerate, smiles2charge, smiles2multiplicity, smiles2findmetal
@@ -10,11 +10,11 @@ from rdkit import Chem
 from rdkit.Chem import Draw as rdMolDraw2D, rdDepictor
 from PySide6.QtWidgets import QInputDialog, QMessageBox, QFileDialog
 from PySide6.QtGui import QPixmap
-from PySide6.QtCore import QRunnable, Slot
+from PySide6.QtCore import QObject,QRunnable, Slot, Signal, QThreadPool
 from aqme.csearch import csearch
 
 
-class CsvController:
+class CsvController(QObject):
     """Controller for the CSV model"""
     def __init__(self, model):
         self.model = model
@@ -461,20 +461,40 @@ class CsvController:
 
 
 
-### Under construction...
-    def run_csearch(self):
-        """Run the csearch function in a separate thread."""
-        thread = Worker()   
+
+class CSEARCHWorker(QObject):  
+    result = Signal(str)
+    error = Signal(str)
+    finished = Signal()
+
+    def __init__(self, parent, model):
+        super().__init__()
+        self.parent = parent
+        self.model = model
+        self.threadpool = QThreadPool()
+
+
+    def run(self):
+        """Run the csearch function."""
+        worker = Worker(self)
+        self.threadpool.start(worker.csearch_thread)
+        print("CSEARCHWorker: Task started in thread pool.")
 
 
 class Worker(QRunnable):
     """Worker for csearch thread"""
+    def __init__(self, parent):
+        super().__init__()
+        self.parent = parent
 
     @Slot()
     def csearch_thread(self):
         """runs aqme csearch in the background (new QThread when I understand how that works)
         and pipes the output to the shell_output window.
         Parent UI updates are queued to the main thread since the parent is in a different thread."""
+        command_args = self.collect_csearch_params()
+        print("Collected csearch parameters:", command_args)
+
         if gen_command["input"] == None or gen_command["input"] == "":
             self.parent.failure("Please save the CSV file before running AQME.")
             return
@@ -485,68 +505,41 @@ class Worker(QRunnable):
                 try:
                     print("Preparing to run AQME...")
                     print("Running AQME...")
-                    csearch(destination=gen_command["destination"],
-                            input=gen_command["input"],
-                            program=gen_command["program"],
-                            stacksize=gen_command["stacksize"],
-                            sample=gen_command["sample"],
-                            auto_sample=gen_command["auto_sample"],
-                            ewin_csearch=gen_command["ewin_csearch"],
-                            initial_energy_threshold=gen_command["initial_energy_threshold"],
-                            energy_threshold=gen_command["energy_threshold"],
-                            rms_threshold=gen_command["rms_threshold"],
-                            opt_steps_rdkit=gen_command["opt_steps_rdkit"],
-                            heavyonly=gen_command["heavyonly"],
-                            max_matches_rmsd=gen_command["max_matches_rmsd"],
-                            max_mol_wt=gen_command["max_mol_wt"],
-                            max_torsions=gen_command["max_torsions"],
-                            seed=gen_command["seed"],
-                            geom=gen_command["geom"],
-                            bond_thres=gen_command["bond_thres"],
-                            angle_thres=gen_command["angle_thres"],
-                            dihedral_thres=gen_command["dihedral_thres"],
-                            auto_metal_atoms=gen_command["auto_metal_atoms"]
-                            )
+                    csearch(**command_args)
                 except Exception as e:
+                    print("Error at RDKit:", e)
                     return
-
 
         elif gen_command["program"] == "CREST":
                 try:
                     print("Preparing to run AQME...")
                     print("Running AQME...")
-                    csearch(destination=gen_command["destination"],
-                            input=gen_command["input"],
-                            program=gen_command["program"],
-                            stacksize=gen_command["stacksize"],
-                            sample=gen_command["sample"],
-                            auto_sample=gen_command["auto_sample"],
-                            ewin_csearch=gen_command["ewin_csearch"],
-                            initial_energy_threshold=gen_command["initial_energy_threshold"],
-                            energy_threshold=gen_command["energy_threshold"],
-                            rms_threshold=gen_command["rms_threshold"],
-                            opt_steps_rdkit=gen_command["opt_steps_rdkit"],
-                            heavyonly=gen_command["heavyonly"],
-                            max_matches_rmsd=gen_command["max_matches_rmsd"],
-                            max_mol_wt=gen_command["max_mol_wt"],
-                            max_torsions=gen_command["max_torsions"],
-                            seed=gen_command["seed"],
-                            geom=gen_command["geom"],
-                            bond_thres=gen_command["bond_thres"],
-                            angle_thres=gen_command["angle_thres"],
-                            dihedral_thres=gen_command["dihedral_thres"],
-                            auto_metal_atoms=gen_command["auto_metal_atoms"],
-                            nprocs=crest_command["nprocs"],
-                            constraints_atoms=crest_command["constraints_atoms"],
-                            constraints_dist=crest_command["constraints_dist"],
-                            constraints_angle=crest_command["constraints_angle"],
-                            constraints_dihedral=crest_command["constraints_dihedral"],
-                            crest_force=crest_command["crest_force"],
-                            crest_keywords=crest_command["crest_keywords"] if crest_command["crest_keywords"] is not None else None,
-                            cregen=crest_command["cregen"],
-                            cregen_keywords=crest_command["cregen_keywords"] if crest_command["cregen_keywords"] is not None else None,
-                            xtb_keywords=crest_command["xtb_keywords"] if crest_command["xtb_keywords"] is not None else None,
-                            crest_runs=crest_command["crest_runs"]
-                            )
+                    csearch(**command_args, **crest_command)
                 except Exception as e:
+                    print("Error at CREST:", e)
                     return
+        # send finished signal to parent
+        self.parent.finished.emit()
+
+    def collect_csearch_params(self):
+        """
+        Collects csearch parameters from ParamModel as dict, compares them to default_values, if different stores them as attributes of self.
+        """
+        print("Collecting csearch parameters...")
+        try:
+            params = self.parent.model
+        except Exception as e:
+            print("Error collecting parameters:", e)
+            return
+
+
+        csearch_params = {}
+        for key, value in params.items():
+            print(f"Processing parameter: {key} with value: {value}")
+            if key in general_command_default:
+                print(f"Comparing {key}: current value = {value}, default value = {general_command_default[key]}")
+                if value != general_command_default[key]:
+                    csearch_params[key] = value
+
+        print("CSEARCH parameters collected and passed:", csearch_params)
+        return csearch_params

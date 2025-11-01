@@ -23,6 +23,7 @@ class FileModel(QObject):
 
     def __get__currently_selected_file__(self):
         return self.currently_selected_file
+    
 
     def as_dict(self):
         """Returns the current state of choices as a dict, and is once again updated upon changing, so that correct user selection is created in the file."""

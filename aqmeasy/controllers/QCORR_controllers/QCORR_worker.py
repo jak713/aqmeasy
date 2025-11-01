@@ -1,10 +1,11 @@
 import glob
-from importlib.metadata import files
-from PySide6.QtCore import QObject, Slot, QRunnable, QThreadPool, Signal
-from aqme.qcorr import qcorr
-from aqmeasy.models.QCORR_model.QCORR_parammodel import default_values
 import os
 import io, contextlib, traceback
+
+from PySide6.QtCore import QObject, Slot, QRunnable, QThreadPool, Signal
+from aqmeasy.models.QCORR_model.QCORR_parammodel import default_values
+from aqme.qcorr import qcorr
+
 
 class QCORRWorker(QObject):
     result = Signal(str)
@@ -47,6 +48,8 @@ class Worker(QRunnable):
         # files = w_dir_main+'/*.*'
         # above does not work, hence we SET CURRENT WORKING DIRECTORY to w_dir_main and give files as '*.*'
         # print("QCORR files to be processed:", files)
+
+
         files = '*.*'
         os.chdir(w_dir_main)
         # check files in files directory to see whether they exist:
@@ -79,6 +82,7 @@ class Worker(QRunnable):
         self.file_model.w_dir_main = w_dir_main
         # emit w dir change signal
         self.file_model.wdirChanged.emit(w_dir_main)
+
 
     def check_files_exist(self, files_pattern):
         """
