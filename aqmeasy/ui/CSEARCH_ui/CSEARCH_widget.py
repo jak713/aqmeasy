@@ -35,7 +35,6 @@ class CSEARCHWidget(QWidget):
         self.dropEvent = self._drop_event 
 
         self.file_name = None # this actually not needed but i need to fix the logic when nothing has been changed in the UI and we want to close the app (i.e. no need to save)
-
         
         QShortcut(QKeySequence(Qt.Key_Escape), self, lambda: self.clear_focus_on_inputs())
         
@@ -547,21 +546,14 @@ class CSEARCHWidget(QWidget):
         """
         code_name = self.search_pubchem_input.text()
         if not code_name:
-            QMessageBox.warning(self, "Error", "Please enter a valid CID, CAS or compound name.")
+            self.failure("Please enter a CID, CAS, or compound name to search PubChem.")
+            return
         try:
             smiles = pubchem2smiles(code_name)
         except IndexError:
-            pixmap = QPixmap(Icons.red)
-            icon = QIcon(pixmap)
-            msgBox = QMessageBox(self)
-            msgBox.setWindowTitle("Error")
-            msgBox.setText("No compound found for the given input. Please check the CID or name.")
-            msgBox.setWindowIcon(icon)
-            msgBox.setIconPixmap(icon.pixmap(64, 64))
-            msgBox.setStandardButtons(QMessageBox.Ok)
-            msgBox.exec()
+            self.failure("No compound found for the given input. Please check the CID or name.")
         except Exception as e:
-            QMessageBox.warning(self, "Error", f"An error occurred: {str(e)}")
+            self.failure(f"An error occurred: {str(e)}")
 
         current_text = self.csv_model["SMILES"][self.control.current_index - 1]
         new_text = f"{current_text}.{smiles}" if current_text else smiles
@@ -642,12 +634,12 @@ class CSEARCHWidget(QWidget):
         smiles = self.csv_model["SMILES"][self.control.current_index - 1]
         self.smiles_input.blockSignals(True)
         self.smiles_input.setText(smiles)
+
         self.smiles_output.setText(smiles2enumerate(smiles))
 
         cursor = self.smiles_input.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
         self.smiles_input.setTextCursor(cursor)
-
         self.smiles_input.blockSignals(False)
 
         self.control.display_molecule(self.show_numbered_atoms_toggle.isChecked())
@@ -659,7 +651,7 @@ class CSEARCHWidget(QWidget):
             num_electrons = smiles2numelectrons(smiles)
             self.atom_electron_label.setText(f" Electrons: {num_electrons}\n Atoms: {num_atoms}")
         except Exception as e:
-            logging.error(f"Error calculating atom/electron counts: {e}")
+            print(f"Error calculating atom/electron counts: {e}")
             self.atom_electron_label.setText(" Electrons: 0\n Atoms: 0")
 
         self.update_properties()
@@ -817,165 +809,6 @@ class CSEARCHWidget(QWidget):
         else:
             return
 
-# AQME RUN FUNCTIONS (still under construction, based almnost solely on the pyside6 book example)
-    # def run_aqme(self):
-    #     """Run AQME with the generated command using QProcess in the file_name directory."""
-    #     for value in self.csv_model["SMILES"]:
-    #         if value == "":
-    #             msgBox = QMessageBox(self)
-    #             icon = QIcon(QPixmap(Icons.red))
-    #             msgBox.setIconPixmap(icon.pixmap(64, 64))
-    #             msgBox.setWindowTitle("Warning")
-    #             msgBox.setText("No SMILES found. Please enter a SMILES string.")
-    #             msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
-    #             msgBox.exec()
-    #             return
-    #         else:
-    #             pass
-
-    #     changed_charge_multiplicity = []
-    #     if hasattr(self, 'user_defined_multiplicity'):
-    #         for key in self.user_defined_charge.keys():
-    #             changed_charge_multiplicity.append(key)
-    #     if hasattr(self, 'user_defined_charge'):
-    #         for key in self.user_defined_multiplicity.keys():
-    #             changed_charge_multiplicity.append(key)
-    #     if not self.smiles_w_metal:
-    #         pass
-    #     else:
-    #         for index in self.smiles_w_metal:
-    #             if index not in changed_charge_multiplicity:
-    #                 continue
-    #         msgBox = QMessageBox(self)
-    #         icon = QIcon(QPixmap(Icons.red))
-    #         msgBox.setIconPixmap(icon.pixmap(64, 64))
-    #         msgBox.setWindowTitle("Warning")
-    #         msgBox.setText(f"Please check the charge and multiplicity for the transition metal complex(es).")
-    #         msgBox.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-    #         msgBox.setButtonText(QMessageBox.StandardButton.Yes, "Proceed Anyway")
-    #         msgBox.setButtonText(QMessageBox.StandardButton.No, "Go Back")
-    #         result = msgBox.exec()
-    #         if result == QMessageBox.StandardButton.No:
-    #             return
-    #         else:
-    #             pass
-
-    #     if gen_command["input"] is None or not gen_command["input"]:
-    #         msgBox = QMessageBox(self)
-    #         icon = QIcon(QPixmap(Icons.red))
-    #         msgBox.setIconPixmap(icon.pixmap(64, 64))
-    #         msgBox.setWindowTitle("Warning")
-    #         msgBox.setText("Please select the input file before running AQME.")
-    #         msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
-    #         msgBox.exec()
-    #         self.control.save_csv_file() 
-    #         return
-    #     command = self.aqme_rungen()
-    #     file_directory = os.path.dirname(gen_command["input"])
-
-    #     self.process = QProcess(self)
-    #     self.process.setWorkingDirectory(file_directory)
-
-    #     self.process.readyReadStandardOutput.connect(self.handle_stdout)
-    #     self.process.readyReadStandardError.connect(self.handle_stderr)
-    #     self.process.stateChanged.connect(self.handle_state)
-    #     self.process.finished.connect(self.process_finished)
-
-    #     if os.name == 'posix':
-    #         self.process.start("bash", ["-c", f"{command}"])
-    #     else:
-    #         self.process.start(command)
-
-    # def handle_stdout(self):
-    #     """Append standard output from the process to the shell_output."""
-    #     output = bytes(self.process.readAllStandardOutput()).decode("utf8")
-    #     if output:
-    #         self.shell_output.append(output.strip())
-
-    # def handle_stderr(self):
-    #     """Append standard error from the process to the shell_output."""
-    #     error = bytes(self.process.readAllStandardError()).decode("utf8")
-    #     if error:
-    #         self.shell_output.append(f"Error: {error.strip()}")
-
-    # def handle_state(self, state):
-    #     """Handle the state change of the process."""
-    #     if state == QProcess.ProcessState.NotRunning:
-    #         self.shell_output.append("AQME process finished.")
-    #         self.run_button.setText("Run AQME")
-    #         self.run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
-    #         self.run_button.setStyleSheet(stylesheets.RunButton)
-    #         self.run_button.clicked.disconnect()
-    #         self.run_button.clicked.connect(self.run_aqme)
-    #     elif state == QProcess.ProcessState.Running:
-    #         self.shell_output.append("AQME process running...")
-    #         self.run_button.setText("Stop AQME")
-    #         self.run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaStop))
-    #         self.run_button.setStyleSheet(stylesheets.StopButton)
-    #         self.run_button.clicked.disconnect()
-    #         self.run_button.clicked.connect(self.stop_aqme)
-    #     elif state == QProcess.ProcessState.Starting:
-    #         self.shell_output.append("AQME process starting...")
-
-    # def stop_aqme(self):
-    #     """Stop the AQME process if it is running."""
-    #     if self.process and self.process.state() == QProcess.ProcessState.Running:
-    #         self.process.kill()
-    #         self.shell_output.append("AQME process stopped.")
-    #         self.run_button.setText("Run AQME")
-    #         self.run_button.setStyleSheet(stylesheets.RunButton)
-    #         self.run_button.clicked.disconnect()
-    #         self.run_button.clicked.connect(self.run_aqme)
-    #     else:
-    #         self.shell_output.append("AQME process is not running.")
-
-    # def aqme_rungen(self):
-    #     """Update command w/ csv file."""
-    #     input_file, program, destination, stacksize, sample, auto_sample, ewin_csearch, \
-    #     initial_energy_threshold, energy_threshold, rms_threshold, \
-    #     opt_steps_rdkit, heavyonly, max_matches_rmsd, max_mol_wt, \
-    #     max_torsions, seed, geom, bond_thres, angle_thres, dihedral_thres, auto_metal_atoms = (
-    #         gen_command[key] for key in [
-    #         "input","program", "destination", "stacksize", "sample", "auto_sample",
-    #         "ewin_csearch", "initial_energy_threshold", "energy_threshold",
-    #         "rms_threshold", "opt_steps_rdkit", "heavyonly",
-    #         "max_matches_rmsd", "max_mol_wt", "max_torsions", "seed", "geom",
-    #         "bond_thres", "angle_thres", "dihedral_thres", "auto_metal_atoms"
-    #         ]
-    #     )
-    #     if not input_file:
-    #         self.failure("Please save the file before running AQME.")
-    #         return 
-    #     if not os.path.exists(input_file):
-    #         self.failure("Input file does not exist.")
-    #         return 
-    #     if not destination:
-    #         destination = os.path.dirname(input_file)
-    #     if not os.path.exists(destination):
-    #         os.makedirs(destination)
-    #     if not os.path.exists(destination):
-    #         self.failure("Output directory does not exist.")
-    #         return
-
-    #     aqme_rungen = f'python -u -m aqme --csearch --program "{program}" --input "{input_file}" --destination "{destination}" --stacksize {stacksize} --sample {sample} --auto_sample "{auto_sample}" --ewin_csearch {ewin_csearch} --initial_energy_threshold {initial_energy_threshold} --energy_threshold {energy_threshold} --rms_threshold {rms_threshold} --opt_steps_rdkit {opt_steps_rdkit} --heavyonly {heavyonly} --max_matches_rmsd {max_matches_rmsd} --max_mol_wt {max_mol_wt} --max_torsions {max_torsions} --seed {seed} --geom "{geom}" --bond_thres {bond_thres} --angle_thres {angle_thres} --dihedral_thres {dihedral_thres} --auto_metal_atoms {auto_metal_atoms}'
-
-    #     if program == "CREST":
-    #         nprocs, crest_force, crest_keywords, cregen, cregen_keywords, xtb_keywords, crest_runs = (
-    #             crest_command[key] for key in [
-    #             "nprocs", "crest_force", "crest_keywords", "cregen", "cregen_keywords",
-    #             "xtb_keywords", "crest_runs"
-    #             ]
-    #         )
-    #         aqme_rungen += f' --nprocs {int(nprocs)} --crest_force {crest_force} --cregen {cregen} --crest_runs {crest_runs}'
-
-    #         if crest_keywords != None:
-    #             aqme_rungen += f' --crest_keywords "{crest_keywords}"'
-    #         if cregen_keywords != None:
-    #             aqme_rungen += f' --cregen_keywords "{cregen_keywords}"'
-    #         if xtb_keywords != None:
-    #             aqme_rungen += f' --xtb_keywords "{xtb_keywords}"'
-    #     return aqme_rungen
-
 # random 
     def success(self, message):
         pixmap = QPixmap(Icons.green)
@@ -1035,6 +868,7 @@ class CSEARCHWidget(QWidget):
                 self.import_file(file_path)
         else:
             event.ignore()
+
 
 class MessageBox(QMessageBox):
     def __init__(self, parent=None, title="", message="", type=""):

@@ -62,10 +62,10 @@ def smiles2enumerate(smiles):
         smiles (str): The SMILES string of the molecule.
     Returns:
         str: The enumerated SMILES string of the molecule."""
-    if not smiles:
+    if not smiles or smiles == "":
         return
-    elif smiles == "":
-        return
+    if smiles_enumerated(smiles):
+        return smiles
     try:
         mol = Chem.MolFromSmiles(smiles)
         mol = Chem.AddHs(mol)
@@ -75,6 +75,15 @@ def smiles2enumerate(smiles):
         return enumerated_smiles
     except Exception:
         return
+    
+def smiles_enumerated(smiles):
+    """Checks if a given smiles string is enumerated by checking for square brackets, colons and numbers.
+    Args:
+        smiles (str)
+    Returns:
+        bool
+    """
+    return ("]" and ":" and "[") in smiles
 
 def smiles2charge(smiles):
     """Convert a SMILES string to the formal charge of the molecule.
@@ -122,7 +131,7 @@ def smiles2multiplicity(smiles):
     return multiplicity
 
 def smiles2numatoms(smiles):
-    """Convert a SMILES string to the number of atoms in the molecule.
+    """Convert a SMILES string to the number of atoms in the molecule. Adds implicit hydrogens.
     Args:
         smiles (str): The SMILES string of the molecule.
     Returns:
@@ -132,6 +141,7 @@ def smiles2numatoms(smiles):
     elif smiles == "":
         return 0
     mol = Chem.MolFromSmiles(smiles)
+    mol = Chem.AddHs(mol)
     if mol is None:
         return
         # raise ValueError("Invalid SMILES string.")
@@ -149,6 +159,7 @@ def smiles2numelectrons(smiles):
     elif smiles == "":
         return 0 
     mol = Chem.MolFromSmiles(smiles)
+    mol = Chem.AddHs(mol)
     if mol is None:
         raise ValueError("Invalid SMILES string.")
     num_electrons = sum([atom.GetAtomicNum() for atom in mol.GetAtoms()])

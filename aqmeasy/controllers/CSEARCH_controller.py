@@ -37,9 +37,9 @@ class CsvController(QObject):
         )
         self.csv.table.itemChanged.connect(lambda item: self.update_model_from_table(item))
 
-        self.csv.intermediate_button.clicked.connect(lambda: self.csv.refresh_view() if self.add_intermediate(self.csv.table.selectedItems()) else self.parent.failure("Please select two or more items to add an intermediate."))
+        self.csv.intermediate_button.clicked.connect(lambda: self.csv.refresh_view() if self.add_intermediate(self.csv.table.selectedItems()) else self.parent.failure("Please select two or more items to add an intermediate. Select multiple SMILES with Cmd/Ctrl+right click."))
 
-        self.csv.ts_button.clicked.connect(lambda: self.csv.refresh_view() if self.add_transition_state(self.csv.table.selectedItems()) else self.parent.failure("Please select one or more items to add a transition state."))
+        self.csv.ts_button.clicked.connect(lambda: self.csv.refresh_view() if self.add_transition_state(self.csv.table.selectedItems()) else self.parent.failure("Please select one or more items to add a transition state. Select multiple SMILES with Cmd/Ctrl+right click"))
         self.csv.show()
 
     def update_model_from_table(self, item):
@@ -121,7 +121,7 @@ class CsvController(QObject):
         If the SMILES string changes, remove the constraints."""
         mol = Chem.MolFromSmiles(smiles)
         if not mol:
-            self.parent.smiles_are_bad_bro(smiles)
+            # self.parent.smiles_are_bad_bro(smiles)
             return
         if not smiles:
             self.model["SMILES"][self.current_index - 1] = ""
@@ -465,6 +465,7 @@ class CsvController(QObject):
         self.current_index = (self.current_index - 1) % (self.total_index + 1)
         if self.current_index == 0:
             self.current_index = 1
+        self.model.signals.updated.emit()
         self.parent.update_ui()
 
 
