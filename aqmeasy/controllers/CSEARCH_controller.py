@@ -29,7 +29,8 @@ class CsvController(QObject):
     def get_total_index(self):
         return len(self.model["SMILES"])
 
-    # # messing with the csv_table
+
+
     def show_csv(self):
         self.csv = csv_table(
             csv_model=self.model,
@@ -62,7 +63,7 @@ class CsvController(QObject):
         """Add an intermediate to the CSV table by combining the SMILES strings of the selected items in the csv_table."""
         selected_items = [self.model["SMILES"][item.row()] for item in items]
         selected_code_names = [self.model["code_name"][item.row()] for item in items]
-        # print(selected_items)
+
         if len(selected_items) < 2:
             return False
         
@@ -111,7 +112,9 @@ class CsvController(QObject):
         self.model.signals.updated.emit()
         return True
 
-    # messing with the self.model
+
+
+
     def update_smiles_model(self, smiles):
         """Update the model with the current SMILES string.
         If constraints are present, update the model["SMILES"] with the enumerated SMILES string.
@@ -199,7 +202,9 @@ class CsvController(QObject):
 
             return False  # for the closing event
 
-    # messing with the drawing of the molecule
+
+
+
     def display_molecule(self,checked = None):
         """Display the molecule in the molecule_label using rdkit.Chem.Draw module"""
         rdkit.rdBase.DisableLog('rdApp.*')
@@ -405,7 +410,10 @@ class CsvController(QObject):
                 self.selected_atoms = []
                 return
 
-    # navigating 
+
+
+
+
     def next_molecule(self):
         """Move to the next index in csv dictionary and update display."""
         if self.current_index == self.total_index == 1:

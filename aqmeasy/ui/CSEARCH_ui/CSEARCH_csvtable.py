@@ -40,11 +40,14 @@ class csv_table(QDialog):
     def refresh_view(self):
         """Check the model to refresh the view after changes"""
         table = self.table
+        # There was a feedback loop when add_intermediate was triggered so the signals are blocked for the refreshing and then unblocked. Seems to work as intended now.
+        table.blockSignals(True)
         table.setRowCount(len(self.model["SMILES"]))
         table.setColumnCount(len(self.model.keys()))
         table.setHorizontalHeaderLabels(self.model.keys())
         table.verticalHeader().setDefaultSectionSize(120)
         table.horizontalHeader().setDefaultSectionSize(120)
+        
         for row in range(len(self.model["SMILES"])):
             for col, key in enumerate(self.model.keys()):
                 if key == "SMILES":
@@ -60,3 +63,4 @@ class csv_table(QDialog):
             item = table.item(row, 0)
             if item:
                 item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        table.blockSignals(False)
