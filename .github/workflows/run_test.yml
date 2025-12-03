@@ -8,7 +8,6 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.10"]
-
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python-version }}
@@ -32,29 +31,23 @@ jobs:
           libxcb-xfixes0 \
           libxcb-xkb1 \
           libegl1-mesa
-
-    - name: Start virtual display
-      run: |
+      - name: Start virtual display
+        run: |
           sudo apt-get install -y xvfb
           Xvfb :99 -screen 0 1920x1080x24 &
           export DISPLAY=:99
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-
       - name: Lint with Ruff
         run: |
           pip install ruff
           ruff --format=github --target-version=py310 .
         continue-on-error: true
-
       - name: Test with pytest
         run: |
           coverage run -m pytest  -v -s
-
       - name: Generate Coverage Report
         run: |
           coverage report -m
-      
