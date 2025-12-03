@@ -1,5 +1,6 @@
 aqme
 pyside6
+coverage
 pytest
 pubchempy
 py3dmol
