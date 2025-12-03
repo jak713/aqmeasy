@@ -1,7 +1,7 @@
 import pytest
 from aqmeasy import utils
 
-valid_smiles = ["CCC", "CCO", "c1ccccc1", "C1CCCCC1", "CC(=O)O", "CNC", "CCN(CC)CC", "C1=CC=CN=C1", "C[H+]C", "***********(*****)******","C.C.C", "CC[13C]CC" ""]
+valid_smiles = ["CCC", "CCO", "c1ccccc1", "C1CCCCC1", "CC(=O)O", "CNC", "CCN(CC)CC", "C1=CC=CN=C1", "C.[H+].C", "***********(*****)******","C.C.C", "CC[13C]CC" ""]
 
 invalid_smiles = ["ccc", "CcS", "c1cccc1", "1111", "C+"]
 
