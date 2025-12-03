@@ -1,4 +1,5 @@
 aqme
 pyside6
+pytest
 pubchempy
 py3dmol

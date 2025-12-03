@@ -2,7 +2,6 @@ from pathlib import Path
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
-
 from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors
 from rdkit.Chem.Draw import rdMolDraw2D
@@ -11,8 +10,8 @@ import pubchempy as pcp
 import os
 import sys
 
-def smiles2pixmap(smiles):
-    """Convert a SMILES string to a QPixmap image of the molecule.
+def smiles2pixmap(smiles:str) -> QPixmap:
+    """Convert a SMILES string to a QPixmap image of the molecule. Only used in csv_table.
     Args:
         smiles (str): The SMILES string of the molecule.
     Returns:
@@ -25,45 +24,39 @@ def smiles2pixmap(smiles):
     drawer.FinishDrawing()
     drawer.WriteDrawingText("/tmp/molecule.png")
     pixmap = QPixmap("/tmp/molecule.png")
-    pixmap = pixmap.scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    pixmap = pixmap.scaled(120, 120, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
     return pixmap
 
-def pubchem2smiles(search_text):
-    """Convert a search text (CAS, CID, or name) to a SMILES string using PubChem.
+def pubchem2smiles(search_text: str) -> str | None:
+    """Convert a search text (CID, or name) to a SMILES string using PubChem.
     Args:
-        search_text (str): The search text (CAS, CID, or name).
+        search_text (str): The search text (CID or name).
     Returns:
         str: The SMILES string of the compound."""
     search_text = search_text.strip()
     if not search_text:
-        
-        return
-    if "-" in search_text:
-        compounds = pcp.get_compounds(search_text, 'name')
-        if compounds:
-            cid = compounds[0].cid
-            compound = pcp.get_compounds(cid, 'cid')[0]
+        raise ValueError("Query cannot be empty.")
+    
+    try:
+        if search_text.isdigit():
+            compound = pcp.get_compounds(int(search_text), 'cid')[0]
         else:
-            raise ValueError("No CID match for the given CAS.")
-    elif search_text.isdigit():
-        compound = pcp.get_compounds(int(search_text), 'cid')[0]
-    else:
-        compound = pcp.get_compounds(search_text, 'name')[0]
+            compound = pcp.get_compounds(search_text, 'name')[0]
 
-    smiles = compound.isomeric_smiles
-    if not smiles:
+        smiles = compound.smiles
+    except:
         raise ValueError("No SMILES found for the given input.")
-
     return smiles
 
-def smiles2enumerate(smiles):
+def smiles2enumerate(smiles:str) -> str:
     """Convert a SMILES string to an enumerated SMILES string.
     Args:
         smiles (str): The SMILES string of the molecule.
     Returns:
         str: The enumerated SMILES string of the molecule."""
-    if not smiles or smiles == "":
-        return
+    if not smiles or not smiles.strip():
+        raise ValueError("SMILES string cannot be empty.")
+    
     if smiles_enumerated(smiles):
         return smiles
     try:
@@ -74,16 +67,16 @@ def smiles2enumerate(smiles):
         enumerated_smiles = Chem.MolToSmiles(mol)                
         return enumerated_smiles
     except Exception:
-        return
+        return "Invalid SMILES string."
     
-def smiles_enumerated(smiles):
+def smiles_enumerated(smiles:str) -> bool:
     """Checks if a given smiles string is enumerated by checking for square brackets, colons and numbers.
     Args:
         smiles (str)
     Returns:
         bool
     """
-    return ("]" and ":" and "[") in smiles
+    return ("]" and "[" and ":")  in smiles
 
 def smiles2charge(smiles):
     """Convert a SMILES string to the formal charge of the molecule.
@@ -91,10 +84,8 @@ def smiles2charge(smiles):
         smiles (str): The SMILES string of the molecule.
     Returns:
         int: The formal charge of the molecule."""
-    if not smiles:
-        return
-    elif smiles == "":
-        return
+    if not smiles or not smiles.strip():
+        raise ValueError("SMILES string cannot be empty.")
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError("Invalid SMILES string.")
@@ -113,59 +104,60 @@ def smiles2charge(smiles):
 #         if self.current_index in self.user_defined_charge:
 #             return
 
-def smiles2multiplicity(smiles):
+def smiles2multiplicity(smiles: str) -> int:
     """Convert a SMILES string to the multiplicity of the molecule.
     Args:
         smiles (str): The SMILES string of the molecule.
     Returns:
-        int: The multiplicity of the molecule."""
-    if not smiles:
-        return
-    elif smiles == "":
-        return
+        int: 2S + 1"""
+    if not smiles or not smiles.strip():
+        raise ValueError("SMILES string cannot be empty.")
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
-        return
-        # raise ValueError("Invalid SMILES string.")
-    multiplicity = Descriptors.NumRadicalElectrons(mol) + 1
-    return multiplicity
+        raise ValueError("Invalid SMILES string.")
+    unpaired_electrons = 0
+    for atom in mol.GetAtoms():
+        unpaired_electrons += atom.GetNumRadicalElectrons()
+    mult = unpaired_electrons + 1 
+    return mult
 
-def smiles2numatoms(smiles):
+
+def smiles2numatoms(smiles: str) -> int:
     """Convert a SMILES string to the number of atoms in the molecule. Adds implicit hydrogens.
     Args:
         smiles (str): The SMILES string of the molecule.
     Returns:
         int: The number of atoms in the molecule."""
-    if not smiles:
+    if not smiles or not smiles.strip():
         return 0
-    elif smiles == "":
-        return 0
-    mol = Chem.MolFromSmiles(smiles)
-    mol = Chem.AddHs(mol)
-    if mol is None:
-        return
-        # raise ValueError("Invalid SMILES string.")
+    
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+        mol = Chem.AddHs(mol)
+    except:
+        raise ValueError("Invalid SMILES string.")
+    
     num_atoms = mol.GetNumAtoms()
     return num_atoms
 
-def smiles2numelectrons(smiles):
+def smiles2numelectrons(smiles: str) -> int:
     """Convert a SMILES string to the number of electrons in the molecule.
     Args:
         smiles (str): The SMILES string of the molecule.
     Returns:
         int: The number of electrons in the molecule."""
-    if not smiles: 
+    if not smiles or not smiles.strip():
         return 0
-    elif smiles == "":
-        return 0 
-    mol = Chem.MolFromSmiles(smiles)
-    mol = Chem.AddHs(mol)
-    if mol is None:
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+        mol = Chem.AddHs(mol)
+    except:
         raise ValueError("Invalid SMILES string.")
-    num_electrons = sum([atom.GetAtomicNum() for atom in mol.GetAtoms()])
+    
+    num_electrons = sum([atom.GetAtomicNum() for atom in mol.GetAtoms()] ) - smiles2charge(smiles)
     return num_electrons
 
-def smiles2findmetal(smiles):
+def smiles2findmetal(smiles: str) -> list:
     """Find the transition metal atoms in a SMILES string.
     Args:
         smiles (str): The SMILES string of the molecule.
@@ -180,12 +172,9 @@ def smiles2findmetal(smiles):
     for atom in mol.GetAtoms():
         if atom.GetSymbol() in transition_metals:
             metal_atoms.append(atom.GetSymbol())
-        if len(metal_atoms) > 0:
-            return metal_atoms
-    else:
-        return 
+    return metal_atoms
     
-def command2clipboard(command):
+def command2clipboard(command) -> bool:
     """Copy a command to the clipboard.
     Args:
         command (str): The command to copy.
@@ -202,14 +191,14 @@ def command2clipboard(command):
         return False
 
 
-
 def resource_path(relative_path):
     """Get absolute path to resource, works for dev and for PyInstaller"""
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except AttributeError:
-        # If not running as bundled app, use the script's directory
-        base_path = Path(__file__).resolve().parent
+    # try:
+    #     # PyInstaller creates a temp folder and stores path in _MEIPASS
+    #     base_path = sys._MEIPASS
+    # except AttributeError:
+    
+    # If not running as bundled app, use the script's directory
+    base_path = Path(__file__).resolve().parent
     
     return os.path.join(base_path, relative_path)

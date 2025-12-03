@@ -13,6 +13,11 @@ from PySide6.QtGui import QPixmap
 from PySide6.QtCore import QObject,QRunnable, Slot, Signal, QThreadPool
 from aqme.csearch import csearch
 
+ELECTRON_LABEL_X_OFFSET = 15
+ELECTRON_LABEL_Y_OFFSET = 25
+CLICK_RADIUS_SMALL_MOLECULE = 100
+CLICK_RADIUS_LARGE_MOLECULE = 40
+LARGE_MOLECULE_SMILES_LENGTH_THRESHOLD = 50
 
 class CsvController(QObject):
     """Controller for the CSV model"""
@@ -22,35 +27,35 @@ class CsvController(QObject):
         self.total_index = self.get_total_index()
         self.model.signals.updated.connect(self.update_table_from_model)
 
-    def set_parent(self, parent):
+    def set_parent(self, parent) -> None:
         """Set the parent of the controller"""
         self.parent = parent
 
-    def get_total_index(self):
+    def get_total_index(self) -> int:
         return len(self.model["SMILES"])
 
-
-
-    def show_csv(self):
+    def show_csv(self) -> None:
         self.csv = csv_table(
             csv_model=self.model,
         )
         self.csv.table.itemChanged.connect(lambda item: self.update_model_from_table(item))
 
-        self.csv.intermediate_button.clicked.connect(lambda: self.csv.refresh_view() if self.add_intermediate(self.csv.table.selectedItems()) else self.parent.failure("Please select two or more items to add an intermediate. Select multiple SMILES with Cmd/Ctrl+right click."))
+        self.csv.intermediate_button.clicked.connect(lambda: self.csv.refresh_view() if self.add_intermediate(self.csv.table.selectedItems()) else ...)
 
         self.csv.ts_button.clicked.connect(lambda: self.csv.refresh_view() if self.add_transition_state(self.csv.table.selectedItems()) else self.parent.failure("Please select one or more items to add a transition state. Select multiple SMILES with Cmd/Ctrl+right click"))
         self.csv.show()
 
-    def update_model_from_table(self, item):
-        """Update the model when the signals are emitted"""
+    def update_model_from_table(self, item: str) -> None:
+        """Update the model when signal emitted from the csv table.
+            Args: item (str)
+            Returns None"""
         row = item.row()
         col = item.column()
         key = list(self.model.keys())[col]
         self.model[key][row] = item.text()
         self.model.signals.updated.emit()
 
-    def update_table_from_model(self):
+    def update_table_from_model(self) -> None:
         # Disconnect signals to prevent recursive updates
         if hasattr(self, 'csv'):
             self.csv.table.blockSignals(True)
@@ -59,27 +64,35 @@ class CsvController(QObject):
         else:
             return
 
-    def add_intermediate(self,items):
-        """Add an intermediate to the CSV table by combining the SMILES strings of the selected items in the csv_table."""
+    def add_intermediate(self,items: list) -> bool:
+        """Add an intermediate to the CSV table by combining the SMILES strings of the selected items in the csv_table.
+        
+            Args: items selected (list)
+            Returns False if items selected are fewer than two or if changing the model fails, True otherwise"""
         selected_items = [self.model["SMILES"][item.row()] for item in items]
         selected_code_names = [self.model["code_name"][item.row()] for item in items]
 
         if len(selected_items) < 2:
+            self.parent.failure("Please select two or more items to add an intermediate. Select multiple SMILES with Cmd/Ctrl+right click.")
             return False
-        
-        smiles = ".".join(selected_items)
-        self.new_molecule()
-        index = self.get_total_index() - 1
-        self.model["SMILES"][index] = smiles
-        self.model["code_name"][index] = "Intermediate_" + "+".join(selected_code_names)
-        self.model["charge"][index] = smiles2charge(smiles)
-        self.model["multiplicity"][index] = smiles2multiplicity(smiles)
-        self.model["constraints_atoms"][index] = ""
-        self.model["constraints_dist"][index] = ""
-        self.model["constraints_angle"][index] = ""
-        self.model["constraints_dihedral"][index] = ""
-        self.model.signals.updated.emit()
-        return True
+        try:
+            smiles = ".".join(selected_items)
+            self.new_molecule()
+            index = self.get_total_index() - 1
+            self.model["SMILES"][index] = smiles
+            self.model["code_name"][index] = "Intermediate_" + "+".join(selected_code_names)
+            self.model["charge"][index] = smiles2charge(smiles)
+            self.model["multiplicity"][index] = smiles2multiplicity(smiles)
+            self.model["constraints_atoms"][index] = ""
+            self.model["constraints_dist"][index] = ""
+            self.model["constraints_angle"][index] = ""
+            self.model["constraints_dihedral"][index] = ""
+            self.model.signals.updated.emit()
+            return True
+        except Exception as e:
+            logging.warning(f"Error encountered while adding intermediate: {e}")
+            self.parent.failure("Something went wrong when trying to create an intermediate. Please try again.")
+            return False
 
     def add_transition_state(self, items):
         """Add a transition state to the CSV table."""
@@ -164,12 +177,12 @@ class CsvController(QObject):
         else:
             self.model["SMILES"][self.current_index - 1] = smiles
     
-        if smiles2findmetal(smiles) is not None:
-            metals = smiles2findmetal(smiles)
-            if len(metals) > 0:
-                self.parent.metal_atom_detected(metals)
-            else:
-                pass
+        # if smiles2findmetal(smiles) is not None:
+        #     metals = smiles2findmetal(smiles)
+        #     if len(metals) > 0:
+        #         self.parent.metal_atom_detected(metals)
+        #     else:
+        #         pass
         gen_command["input"] = None
         self.model.signals.updated.emit()
         
@@ -261,10 +274,10 @@ class CsvController(QObject):
         """Handle mouse press events to select atoms and add constraints.
         The logic is to check if the mouse press event is within the molecule_label"""
         if self.parent.molecule_label and self.parent.molecule_label.geometry().contains(pos.toPoint()):
-            x = pos.x() - self.parent.molecule_label.x() +15 # Offset for the electron label
-            y = pos.y() - self.parent.molecule_label.y() +25 
+            x = pos.x() - self.parent.molecule_label.x() + ELECTRON_LABEL_X_OFFSET
+            y = pos.y() - self.parent.molecule_label.y() + ELECTRON_LABEL_Y_OFFSET
             selected_atom = self.get_atom_at_position(x, y)
-            # print(f"Mouse pressed within molecule label at ({x}, {y}).")
+
             if selected_atom is not None:
                 self.handle_atom_selection(selected_atom)
                 self.display_molecule(self.parent.show_numbered_atoms_toggle.isChecked())  
@@ -280,13 +293,11 @@ class CsvController(QObject):
             return None
         elif self.atom_coords is not None:
             for idx, coord in enumerate(self.atom_coords):
-                if len(self.model["SMILES"][self.current_index - 1]) <= 50: # small molecule = bigger click area
-                    if (coord.x - x) ** 2 + (coord.y - y) ** 2 < 100: 
-                        # print(f"Atom {idx + 1} selected at coordinates ({coord.x}, {coord.y}).")
+                if len(self.model["SMILES"][self.current_index - 1]) <= LARGE_MOLECULE_SMILES_LENGTH_THRESHOLD: 
+                    if (coord.x - x) ** 2 + (coord.y - y) ** 2 < CLICK_RADIUS_SMALL_MOLECULE: 
                         return idx + 1
-                elif len(self.model["SMILES"][self.current_index - 1]) > 50 : # big molecule = smaller click area BUT should probs keep playing around with these
-                    if (coord.x - x) ** 2 + (coord.y - y) ** 2 < 40: 
-                        # print(f"Atom {idx + 1} selected at coordinates ({coord.x}, {coord.y}).")
+                elif len(self.model["SMILES"][self.current_index - 1]) > LARGE_MOLECULE_SMILES_LENGTH_THRESHOLD: 
+                    if (coord.x - x) ** 2 + (coord.y - y) ** 2 < CLICK_RADIUS_LARGE_MOLECULE: 
                         return idx + 1
             return None
 
@@ -412,8 +423,6 @@ class CsvController(QObject):
 
 
 
-
-
     def next_molecule(self):
         """Move to the next index in csv dictionary and update display."""
         if self.current_index == self.total_index == 1:
@@ -441,8 +450,10 @@ class CsvController(QObject):
         self.model.signals.updated.emit()
         self.parent.update_ui()
 
-    def delete_molecule(self):
-        """Delete the current molecule and all associated data (including constraints) from the csv dictionary and update the display."""
+    def delete_molecule(self) -> None:
+        """Delete the current molecule and all associated data (including constraints) from the csv dictionary and update the display.
+        
+        Returns None"""
         if self.total_index == 1:
             for key, value in self.model.items():
                 value.pop(self.current_index - 1)
@@ -473,8 +484,8 @@ class CsvController(QObject):
 
 class CSEARCHWorker(QObject):  
     result = Signal(str)
-    error = Signal(str)
-    finished = Signal()
+    error = Signal(str) # to send back to widget as failure
+    finished = Signal(str)
 
     def __init__(self, parent, model):
         super().__init__()
@@ -482,13 +493,10 @@ class CSEARCHWorker(QObject):
         self.model = model
         self.threadpool = QThreadPool()
 
-
-    def run(self):
+    def run(self) -> None:
         """Run the csearch function."""
         worker = Worker(self)
-        self.threadpool.start(worker.csearch_thread)
-        print("CSEARCHWorker: Task started in thread pool.")
-
+        self.threadpool.start(worker.csearch_thread())
 
 class Worker(QRunnable):
     """Worker for csearch thread"""
@@ -497,58 +505,60 @@ class Worker(QRunnable):
         self.parent = parent
 
     @Slot()
-    def csearch_thread(self):
-        """runs aqme csearch in the background (new QThread when I understand how that works)
-        and pipes the output to the shell_output window.
-        Parent UI updates are queued to the main thread since the parent is in a different thread."""
-        command_args = self.collect_csearch_params()
-        print("Collected csearch parameters:", command_args)
-
+    def csearch_thread(self) -> None:
+        """Runs AQME CSEARCH in the background. 
+            
+            Returns None."""
         if gen_command["input"] == None or gen_command["input"] == "":
-            self.parent.failure("Please save the CSV file before running AQME.")
+            self.parent.error.emit("Please save the CSV file before running AQME.")
             return
+        
+        command_args = self.collect_csearch_params()
+        logging.info("Collected csearch parameters:", command_args)
+
         if gen_command["destination"] == None or gen_command["destination"] == "":
             gen_command["destination"] = gen_command["input"].replace(".csv", "_aqme")
         
-        if gen_command["program"] == "RDKit":
+        if gen_command["program"] == "rdkit":
                 try:
-                    print("Preparing to run AQME...")
-                    print("Running AQME...")
+                    # Begin the process by calling aqme csearch module 
                     csearch(**command_args)
-                except Exception as e:
-                    print("Error at RDKit:", e)
-                    return
+                    # CAVEAT: need to find a way to reliably capture stdout and stderr 
 
-        elif gen_command["program"] == "CREST":
+                except Exception as e:
+                    logging.warning(f"Error encountered at csearch_thread when selecting RDKit: {e}")
+
+        elif gen_command["program"] == "crest":
                 try:
-                    print("Preparing to run AQME...")
-                    print("Running AQME...")
                     csearch(**command_args, **crest_command)
                 except Exception as e:
-                    print("Error at CREST:", e)
-                    return
-        # send finished signal to parent
-        self.parent.finished.emit()
+                    logging.warning(f"Error encountered at csearch_thread when selecting CREST: {e}")
 
-    def collect_csearch_params(self):
+        # send finished signal to parent
+        self.parent.finished.emit("CSEARCH thread finished.")
+
+    def collect_csearch_params(self) -> dict:
         """
         Collects csearch parameters from ParamModel as dict, compares them to default_values, if different stores them as attributes of self.
+
+        Must store the input file and the program (rdkit/crest).
+
+        Returns:
+            csearch_params (dict): Dictionary of csearch parameters to be passed to aqme.csearch function.
         """
-        print("Collecting csearch parameters...")
         try:
             params = self.parent.model
+            logging.info("Current parameters:", params)
         except Exception as e:
-            print("Error collecting parameters:", e)
-            return
-
+            logging.warning(f"Error encountered at collect_csearch_params when extracting params from model: {e}")
 
         csearch_params = {}
+
         for key, value in params.items():
-            print(f"Processing parameter: {key} with value: {value}")
             if key in general_command_default:
-                print(f"Comparing {key}: current value = {value}, default value = {general_command_default[key]}")
+
+                logging.info(f"Comparing {key}: current value = {value}, default value = {general_command_default[key]}")
                 if value != general_command_default[key]:
                     csearch_params[key] = value
-
-        print("CSEARCH parameters collected and passed:", csearch_params)
+                    
         return csearch_params

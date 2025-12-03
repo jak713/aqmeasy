@@ -20,7 +20,7 @@ class MainWindow(QMainWindow):
         self.move(0, 0)
 
         #on close destroy all child windows too
-        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
 
         central_widget = QWidget(self)
         layout = QVBoxLayout(central_widget)
@@ -49,7 +49,7 @@ class MainWindow(QMainWindow):
             img = readthedocs_icon.toImage()
             img.invertPixels()
             readthedocs_icon = QPixmap.fromImage(img)
-            readthedocs_icon = readthedocs_icon.scaled(logo.pixmap().size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            readthedocs_icon = readthedocs_icon.scaled(logo.pixmap().size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             readthedocs_label.setPixmap(readthedocs_icon)
         else:
             readthedocs_label.setText('<a href="https://aqme.readthedocs.io/en/latest/">Docs</a>')
@@ -57,8 +57,8 @@ class MainWindow(QMainWindow):
         readthedocs_label.mousePressEvent = lambda event: QDesktopServices.openUrl(QUrl("https://aqme.readthedocs.io/en/latest/"))
         
 
-        layout.addWidget(logo,2, alignment=Qt.AlignCenter)
-        layout.addWidget(readthedocs_label,1, alignment=Qt.AlignCenter)
+        layout.addWidget(logo,2, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(readthedocs_label,1, alignment=Qt.AlignmentFlag.AlignCenter)
         self.setCentralWidget(central_widget)
 
         label_layout = QHBoxLayout()
@@ -98,7 +98,7 @@ class MainWindow(QMainWindow):
 
         for label in labels:
             label.setFont(label_font)
-            label.setAlignment(Qt.AlignCenter)
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         layout.addStretch()  
         layout.addLayout(label_layout)  
@@ -192,7 +192,6 @@ class MainWindow(QMainWindow):
         pass
 
     def new_csearch_widget(self):
-        """Opens a new window for converting SMILES to CSV"""
         self.new_csearch = CSEARCH()
         self.new_csearch.show()
 

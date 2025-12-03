@@ -37,7 +37,7 @@ class csv_table(QDialog):
         self.intermediate_button = intermediate_button
         self.ts_button = ts_button
 
-    def refresh_view(self):
+    def refresh_view(self) -> None:
         """Check the model to refresh the view after changes"""
         table = self.table
         # There was a feedback loop when add_intermediate was triggered so the signals are blocked for the refreshing and then unblocked. Seems to work as intended now.
@@ -47,13 +47,13 @@ class csv_table(QDialog):
         table.setHorizontalHeaderLabels(self.model.keys())
         table.verticalHeader().setDefaultSectionSize(120)
         table.horizontalHeader().setDefaultSectionSize(120)
-        
+
         for row in range(len(self.model["SMILES"])):
             for col, key in enumerate(self.model.keys()):
                 if key == "SMILES":
                     pixmap = smiles2pixmap(self.model[key][row])
                     item = QTableWidgetItem()
-                    item.setData(Qt.DecorationRole, pixmap)
+                    item.setData(Qt.ItemDataRole.DecorationRole, pixmap) # Data in the form of an icon
                     table.setItem(row, col, item)
                 else:
                     item = QTableWidgetItem(str(self.model[key][row]))
@@ -62,5 +62,14 @@ class csv_table(QDialog):
         for row in range(table.rowCount()):
             item = table.item(row, 0)
             if item:
-                item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+                item.setFlags(Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled)
         table.blockSignals(False)
+
+    def get_row_count(self) -> int:
+        return self.table.rowCount()
+    
+    def get_column_count(self) -> int:
+        return self.table.columnCount()
+    
+    def get_item(self, row: int, column: int):
+        return self.table.item(row, column)

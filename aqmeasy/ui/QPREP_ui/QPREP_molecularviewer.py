@@ -11,6 +11,7 @@ from rdkit.Chem import AllChem
 import py3Dmol
 
 from aqmeasy.ui.stylesheets import stylesheets
+from aqmeasy.utils import smiles2multiplicity
 
 
 class MoleculeViewer(QWidget):
@@ -278,7 +279,7 @@ class MoleculeViewer(QWidget):
             num_atoms = mol.GetNumAtoms()
             num_bonds = mol.GetNumBonds()
             charge = Chem.GetFormalCharge(mol)
-            mult = self.getMult(mol)
+            mult = smiles2multiplicity(Chem.MolToSmiles(mol))
 
             mol_name = mol.GetProp('_Name') if mol.HasProp('_Name') else f"Molecule {original_idx + 1}"
             if not mol_name.strip():
@@ -324,13 +325,6 @@ class MoleculeViewer(QWidget):
             self.source_file_label.setText("Error")
 
         self.render_selected_molecule()
-
-    def getMult(self, mol):
-        """2S + 1, where S is the total spin, 1 unpaired electron = 1/2"""
-        unpaired_electrons = 0
-        for atom in mol.GetAtoms():
-            unpaired_electrons += atom.GetNumRadicalElectrons()
-        return int(unpaired_electrons / 2 + 1)
 
     def render_selected_molecule(self):
         if not self.molecules:

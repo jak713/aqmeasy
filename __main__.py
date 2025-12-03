@@ -6,10 +6,12 @@ from pathlib import Path
 
 if __name__ == "__main__":
     app = QApplication([]) # won't need any args if ran as executable
+
     base_path = Path(__file__).parent
     icon_path = base_path / "ui" / "resources" / "AQME_icon.png"
     app.setWindowIcon(QIcon(str(icon_path)))
     app.setStyle("Fusion")
+    app.setApplicationName("AQMEasy")
     window = MainWindow()
     window.show()
     window.destroyed.connect(app.quit)

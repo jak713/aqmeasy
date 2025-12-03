@@ -22,7 +22,7 @@ class command_model(UserDict):
 general_command_default = {
     "input": "",
     "destination": "",
-    "program": "",
+    "program": "rdkit",
     "stacksize": "1GB",
     "sample": 25,
     "auto_sample": "mid",

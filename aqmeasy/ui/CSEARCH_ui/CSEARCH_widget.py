@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 
 from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QTextEdit, QCheckBox, QMessageBox, QSizePolicy, QFileDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem, QFrame, QGridLayout, QDoubleSpinBox, QGroupBox
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, QDoubleValidator, QTextCursor, QIntValidator
 
 from rdkit import Chem
@@ -36,7 +36,7 @@ class CSEARCHWidget(QWidget):
 
         self.file_name = None # this actually not needed but i need to fix the logic when nothing has been changed in the UI and we want to close the app (i.e. no need to save)
         
-        QShortcut(QKeySequence(Qt.Key_Escape), self, lambda: self.clear_focus_on_inputs())
+        QShortcut(QKeySequence(Qt.Key.Key_Escape), self, lambda: self.clear_focus_on_inputs())
         
         self.smiles_w_metal = [] # will take this out later, right now the feature is not implemented
 
@@ -66,11 +66,6 @@ class CSEARCHWidget(QWidget):
         self.import_button.setIcon(QIcon(Icons.add_file))
         self.import_button.clicked.connect(lambda: (logging.debug("at import_button >>> self.import_file()"), self.import_file()))
         self.control1_layout.addWidget(self.import_button)
-
-        self.new_molecule_button = QPushButton("Add", self)
-        self.new_molecule_button.setIcon(QIcon(Icons.plus))
-        self.new_molecule_button.clicked.connect(lambda: (logging.debug("at new_molecule_button >>> self.new_molecule()"), self.control.new_molecule()))
-        self.control1_layout.addWidget(self.new_molecule_button)
 
         self.show_all_button = QPushButton("Show All", self)
         self.show_all_button.setIcon(QIcon(Icons.external_link))
@@ -138,22 +133,27 @@ class CSEARCHWidget(QWidget):
         self.right_layout.addLayout(self.control3_layout)
 
     # CONTROL BUTTONS
-        self.delete_button = QPushButton("Delete", self)
-        self.delete_button.setIcon(QIcon(Icons.minus))
+        self.delete_button = QPushButton()
+        self.delete_button.setIcon(QIcon(Icons.trash))
         self.delete_button.clicked.connect(self.control.delete_molecule)
         self.control3_layout.addWidget(self.delete_button)
+
+        self.new_molecule_button = QPushButton()
+        self.new_molecule_button.setIcon(QIcon(Icons.plus))
+        self.new_molecule_button.clicked.connect(lambda: (logging.debug("at new_molecule_button >>> self.new_molecule()"), self.control.new_molecule()))
+        self.control3_layout.addWidget(self.new_molecule_button)
 
         self.previous_button = QPushButton()
         self.previous_button.setIcon(QIcon(Icons.chevron_double_left))
         self.previous_button.clicked.connect(lambda: (logging.debug("at previous_button >>> self.previous_molecule"), self.control.previous_molecule()))
-        QShortcut(QKeySequence(Qt.Key_Left), self, self.control.previous_molecule)
+        QShortcut(QKeySequence(Qt.Key.Key_Left), self, self.control.previous_molecule)
         self.control3_layout.addWidget(self.previous_button)
 
         self.next_button = QPushButton()
         self.next_button.setIcon(QIcon(Icons.chevron_double_right))
         self.next_button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.next_button.clicked.connect(lambda: (logging.debug("at next_button >>> self.next_molecule"), self.control.next_molecule()))
-        QShortcut(QKeySequence(Qt.Key_Right), self, self.control.next_molecule)
+        QShortcut(QKeySequence(Qt.Key.Key_Right), self, self.control.next_molecule)
         self.control3_layout.addWidget(self.next_button)
 
     # OUTPUTS
@@ -194,6 +194,7 @@ class CSEARCHWidget(QWidget):
         self.shell_output.setReadOnly(True)
         shell_layout = QVBoxLayout(shell_group)
         shell_layout.addWidget(self.shell_output)
+        self.parent.worker.result.connect(self.shell_output.append)
 
         self.bottom_layout.addWidget(shell_group, 2)
 
@@ -207,10 +208,10 @@ class CSEARCHWidget(QWidget):
         self.aqme_setup_grid.addWidget(self.program_label, 0, 0)
 
         self.program_combo = QComboBox(self)
-        
         self.program_combo.addItems(["RDKit", "CREST", "GOAT*"])
         self.program_combo.model().item(2).setEnabled(False)
-        self.program_combo.currentTextChanged.connect(lambda text: gen_command.update({"program": text}))
+        gen_command.update({"program": "rdkit"})
+        self.program_combo.currentTextChanged.connect(lambda text: gen_command.update({"program": text.lower()}))
         self.aqme_setup_grid.addWidget(self.program_combo, 0, 1)
 
         # Row 1 - Number of processors
@@ -263,6 +264,8 @@ class CSEARCHWidget(QWidget):
         self.run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
 
         self.run_button.clicked.connect(self.parent.worker.run)
+        self.parent.worker.error.connect(self.failure)
+        self.parent.worker.finished.connect(self.success)
         
         self.aqme_setup_grid.addWidget(self.run_button, 4, 1, 2, 1)
 
@@ -550,17 +553,20 @@ class CSEARCHWidget(QWidget):
             return
         try:
             smiles = pubchem2smiles(code_name)
+            current_text = self.csv_model["SMILES"][self.control.current_index - 1]
+            new_text = f"{current_text}.{smiles}" if current_text else smiles
+            if isinstance(new_text, str):
+                self.smiles_input.setText(new_text)
+
         except IndexError:
             self.failure("No compound found for the given input. Please check the CID or name.")
         except Exception as e:
             self.failure(f"An error occurred: {str(e)}")
-
-        current_text = self.csv_model["SMILES"][self.control.current_index - 1]
-        new_text = f"{current_text}.{smiles}" if current_text else smiles
-        self.smiles_input.setText(new_text)
-
+            
         if not self.csv_model["code_name"][self.control.current_index - 1]:
             self.csv_model["code_name"][self.control.current_index - 1] = code_name
+
+        
         self.update_properties()
         self.update_ui()
         self.search_pubchem_input.clear()
@@ -635,7 +641,10 @@ class CSEARCHWidget(QWidget):
         self.smiles_input.blockSignals(True)
         self.smiles_input.setText(smiles)
 
-        self.smiles_output.setText(smiles2enumerate(smiles))
+        try:
+            self.smiles_output.setText(smiles2enumerate(smiles))
+        except ValueError:
+            self.smiles_output.setText("")
 
         cursor = self.smiles_input.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
@@ -810,7 +819,8 @@ class CSEARCHWidget(QWidget):
             return
 
 # random 
-    def success(self, message):
+    @Slot(str)
+    def success(self, message:str) -> None:
         pixmap = QPixmap(Icons.green)
         msg = QMessageBox(self)
         msg.setWindowTitle("Success")
@@ -823,7 +833,8 @@ class CSEARCHWidget(QWidget):
             msg.setIcon(QMessageBox.Information)
         msg.exec()
 
-    def failure(self, message):
+    @Slot(str)
+    def failure(self, message:str) -> None:
         pixmap = QPixmap(Icons.red)
         msg = QMessageBox(self)
         msg.setWindowTitle("Failure")

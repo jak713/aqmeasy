@@ -1,5 +1,13 @@
-tests/
 build/
 dist/
+*.egg-info/
+
 run_app.py
 test-files/
+
+.pytest_cache/
+.coverage
+htmlcov/
+
+*.pyc
+__pycache__/
