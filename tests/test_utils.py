@@ -143,6 +143,7 @@ class TestUtils:
 
     def test_valid_smiles2pixmap(self):
         for smiles in valid_smiles:
+            print(f"Input SMILES: {smiles}")
             assert utils.smiles2pixmap(smiles)is not None
 
     def test_empty_smiles2pixmap(self):
@@ -194,6 +195,7 @@ class TestUtils:
 
     def test_smiles2charge_positive(self):
         for smiles, charge in positive_smiles.items():
+            print(f"Input SMILES: {smiles}")
             assert utils.smiles2charge(smiles) == charge
 
     def test_smiles2charge_negative(self):
@@ -244,6 +246,7 @@ class TestUtils:
 
     def test_smiles2numelectrons_valid(self):
         for smiles, num_electrons in electron_smiles.items():
+            print(f"Input SMILES: {smiles}")
             assert utils.smiles2numelectrons(smiles) == num_electrons
 
     def test_empty_smiles2numelectrons(self):
