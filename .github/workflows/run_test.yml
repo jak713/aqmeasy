@@ -46,11 +46,11 @@ jobs:
       - name: Lint with Ruff
         run: |
           pip install ruff
-          ruff --output-format=github --target-version=py310 .
+          ruff  --target-version=py310 .
         continue-on-error: true
       - name: Test with pytest
         run: |
-          coverage run -m pytest  -v -s
+          coverage run --omit="*/shibokensupport/*,*/shiboken6/*,*/PySide6/*,*/__init__.py" -m pytest -v -s
       - name: Generate Coverage Report
         run: |
           coverage report -m
