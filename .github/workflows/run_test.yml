@@ -15,18 +15,45 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Install Qt dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+          libegl1 \
+          libgl1 \
+          libopengl0 \
+          libxkbcommon0 \
+          libxcb-icccm4 \
+          libxcb-image0 \
+          libxcb-keysyms1 \
+          libxcb-randr0 \
+          libxcb-render-util0 \
+          libxcb-shape0 \
+          libxcb-xfixes0 \
+          libxcb-xkb1 \
+          libegl1-mesa
+
+    - name: Start virtual display
+      run: |
+          sudo apt-get install -y xvfb
+          Xvfb :99 -screen 0 1920x1080x24 &
+          export DISPLAY=:99
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
       - name: Lint with Ruff
         run: |
           pip install ruff
           ruff --format=github --target-version=py310 .
         continue-on-error: true
+
       - name: Test with pytest
         run: |
           coverage run -m pytest  -v -s
+
       - name: Generate Coverage Report
         run: |
           coverage report -m
