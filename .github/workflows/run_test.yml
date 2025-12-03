@@ -50,7 +50,7 @@ jobs:
         continue-on-error: true
       - name: Test with pytest
         run: |
-          coverage run --omit="*/shibokensupport/*,*/shiboken6/*,*/PySide6/*,*/__init__.py" -m pytest -v -s
+          coverage run --omit="*/__init__.py,*/shibokensupport/*,*/shiboken6/*,*/PySide6/*,*/signature_bootstrap.py" -m pytest -v -s
       - name: Generate Coverage Report
         run: |
           coverage report -m
