@@ -36,6 +36,8 @@ jobs:
           # app-dir: ~/project/package-directory/  # If your requirements.txt isn't in the root directory.
           # pip-dependency-file: test-requirements.txt  # if you have a different name for your requirements file, maybe one that combines your runtime and test requirements.
       - run: |
+          sudo apt-get install libgl1
+          
           # update conda and create env
           conda update -y conda
           conda create -n cheminf python=3.12
@@ -51,9 +53,11 @@ jobs:
           
           # install and run pytest
           pip install pytest
+          pip install coverage
+          pip install pytest-qt
           pip install pytest-cov
           pip install pytest-mock
-          # the format of the codecov report has to be scpecified or it doesn't create for some reason
+
           python -m pytest -v --cov=aqmeasy --cov-report=xml
           rm -r /tmp/*
           cp -r * /tmp
