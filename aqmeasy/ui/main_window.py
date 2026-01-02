@@ -7,7 +7,6 @@ from aqmeasy.ui.QCORR_ui.QCORR import QCORR
 from aqmeasy.ui.stylesheets import stylesheets
 from PySide6.QtCore import Qt, QUrl
 import os
-import requests
 
 class MainWindow(QMainWindow):
 #FE6253 coral

@@ -203,7 +203,7 @@ class TestCSEARCHsetupUI:
 
 
     def test_import_test_file(self, main_widget, csv_table):
-        test_file_path = os.path.join(os.path.dirname(__file__), "test_files", "test2.csv")
+        test_file_path = os.path.join(os.path.dirname(__file__), "test2.csv")
         main_widget.import_file(file_name=test_file_path)
 
         assert os.path.exists(test_file_path)
