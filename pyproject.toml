@@ -1,0 +1,13 @@
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Prevent Qt GUI windows from showing during tests
+qt_api = "pyside6"
+addopts = [
+    "-v",
+    "--tb=short",
+]

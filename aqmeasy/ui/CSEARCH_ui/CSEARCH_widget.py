@@ -598,20 +598,15 @@ class CSEARCHWidget(QWidget):
 
         try:
             self.properties_table.setRowCount(9)  
-            properties = [
-            ("code_name", self.csv_model["code_name"][self.control.current_index - 1]),
-            ("charge", self.csv_model["charge"][self.control.current_index - 1]),
-            ("multiplicity", self.csv_model["multiplicity"][self.control.current_index - 1]),
-            ("constraints_atoms", self.csv_model["constraints_atoms"][self.control.current_index - 1]),
-            ("constraints_dist", self.csv_model["constraints_dist"][self.control.current_index - 1]),
-            ("constraints_angle", self.csv_model["constraints_angle"][self.control.current_index - 1]),
-            ("constraints_dihedral", self.csv_model["constraints_dihedral"][self.control.current_index - 1]),
-            ("complex_type", self.csv_model["complex_type"][self.control.current_index - 1]),
-            ("geom", self.csv_model["geom"][self.control.current_index - 1]),
-            ]
+            current_index = self.control.current_index - 1 # Adjust for 0-based index
+            try:
+                properties = self.csv_model.get_row_as_list_of_tuples(current_index)
+            except IndexError:
+                logging.debug("IndexError in update_properties: current_index out of range.")
+                properties = []
             
             self.properties_table.blockSignals(True)
-            
+
             for row, (property_name, value) in enumerate(properties):
                 self.properties_table.setItem(row, 0, QTableWidgetItem(property_name))
                 self.properties_table.setItem(row, 1, QTableWidgetItem(str(value)))
@@ -637,7 +632,10 @@ class CSEARCHWidget(QWidget):
 
     def update_ui(self):
         """Update all UI elements to reflect the current molecule's data."""
-        smiles = self.csv_model["SMILES"][self.control.current_index - 1]
+        try:
+            smiles = self.csv_model["SMILES"][self.control.current_index - 1]
+        except IndexError:
+            smiles = "" 
         self.smiles_input.blockSignals(True)
         self.smiles_input.setText(smiles)
 
@@ -700,7 +698,8 @@ class CSEARCHWidget(QWidget):
             event.accept()
 
 
-# CHEMDRAW FUNCTIONS
+# CHEMDRAW FUNCTIONS 
+# NOTE THIS NEEDS TO BE MOVED OVER TO THE CONTROLLER, THERE IS NO REASON WHY IT SHOULD BE WITHIN THE UI 
     def import_file(self,file_name=None):
         """Import an SDF or ChemDraw file, extract SMILES, and display them. For CSV files, read the data and update the model."""
 
@@ -753,17 +752,7 @@ class CSEARCHWidget(QWidget):
                 with open(file_name, 'r') as csvfile:
                     reader = csv.DictReader(csvfile)
                     for row in reader: 
-                        self.csv_model["SMILES"].append(row["SMILES"])
-                        self.csv_model["code_name"].append(row["code_name"])
-                        self.csv_model["charge"].append(row["charge"])
-                        self.csv_model["multiplicity"].append(row["multiplicity"])
-                        self.csv_model["constraints_atoms"].append(row["constraints_atoms"])
-                        self.csv_model["constraints_dist"].append(row["constraints_dist"])
-                        self.csv_model["constraints_angle"].append(row["constraints_angle"])
-                        self.csv_model["constraints_dihedral"].append(row["constraints_dihedral"])
-                        self.csv_model["complex_type"].append(row["complex_type"])
-                        self.csv_model["geom"].append(row["geom"])
-                        self.csv_model.signals.updated.emit()
+                        self.csv_model.add_row(row)
                     
                 self.control.total_index = self.control.get_total_index()
                 if self.control.total_index > 0:

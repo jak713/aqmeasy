@@ -4,8 +4,9 @@ import pytest
 from pytestqt import qtbot
 from PySide6.QtCore import Qt
 
-from aqmeasy.models.CSEARCH_model.CSEARCH_command import command_model
+from aqmeasy.models.CSEARCH_model.CSEARCH_command import general_command_default
 from aqmeasy.ui.CSEARCH_ui.CSEARCH import CSEARCH
+from aqmeasy.controllers.CSEARCH_controller import Worker
 
 test_smiles = ["CCO", "C1=CC=CC=C1", "C(C(=O)O)N", "CC(=O)OC1=CC=CC=C1C(=O)O", "C1CCCCC1", "C1=CC=CN=C1", "CCN(CC)CC", "C(CCl)Br", "CC(C)O", "C1=CC=C(C=C1)O"]
 
@@ -14,6 +15,7 @@ test_code_names = ["ethanol", "benzene", "glycine", "aspirin", "cyclohexane", "p
 @pytest.fixture
 def csearch_widget(qtbot):
     widget = CSEARCH()
+    widget.hide()  # Prevent the widget from showing during tests
     qtbot.addWidget(widget)
     return widget
 
@@ -25,9 +27,10 @@ def main_widget(csearch_widget):
 @pytest.fixture
 def csv_table(csearch_widget, qtbot, main_widget):
     """This has to be initialised before using."""
-    with qtbot.waitSignal(main_widget.show_all_button.clicked, timeout=1000):
-            qtbot.mouseClick(main_widget.show_all_button, Qt.MouseButton.LeftButton)
-    return csearch_widget.main_widget.control.csv
+    main_widget.control.show_csv()
+    csv = csearch_widget.main_widget.control.csv
+    csv.hide()  # Hide the CSV table window during tests
+    return csv
 
 @pytest.fixture
 def control(csearch_widget):
@@ -55,7 +58,6 @@ class TestUIElements:
         """Pressing the button should trigger self.show_all_button.clicked.connect(self.control.show_csv)"""
         assert main_widget.show_all_button is not None
         assert csv_table is not None
-        assert csv_table.isVisible()
 
 class TestSyncToCSVModel:
     """
@@ -74,12 +76,12 @@ class TestSyncToCSVModel:
             with qtbot.waitSignal(control.model.signals.updated, timeout=1000):
                 control.new_molecule()  # ensure the row exists
                 smiles_input.setText(smiles)
-                assert control.model["SMILES"][control.current_index - 1] == smiles
+                assert control.model.__getitem__("SMILES")[control.current_index - 1] == smiles
         
         for _ in test_smiles:
             control.delete_molecule()  # clean up the model after test
         
-        assert len(control.model["SMILES"]) == 1  # only the initial empty entry remains
+        assert len(control.model.__getitem__("SMILES")) == 1  # only the initial empty entry remains
 
     # def test_model_updates_smiles_input(self, main_widget, control, qtbot):
     #     smiles_input = main_widget.smiles_input
@@ -147,3 +149,82 @@ class TestPropertiesTable:
 #     """ 
 #     1. """
 #     ...
+
+
+class TestCSEARCHWorker:   
+    """
+    1. collect_research_params() returns dictionary with correct keys and default values when no UI inputs are set.
+    2-4. collect_research_params() returns dictionary with correct keys and updated values when UI inputs are set.
+    """
+
+    def test_collect_research_params_defaults(self, csearch_widget):
+        """
+        For default inputs, there should only be one UI-imposed change, which is the program. Without specifying the program, aqme cannot run. 
+        """
+        CSEARCHworker = csearch_widget.worker
+        worker = Worker(CSEARCHworker)
+        params = worker.collect_csearch_params()
+
+        assert params == {"program": "rdkit"}
+
+    def test_collect_research_params_with_input(self, csearch_widget):
+        CSEARCHworker = csearch_widget.worker
+        worker = Worker(CSEARCHworker)
+        CSEARCHworker.model.__setitem__("input", "test.csv")
+        params = worker.collect_csearch_params()
+
+        assert params["input"] == "test.csv"
+        assert params["program"] == "rdkit"
+
+    def test_collect_research_params_with_UI_changes(self, csearch_widget):
+        """
+        The model should be updated 
+        """
+        ...
+        
+        
+class TestCSEARCHsetupUI:
+    """
+    0. Clear model and UI before running tests.
+    1. Test importing the test file from test_files (test.csv) - should populate the model and CSV table correctly.
+    2. Check that Run AQME button triggers user to save the file and does not proceed without saving.
+    3. Check after saving that Run AQME triggers the command_model to start processing.
+    4. Check that new directory is created for CSEARCH outputs.
+    """
+
+    def test_clear_model_and_ui(self, control, main_widget):
+        # delete all current entries:
+        control.model.__setitem__("SMILES", [""])
+        assert control.model.__getitem__("SMILES") == [""]
+        assert len(control.model["SMILES"]) == 1
+        assert main_widget.smiles_input.toPlainText() == ""
+        assert control.current_index == 1
+        assert control.get_total_index() == 1
+
+
+    def test_import_test_file(self, main_widget, csv_table):
+        test_file_path = os.path.join(os.path.dirname(__file__), "test_files", "test2.csv")
+        main_widget.import_file(file_name=test_file_path)
+
+        assert os.path.exists(test_file_path)
+        assert len(main_widget.csv_model["SMILES"]) == 4  # 4 entries in test.csv
+        assert csv_table.get_row_count() == 4
+
+    # def test_run_aqme_without_saving(self, csearch_widget, qtbot):
+    #     """Test that running AQME without saving shows an error message."""
+    #     # Capture the error signal
+    #     error_message = None
+    #     def capture_error(msg):
+    #         nonlocal error_message
+    #         error_message = msg
+        
+    #     csearch_widget.worker.error.connect(capture_error)
+        
+    #     # Call the run method directly instead of clicking
+    #     csearch_widget.worker.run()
+        
+    #     # Process events to allow signals to propagate
+    #     qtbot.wait(100)
+        
+    #     # Verify error was emitted
+    #     assert error_message == "Please save the CSV file before running AQME."

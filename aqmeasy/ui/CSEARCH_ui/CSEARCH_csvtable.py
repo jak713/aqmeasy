@@ -42,21 +42,21 @@ class csv_table(QDialog):
         table = self.table
         # There was a feedback loop when add_intermediate was triggered so the signals are blocked for the refreshing and then unblocked. Seems to work as intended now.
         table.blockSignals(True)
-        table.setRowCount(len(self.model["SMILES"]))
-        table.setColumnCount(len(self.model.keys()))
+        table.setRowCount(len(self.model.__getitem__("SMILES")))
+        table.setColumnCount(self.model.__len__())
         table.setHorizontalHeaderLabels(self.model.keys())
         table.verticalHeader().setDefaultSectionSize(120)
         table.horizontalHeader().setDefaultSectionSize(120)
 
-        for row in range(len(self.model["SMILES"])):
+        for row in range(len(self.model.__getitem__("SMILES"))):
             for col, key in enumerate(self.model.keys()):
                 if key == "SMILES":
-                    pixmap = smiles2pixmap(self.model[key][row])
+                    pixmap = smiles2pixmap(self.model.__getitem__(key)[row])
                     item = QTableWidgetItem()
                     item.setData(Qt.ItemDataRole.DecorationRole, pixmap) # Data in the form of an icon
                     table.setItem(row, col, item)
                 else:
-                    item = QTableWidgetItem(str(self.model[key][row]))
+                    item = QTableWidgetItem(str(self.model.__getitem__(key)[row]))
                     table.setItem(row, col, item)
 
         for row in range(table.rowCount()):

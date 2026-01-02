@@ -3,7 +3,7 @@ dist/
 *.egg-info/
 
 run_app.py
-test-files/
+tests/test-files/
 
 .pytest_cache/
 .coverage

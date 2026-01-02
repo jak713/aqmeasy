@@ -1,0 +1,7 @@
+SMILES,code_name,charge,multiplicity,constraints_atoms,constraints_dist,constraints_angle,constraints_dihedral,complex_type,geom
+C1CCCCC1,mol_1,0,1,,,,,,
+C1CCCCCC1,mol_2,0,1,,,,,,
+c1ccccc1,mol_3,0,1,,,,,,
+C1CCC1,mol_4,0,1,,,,,,
+CP(C)C,mol_5,0,1,,,,,,
+CN,mol_6,0,1,,,,,,

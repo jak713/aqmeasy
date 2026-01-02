@@ -18,11 +18,14 @@ class command_model(UserDict):
         if value != prev_value:
             self.signals.updated.emit()
 
+    def __getitem__(self, key):
+        return super().__getitem__(key)
+
 
 general_command_default = {
-    "input": "",
+    "input": None,
     "destination": "",
-    "program": "rdkit",
+    "program": "",
     "stacksize": "1GB",
     "sample": 25,
     "auto_sample": "mid",

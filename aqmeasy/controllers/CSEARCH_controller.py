@@ -32,7 +32,7 @@ class CsvController(QObject):
         self.parent = parent
 
     def get_total_index(self) -> int:
-        return len(self.model["SMILES"])
+        return len(self.model.__getitem__("SMILES"))
 
     def show_csv(self) -> None:
         self.csv = csv_table(
@@ -45,14 +45,14 @@ class CsvController(QObject):
         self.csv.ts_button.clicked.connect(lambda: self.csv.refresh_view() if self.add_transition_state(self.csv.table.selectedItems()) else self.parent.failure("Please select one or more items to add a transition state. Select multiple SMILES with Cmd/Ctrl+right click"))
         self.csv.show()
 
-    def update_model_from_table(self, item: str) -> None:
+    def update_model_from_table(self, item) -> None:
         """Update the model when signal emitted from the csv table.
-            Args: item (str)
+            Args: item (?)
             Returns None"""
         row = item.row()
         col = item.column()
         key = list(self.model.keys())[col]
-        self.model[key][row] = item.text()
+        self.model.__getitem__(key)[row] = item.text()
         self.model.signals.updated.emit()
 
     def update_table_from_model(self) -> None:
@@ -137,16 +137,16 @@ class CsvController(QObject):
             # self.parent.smiles_are_bad_bro(smiles)
             return
         if not smiles:
-            self.model["SMILES"][self.current_index - 1] = ""
-            self.model["code_name"][self.current_index - 1] = ""
-            self.model["charge"][self.current_index - 1] = ""
-            self.model["multiplicity"][self.current_index - 1] = ""
-            self.model["constraints_atoms"][self.current_index - 1] = ""
-            self.model["constraints_dist"][self.current_index - 1] = ""
-            self.model["constraints_angle"][self.current_index - 1] = ""
-            self.model["constraints_dihedral"][self.current_index - 1] = ""
-            self.model["complex_type"][self.current_index - 1] = ""
-            self.model["geom"][self.current_index - 1] = ""
+            self.model.__setitem__("SMILES", "")[self.current_index - 1] = ""
+            self.model.__setitem__("code_name", "")[self.current_index - 1] = ""
+            self.model.__setitem__("charge", "")[self.current_index - 1] = ""
+            self.model.__setitem__("multiplicity", "")[self.current_index - 1] = ""
+            self.model.__setitem__("constraints_atoms", "")[self.current_index - 1] = ""
+            self.model.__setitem__("constraints_dist", "")[self.current_index - 1] = ""
+            self.model.__setitem__("constraints_angle", "")[self.current_index - 1] = ""
+            self.model.__setitem__("constraints_dihedral", "")[self.current_index - 1] = ""
+            self.model.__setitem__("complex_type", "")[self.current_index - 1] = ""
+            self.model.__setitem__("geom", "")[self.current_index - 1] = ""
             if self.get_total_index() == 1:
                 gen_command["input"] = ""
             self.model.signals.updated.emit()
@@ -199,8 +199,8 @@ class CsvController(QObject):
                 self.parent.failure("Please enter a file name before saving.")
                 return False  # for the closing event
 
-            gen_command["input"] = file_name
-            with open(gen_command["input"], 'w', newline='') as csvfile:
+            gen_command.__setitem__("input", file_name)
+            with open(gen_command.__getitem__("input"), 'w', newline='') as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerow(self.model.keys())
                 for i in range(len(self.model["SMILES"])):
@@ -222,8 +222,10 @@ class CsvController(QObject):
         """Display the molecule in the molecule_label using rdkit.Chem.Draw module"""
         rdkit.rdBase.DisableLog('rdApp.*')
         rdDepictor.SetPreferCoordGen(True)
-
-        smiles = self.model["SMILES"][self.current_index - 1]
+        try:
+            smiles = self.model["SMILES"][self.current_index - 1]
+        except IndexError:
+            smiles = ""
         if not smiles:
             self.parent.molecule_label.setText("No SMILES string provided.")
             self.atom_coords = None
@@ -481,7 +483,6 @@ class CsvController(QObject):
 
 
 
-
 class CSEARCHWorker(QObject):  
     result = Signal(str)
     error = Signal(str) # to send back to widget as failure
@@ -539,26 +540,23 @@ class Worker(QRunnable):
 
     def collect_csearch_params(self) -> dict:
         """
-        Collects csearch parameters from ParamModel as dict, compares them to default_values, if different stores them as attributes of self.
-
-        Must store the input file and the program (rdkit/crest).
-
+        Collects csearch parameters from the  as dict, compares them to default_values, if different stores them as attributes of self. 
+        
         Returns:
             csearch_params (dict): Dictionary of csearch parameters to be passed to aqme.csearch function.
         """
+        csearch_params = {}
+
         try:
-            params = self.parent.model
+            params = self.parent.model # Parent of worker is CSEARCHWorker, its model is the general_command_model (see CSEARCH.py)
             logging.info("Current parameters:", params)
+            for key, value in params.items():
+                if key in general_command_default:
+
+                    logging.info(f"Comparing {key}: current value = {value}, default value = {general_command_default[key]}")
+                    if value != general_command_default[key]:
+                        csearch_params[key] = value
         except Exception as e:
             logging.warning(f"Error encountered at collect_csearch_params when extracting params from model: {e}")
 
-        csearch_params = {}
-
-        for key, value in params.items():
-            if key in general_command_default:
-
-                logging.info(f"Comparing {key}: current value = {value}, default value = {general_command_default[key]}")
-                if value != general_command_default[key]:
-                    csearch_params[key] = value
-                    
         return csearch_params
