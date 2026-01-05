@@ -26,4 +26,4 @@ class CSEARCH(QWidget):
     def open_qprep_after_csearch(self, destination_folder: str):
         """Open QPREP from parent (main_window) with the generated SDF files after CSEARCH run."""
         QPREP = self.parent.new_qprep_widget() # type: ignore # 
-        QPREP.file_panel.get_files_from_csearch([f"{destination_folder}/{name}_{general_command_model["program"]}.sdf" for name in self.model["code_name"] if name])
+        QPREP.file_panel.get_files_from_csearch([f"{destination_folder}/{name}_{general_command_model['program']}.sdf" for name in self.model["code_name"] if name])
