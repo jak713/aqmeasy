@@ -8,10 +8,6 @@ from rdkit import Chem
 
 from aqmeasy.utils import  pubchem2smiles, smiles2enumerate, smiles2numatoms, smiles2numelectrons, smiles2findmetal, smiles2charge, smiles2multiplicity, command2clipboard
 
-from aqmeasy.models.CSEARCH_model.CSEARCH_command import (
-    general_command_model as gen_command,
-    crest_command_model as crest_command
-    )
 from aqmeasy.controllers.CSEARCH_controller import CsvController
 from aqmeasy.ui.stylesheets import stylesheets
 from aqmeasy.ui.icons import Icons
@@ -207,9 +203,9 @@ class CSEARCHWidget(QWidget):
 
         self.program_combo = QComboBox(self)
         self.program_combo.addItems(["RDKit", "CREST", "GOAT*"])
-        self.program_combo.model().item(2).setEnabled(False)
-        gen_command.update({"program": "rdkit"})
-        self.program_combo.currentTextChanged.connect(lambda text: gen_command.update({"program": text.lower()}))
+        self.program_combo.model().item(2).setEnabled(False)  # type: ignore
+        self.control.update_command("program", "rdkit") # set default program
+        self.program_combo.currentTextChanged.connect(lambda text: self.control.update_command("program", text.lower()))
         self.aqme_setup_grid.addWidget(self.program_combo, 0, 1)
 
         # Row 1 - Number of processors
@@ -219,7 +215,7 @@ class CSEARCHWidget(QWidget):
         self.nprocs_input = QSpinBox(self)
         self.nprocs_input.setRange(1, 40)
         self.nprocs_input.setValue(8)
-        self.nprocs_input.valueChanged.connect(lambda: gen_command.update({"nprocs": self.nprocs_input.value()}))
+        self.nprocs_input.valueChanged.connect(lambda: self.control.update_command("nprocs", self.nprocs_input.value()))
         self.nprocs_input.setToolTip("Number of processors to use for the calculation.\nOnly relevant for CREST and GOAT*.")
         self.nprocs_input.setEnabled(self.program_combo.currentText() == "CREST")
         self.aqme_setup_grid.addWidget(self.nprocs_input, 1, 1)
@@ -231,7 +227,7 @@ class CSEARCHWidget(QWidget):
         self.stacksize_input = QSpinBox(self)
         self.stacksize_input.setRange(1, 8)
         self.stacksize_input.setValue(1)
-        self.stacksize_input.valueChanged.connect(lambda: gen_command.update({"stacksize": f"{self.stacksize_input.value()}GB"}))
+        self.stacksize_input.valueChanged.connect(lambda: self.control.update_command("stacksize", f"{self.stacksize_input.value()}GB"))
         self.aqme_setup_grid.addWidget(self.stacksize_input, 2, 1)
 
         # Row 3 - Output directory
@@ -239,7 +235,7 @@ class CSEARCHWidget(QWidget):
         self.aqme_setup_grid.addWidget(self.output_dir_label, 3, 0)
         self.output_dir_input = QLineEdit(self)
         self.output_dir_input.setPlaceholderText("Select output directory...")
-        self.output_dir_input.textChanged.connect(lambda: gen_command.update({"destination": self.output_dir_input.text()}))
+        self.output_dir_input.textChanged.connect(lambda: self.control.update_command("destination", self.output_dir_input.text()))
 
         self.output_dir_button = QPushButton(self)
 
@@ -299,7 +295,7 @@ class CSEARCHWidget(QWidget):
         self.sample_size_input = QSpinBox(self)
         self.sample_size_input.setRange(1, 500)
         self.sample_size_input.setValue(25)
-        self.sample_size_input.valueChanged.connect(lambda: gen_command.update({"sample": self.sample_size_input.value()}))
+        self.sample_size_input.valueChanged.connect(lambda: self.control.update_command("sample", self.sample_size_input.value()))
         self.sample_size_input.setToolTip("Number of conformers to keep after the initial RDKit sampling.\nThey are selected using a combination of RDKit energies and Butina clustering.")
         advanced_layout.addWidget(self.sample_size_input, 0, 1)
 
@@ -308,7 +304,7 @@ class CSEARCHWidget(QWidget):
         self.auto_sample_combo = QComboBox(self)
         self.auto_sample_combo.addItems(["low", "mid", "high", "false"])
         self.auto_sample_combo.setCurrentText("mid")
-        self.auto_sample_combo.currentTextChanged.connect(lambda text: gen_command.update({"auto_sample": text}))
+        self.auto_sample_combo.currentTextChanged.connect(lambda text: self.control.update_command("auto_sample", text))
         self.auto_sample_combo.setToolTip("Apply automatic calculation of the number of conformers generated initially with RDKit. \nThis number of conformers is initially generated and then reduced to the number specified in --sample with different filters. \nOptions:\n• Low: Base multiplier = 5, max confs = 100\n• Mid: Base multiplier = 10, max confs = 250\n• High: Base multiplier = 20, max confs = 500\n• False: Use the number specified in --sample")
         advanced_layout.addWidget(self.auto_sample_combo, 1, 1)
 
@@ -317,7 +313,7 @@ class CSEARCHWidget(QWidget):
         self.energy_window_input = QDoubleSpinBox(self)
         self.energy_window_input.setRange(1.0, 50.0)
         self.energy_window_input.setValue(5.0)
-        self.energy_window_input.valueChanged.connect(lambda: gen_command.update({"ewin_csearch": self.energy_window_input.value()}))
+        self.energy_window_input.valueChanged.connect(lambda: self.control.update_command("ewin_csearch", self.energy_window_input.value()))
         self.energy_window_input.setToolTip("Energy window in kcal/mol to discard conformers\n(i.e. if a conformer is more than the E window compared to the most stable conformer).")
         advanced_layout.addWidget(self.energy_window_input, 2, 1)
 
@@ -326,7 +322,7 @@ class CSEARCHWidget(QWidget):
         self.initial_energy_threshold_input = QLineEdit(self)
         self.initial_energy_threshold_input.setText("0.0001")
         self.initial_energy_threshold_input.setValidator(QDoubleValidator())
-        self.initial_energy_threshold_input.textChanged.connect(lambda: gen_command.update({"initial_energy_threshold": self.initial_energy_threshold_input.text()}))
+        self.initial_energy_threshold_input.textChanged.connect(lambda: self.control.update_command("initial_energy_threshold", self.initial_energy_threshold_input.text()))
         self.initial_energy_threshold_input.setToolTip("Energy difference in kcal/mol between unique conformers for the first filter of only E.")
         advanced_layout.addWidget(self.initial_energy_threshold_input, 3, 1)
 
@@ -336,7 +332,7 @@ class CSEARCHWidget(QWidget):
         self.energy_threshold_input = QLineEdit(self)
         self.energy_threshold_input.setText("0.25")
         self.energy_threshold_input.setValidator(QDoubleValidator())
-        self.energy_threshold_input.textChanged.connect(lambda: gen_command.update({"energy_threshold": self.energy_threshold_input.text()}))
+        self.energy_threshold_input.textChanged.connect(lambda: self.control.update_command("energy_threshold", self.energy_threshold_input.text()))
         self.energy_threshold_input.setToolTip("Energy difference in kcal/mol between unique conformers for the second filter of E + RMS")
         advanced_layout.addWidget(self.energy_threshold_input, 4, 1)
 
@@ -346,7 +342,7 @@ class CSEARCHWidget(QWidget):
         self.rms_threshold_input = QLineEdit(self)
         self.rms_threshold_input.setText("0.25")
         self.rms_threshold_input.setValidator(QDoubleValidator())
-        self.rms_threshold_input.textChanged.connect(lambda: gen_command.update({"rms_threshold": self.rms_threshold_input.text()}))
+        self.rms_threshold_input.textChanged.connect(lambda: self.control.update_command("rms_threshold", self.rms_threshold_input.text()))
         self.rms_threshold_input.setToolTip("RMS difference between unique conformers for the second filter of E + RMS")
         advanced_layout.addWidget(self.rms_threshold_input, 0, 4)
 
@@ -356,7 +352,7 @@ class CSEARCHWidget(QWidget):
         self.opt_steps_rdkit_input = QSpinBox(self)
         self.opt_steps_rdkit_input.setRange(1, 10000)
         self.opt_steps_rdkit_input.setValue(1000)
-        self.opt_steps_rdkit_input.valueChanged.connect(lambda: gen_command.update({"opt_steps_rdkit": self.opt_steps_rdkit_input.value()}))
+        self.opt_steps_rdkit_input.valueChanged.connect(lambda: self.control.update_command("opt_steps_rdkit", self.opt_steps_rdkit_input.value()))
         self.opt_steps_rdkit_input.setToolTip("Max cycles used in RDKit optimizations. ")
         advanced_layout.addWidget(self.opt_steps_rdkit_input, 1, 4)
 
@@ -367,7 +363,7 @@ class CSEARCHWidget(QWidget):
         self.max_matches_rmsd_input = QSpinBox(self)
         self.max_matches_rmsd_input.setRange(1, 10000)
         self.max_matches_rmsd_input.setValue(1000)
-        self.max_matches_rmsd_input.valueChanged.connect(lambda: gen_command.update({"max_matches_rmsd": self.max_matches_rmsd_input.value()}))
+        self.max_matches_rmsd_input.valueChanged.connect(lambda: self.control.update_command("max_matches_rmsd", self.max_matches_rmsd_input.value()))
         self.max_matches_rmsd_input.setToolTip("Max matches during RMS calculations for filtering \n(maxMatches option in the Chem.rdMolAlign.GetBestRMS() RDKit function)")
         advanced_layout.addWidget(self.max_matches_rmsd_input, 2, 4)
 
@@ -377,7 +373,7 @@ class CSEARCHWidget(QWidget):
         self.max_mol_wt_input = QSpinBox(self)
         self.max_mol_wt_input.setRange(0, 10000)
         self.max_mol_wt_input.setValue(0)
-        self.max_mol_wt_input.valueChanged.connect(lambda: gen_command.update({"max_mol_wt": self.max_mol_wt_input.value()}))
+        self.max_mol_wt_input.valueChanged.connect(lambda: self.control.update_command("max_mol_wt", self.max_mol_wt_input.value()))
         self.max_mol_wt_input.setSuffix(" g/mol")
         self.max_mol_wt_input.setToolTip("Discard systems with molecular weights higher than this parameter (in g/mol). \nIf 0 is set, this filter is off.")
         advanced_layout.addWidget(self.max_mol_wt_input, 3, 4)
@@ -388,20 +384,20 @@ class CSEARCHWidget(QWidget):
         self.max_torsions_input = QSpinBox(self)
         self.max_torsions_input.setRange(0, 1000)
         self.max_torsions_input.setValue(0)
-        self.max_torsions_input.valueChanged.connect(lambda: gen_command.update({"max_torsions": self.max_torsions_input.value()}))
+        self.max_torsions_input.valueChanged.connect(lambda: self.control.update_command("max_torsions", self.max_torsions_input.value()))
         self.max_torsions_input.setToolTip("Discard systems with more than this many torsions (relevant to avoid molecules with many rotatable bonds). \nIf 0 is set, this filter is off.")
         advanced_layout.addWidget(self.max_torsions_input, 4, 4)
 
         # Column  5 & 6
         self.heavyonly_checkbox = QCheckBox("Heavy Only", self)
         self.heavyonly_checkbox.setChecked(True)
-        self.heavyonly_checkbox.stateChanged.connect(lambda: gen_command.update({"heavyonly": self.heavyonly_checkbox.isChecked()}))
+        self.heavyonly_checkbox.stateChanged.connect(lambda: self.control.update_command("heavyonly", self.heavyonly_checkbox.isChecked()))
         self.heavyonly_checkbox.setToolTip("Only consider heavy atoms during RMS calculations for filtering \n(in the Chem.rdMolAlign.GetBestRMS() RDKit function)")
         advanced_layout.addWidget(self.heavyonly_checkbox, 0, 6)
 
         self.auto_metal_atoms_checkbox = QCheckBox("Auto Metal Atoms", self)
         self.auto_metal_atoms_checkbox.setChecked(True)
-        self.auto_metal_atoms_checkbox.stateChanged.connect(lambda: gen_command.update({"auto_metal_atoms": self.auto_metal_atoms_checkbox.isChecked()}))
+        self.auto_metal_atoms_checkbox.stateChanged.connect(lambda: self.control.update_command("auto_metal_atoms", self.auto_metal_atoms_checkbox.isChecked()))
         self.auto_metal_atoms_checkbox.setToolTip("Automatically detect metal atoms for the RDKit conformer generation. \nCharge and mult should be specified as well since the automatic charge and mult detection might not be precise.")
         advanced_layout.addWidget(self.auto_metal_atoms_checkbox, 0, 5)
 
@@ -411,7 +407,7 @@ class CSEARCHWidget(QWidget):
         self.seed_input = QLineEdit(self)
         self.seed_input.setValidator(QIntValidator())  
         self.seed_input.setText("62609")
-        self.seed_input.textChanged.connect(lambda: gen_command.update({"seed": self.seed_input.text()}))
+        self.seed_input.textChanged.connect(lambda: self.control.update_command("seed", self.seed_input.text()))
         self.seed_input.setToolTip("Random seed used during RDKit embedding \n(in the Chem.rdDistGeom.EmbedMultipleConfs() RDKit function)")
         advanced_layout.addWidget(self.seed_input, 1, 6)
 
@@ -421,7 +417,7 @@ class CSEARCHWidget(QWidget):
         self.bond_thres_input = QDoubleSpinBox(self)
         self.bond_thres_input.setRange(0.0, 10.0)
         self.bond_thres_input.setValue(0.2)
-        self.bond_thres_input.valueChanged.connect(lambda: gen_command.update({"bond_thres": self.bond_thres_input.value()}))
+        self.bond_thres_input.valueChanged.connect(lambda: self.control.update_command("bond_thres", self.bond_thres_input.value()))
         self.bond_thres_input.setToolTip("Threshold used to discard bonds in the geom option (+-0.2 A)")
         advanced_layout.addWidget(self.bond_thres_input, 2, 6)
 
@@ -431,7 +427,7 @@ class CSEARCHWidget(QWidget):
         self.angle_thres_input = QDoubleSpinBox(self)
         self.angle_thres_input.setRange(0.0, 360.0)
         self.angle_thres_input.setValue(30.0)
-        self.angle_thres_input.valueChanged.connect(lambda: gen_command.update({"angle_thres": self.angle_thres_input.value()}))
+        self.angle_thres_input.valueChanged.connect(lambda: self.control.update_command("angle_thres", self.angle_thres_input.value()))
         self.angle_thres_input.setToolTip("Threshold used to discard angles in the geom option (+-30 degrees)")
         advanced_layout.addWidget(self.angle_thres_input, 3, 6)
 
@@ -441,7 +437,7 @@ class CSEARCHWidget(QWidget):
         self.dihedral_thres_input = QDoubleSpinBox(self)
         self.dihedral_thres_input.setRange(0.0, 360.0)
         self.dihedral_thres_input.setValue(30.0) 
-        self.dihedral_thres_input.valueChanged.connect(lambda: gen_command.update({"dihedral_thres": self.dihedral_thres_input.value()}))
+        self.dihedral_thres_input.valueChanged.connect(lambda: self.control.update_command("dihedral_thres", self.dihedral_thres_input.value()))
         self.dihedral_thres_input.setToolTip("Threshold used to discard dihedrals in the geom option (+-30 degrees)")
         advanced_layout.addWidget(self.dihedral_thres_input, 4, 6)
 
@@ -453,31 +449,31 @@ class CSEARCHWidget(QWidget):
         self.crest_force_input.setRange(0.0, 10.0)
         self.crest_force_input.setValue(0.5)
         self.crest_force_input.setSingleStep(0.1)
-        self.crest_force_input.valueChanged.connect(lambda: crest_command.update({"crest_force": self.crest_force_input.value()}))
+        self.crest_force_input.valueChanged.connect(lambda: self.control.update_crest_command("crest_force", self.crest_force_input.value()))
         self.crest_force_input.setToolTip("CREST ONLY: Force constant for constraints in the .xcontrol.sample file for CREST jobs.")
         advanced_layout.addWidget(self.crest_force_input, 0, 8)
 
         self.crest_keywords_input = QLineEdit(self)
         self.crest_keywords_input.setPlaceholderText("CREST keywords...")
-        self.crest_keywords_input.textChanged.connect(lambda: crest_command.update({"crest_keywords": self.crest_keywords_input.text()}))
+        self.crest_keywords_input.textChanged.connect(lambda: self.control.update_crest_command("crest_keywords", self.crest_keywords_input.text()))
         self.crest_keywords_input.setToolTip("CREST ONLY: Define additional keywords to use in CREST that are not included in --chrg, --uhf, -T and -cinp. For example: '--alpb ch2cl2 --nci --cbonds 0.5'.")
         advanced_layout.addWidget(self.crest_keywords_input, 1, 7)
 
         self.xtb_keywords_input = QLineEdit(self)
         self.xtb_keywords_input.setPlaceholderText("xTB keywords...")
-        self.xtb_keywords_input.textChanged.connect(lambda: crest_command.update({"xtb_keywords": self.xtb_keywords_input.text()}))
+        self.xtb_keywords_input.textChanged.connect(lambda: self.control.update_crest_command("xtb_keywords", self.xtb_keywords_input.text()))
         self.xtb_keywords_input.setToolTip("CREST ONLY: Define additional keywords to use in the xTB pre-optimization that are not included in -c, --uhf, -P and --input. For example: '--alpb ch2cl2 --gfn 1'.")
         advanced_layout.addWidget(self.xtb_keywords_input, 1, 8)
 
         self.cregen_checkbox = QCheckBox("CREGEN", self)
         self.cregen_checkbox.setChecked(True)
-        self.cregen_checkbox.stateChanged.connect(lambda: crest_command.update({"cregen": self.cregen_checkbox.isChecked()}))
+        self.cregen_checkbox.stateChanged.connect(lambda: self.control.update_crest_command("cregen", self.cregen_checkbox.isChecked()))
         self.cregen_checkbox.setToolTip("If True, perform a CREGEN analysis after CREST.")
         advanced_layout.addWidget(self.cregen_checkbox, 2, 7)
 
         self.cregen_keywords_input = QLineEdit(self)
         self.cregen_keywords_input.setPlaceholderText("CREGEN keywords...")
-        self.cregen_keywords_input.textChanged.connect(lambda: crest_command.update({"cregen_keywords": self.cregen_keywords_input.text()}))
+        self.cregen_keywords_input.textChanged.connect(lambda: self.control.update_crest_command("cregen_keywords", self.cregen_keywords_input.text()))
         self.cregen_keywords_input.setToolTip("Additional keywords for CREGEN (i.e. cregen_keywords='--ethr 0.02').")
         advanced_layout.addWidget(self.cregen_keywords_input, 2, 8)
 
@@ -488,7 +484,7 @@ class CSEARCHWidget(QWidget):
         self.crest_runs_input.setRange(1, 100)
         self.crest_runs_input.setValue(1)
         self.crest_runs_input.setSingleStep(1)
-        self.crest_runs_input.valueChanged.connect(lambda: crest_command.update({"crest_runs": self.crest_runs_input.value()}))
+        self.crest_runs_input.valueChanged.connect(lambda: self.control.update_crest_command("crest_runs", self.crest_runs_input.value()))
         self.crest_runs_input.setToolTip("Specify as number of runs if multiple starting points from RDKit starting points is required.")
         advanced_layout.addWidget(self.crest_runs_input, 3, 8)
 
@@ -553,8 +549,8 @@ class CSEARCHWidget(QWidget):
         try:
             smiles = pubchem2smiles(code_name)
             current_text = self.csv_model.__getitem__("SMILES")[self.control.current_index - 1]
-            new_text = f"{current_text}.{smiles}" if current_text else smiles
-            if isinstance(new_text, str):
+            new_text = f"{current_text}.{smiles}" if current_text else smiles # Allow for multople molecules 
+            if isinstance(new_text, str): # To keep pylance happy
                 self.smiles_input.setText(new_text)
 
         except IndexError:

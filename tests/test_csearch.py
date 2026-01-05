@@ -4,7 +4,6 @@ import pytest
 from pytestqt import qtbot
 from PySide6.QtCore import Qt
 
-from aqmeasy.models.CSEARCH_model.CSEARCH_command import general_command_default
 from aqmeasy.ui.CSEARCH_ui.CSEARCH import CSEARCH
 from aqmeasy.controllers.CSEARCH_controller import Worker
 
@@ -202,12 +201,12 @@ class TestCSEARCHsetupUI:
         assert len(control.model["SMILES"]) == 1
         assert main_widget.smiles_input.toPlainText() == ""
         assert control.current_index == 1
-        assert control.get_total_index() == 1
+        assert control.model.get_total_index() == 1
 
 
     def test_import_test_file(self, main_widget, csv_table):
         test_file_path = os.path.join(os.path.dirname(__file__), "test2.csv")
-        main_widget.import_file(file_name=test_file_path)
+        main_widget.control.import_file(file_name=test_file_path)
 
         assert os.path.exists(test_file_path)
         assert len(main_widget.csv_model["SMILES"]) == 4  # 4 entries in test.csv

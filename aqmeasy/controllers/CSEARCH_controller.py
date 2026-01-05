@@ -178,6 +178,13 @@ class CsvController(QObject):
         self.gen_command_model["input"] = None
         self.model.signals.updated.emit()
         
+    def update_command(self, key: str, value) -> None:
+        """Update the command model with the given key and value."""
+        self.gen_command_model.__setitem__(key, value)
+
+    def update_crest_command(self, key: str, value) -> None:
+        """Update the crest command model with the given key and value."""
+        crest_command.__setitem__(key, value)
 
     def import_file(self,file_name=None):
         """Import an SDF or ChemDraw file, extract SMILES, and display them. For CSV files, read the data and update the model."""
@@ -197,6 +204,7 @@ class CsvController(QObject):
                         smiles_list.append(smiles)
 
             elif file_name.endswith(".cdx"): 
+                QMessageBox.warning(self.parent, "CDX File Import Warning","ChemDraw .cdx files are converted via Open Babel to SDF and then read. This may cause issues, and is generally not recommended. Consider using .cdxml files instead.")
                 with tempfile.NamedTemporaryFile(suffix=".sdf", delete=False) as temp_sdf:
                     temp_sdf_path = temp_sdf.name 
 
@@ -242,6 +250,11 @@ class CsvController(QObject):
                 self.gen_command_model.__setitem__("destination", os.path.dirname(file_name))
                 return
 
+            # If user cancels
+            elif not file_name:
+                self.model.add_row({}) # Make sure we are not left with zero rows
+                return
+
             else:
                 QMessageBox.warning(self.parent, "Error", "Unsupported file format. Please select a ChemDraw, SDF, or CSV file.")
                 return
@@ -266,6 +279,7 @@ class CsvController(QObject):
                 self.model["code_name"][index] = f"mol_{index + 1}"
                 self.current_index = 1
                 
+            self.parent.update_ui()
             self.parent.update_properties()
 
         except ImportError as e:
@@ -600,9 +614,6 @@ class Worker(QRunnable):
         
         command_args = self.collect_csearch_params()
         logging.info("Collected csearch parameters:", command_args)
-
-        if self.parent.model["destination"] == None or self.parent.model["destination"] == "":
-            self.parent.model["destination"] = self.parent.model["input"].replace(".csv", "_aqme")
         
         if self.parent.model["program"] == "rdkit":
                 try:
@@ -636,12 +647,17 @@ class Worker(QRunnable):
         """
         csearch_params = {}
 
+        if self.parent.model["program"] == "":
+                self.parent.model.__setitem__("program", "rdkit")
+        if self.parent.model["destination"] == None or self.parent.model["destination"] == "":
+                if self.parent.model["input"] != "" and self.parent.model["input"] != None:
+                    self.parent.model.__setitem__("destination", self.parent.model["input"].replace(".csv", "_aqme"))
+
         try:
             params = self.parent.model # Parent of worker is CSEARCHWorker, its model is the general_command_model (see CSEARCH.py)
             logging.info("Current parameters:", params)
             for key, value in params.items():
                 if key in general_command_default:
-
                     logging.info(f"Comparing {key}: current value = {value}, default value = {general_command_default[key]}")
                     if value != general_command_default[key]:
                         csearch_params[key] = value
