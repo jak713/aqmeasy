@@ -11,3 +11,6 @@ htmlcov/
 
 *.pyc
 __pycache__/
+
+CSEARCH/
+CSEARCH*

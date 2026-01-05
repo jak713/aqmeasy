@@ -83,12 +83,19 @@ class TestSyncToCSVModel:
         
         assert len(control.model.__getitem__("SMILES")) == 1  # only the initial empty entry remains
 
-    # def test_model_updates_smiles_input(self, main_widget, control, qtbot):
-    #     smiles_input = main_widget.smiles_input
-    #     for idx, smiles in enumerate(test_smiles):
-    #             control.new_molecule()  # ensure the row exists
-    #             control.model["SMILES"][idx+1] = smiles
-    #             assert smiles_input.toPlainText() == smiles
+    def test_model_smiles_updates_smiles_input(self, main_widget, control, qtbot):
+        smiles_input = main_widget.smiles_input
+        for smiles in test_smiles: # note update_ui blocks signals to prevent infinite looping
+            control.new_molecule()  # ensure the row exists
+            control.model.__setitem__("SMILES", control.model.__getitem__("SMILES")[:-1]+ [smiles])  # update the last entry
+            control.current_index = len(control.model.__getitem__("SMILES"))  # move to the last entry
+            main_widget.update_ui()
+            assert smiles_input.toPlainText() == smiles
+        
+        for _ in test_smiles:
+            control.delete_molecule()  # clean up the model after test
+        
+        assert len(control.model.__getitem__("SMILES")) == 1  
 
 class TestCSVTable:
     """ 
@@ -130,14 +137,14 @@ class TestCSVTable:
                 assert csv_model["code_name"][row] == code_name
 
     def test_ui_smiles_updates_csv_table(self, csv_table, main_widget, qtbot):
+        # Remove all existing entries (leave one empty)
+        main_widget.control.model.__setitem__("SMILES", [""])
+        assert csv_table.get_row_count() == 1
         row_count = 1 # csv_table should have 1 row to begin with
         for smiles in test_smiles:
-            # Set the smiles
             main_widget.smiles_input.setText(smiles)
-            # assert that csv_table has updated
             assert csv_table.get_row_count() == row_count
             row_count += 1
-            # press Add in UI for more entries
             with qtbot.waitSignal(main_widget.new_molecule_button.clicked, timeout = 1000):
                 qtbot.mouseClick(main_widget.new_molecule_button, Qt.MouseButton.LeftButton)
 
@@ -145,10 +152,6 @@ class TestPropertiesTable:
     """
     Properties table is located in the main widget. It displays details about the currently viewed molecule (or currently viewed row in the csv file). 
     """
-# class TestKeyboardShortcuts:
-#     """ 
-#     1. """
-#     ...
 
 
 class TestCSEARCHWorker:   
@@ -210,21 +213,19 @@ class TestCSEARCHsetupUI:
         assert len(main_widget.csv_model["SMILES"]) == 4  # 4 entries in test.csv
         assert csv_table.get_row_count() == 4
 
-    # def test_run_aqme_without_saving(self, csearch_widget, qtbot):
-    #     """Test that running AQME without saving shows an error message."""
-    #     # Capture the error signal
-    #     error_message = None
-    #     def capture_error(msg):
-    #         nonlocal error_message
-    #         error_message = msg
+    def test_run_aqme_without_saving(self, csearch_widget, qtbot):
+        """Test that running AQME without saving shows an error message."""
+        # Capture the error signal
+        error_message = None
+        def capture_error(msg):
+            nonlocal error_message
+            error_message = msg
         
-    #     csearch_widget.worker.error.connect(capture_error)
+        csearch_widget.worker.error.connect(capture_error)
         
-    #     # Call the run method directly instead of clicking
-    #     csearch_widget.worker.run()
+        # clear the command model input to simulate unsaved state
+        csearch_widget.worker.model.__setitem__("input", "")
+        csearch_widget.worker.run()
         
-    #     # Process events to allow signals to propagate
-    #     qtbot.wait(100)
-        
-    #     # Verify error was emitted
-    #     assert error_message == "Please save the CSV file before running AQME."
+        qtbot.wait(100)
+        assert error_message == "Please save the CSV file before running AQME."

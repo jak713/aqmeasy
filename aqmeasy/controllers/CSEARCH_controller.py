@@ -1,10 +1,12 @@
 import logging
 import csv
-import sys
-from aqmeasy.models.CSEARCH_model.CSEARCH_command import general_command_default, general_command_model as gen_command, summ_command_model, fullmonte_command_model, crest_command_model as crest_command
+import os
+import subprocess
+import tempfile
+from aqmeasy.models.CSEARCH_model.CSEARCH_command import general_command_default, crest_command_model as crest_command
 from aqmeasy.ui.CSEARCH_ui.CSEARCH_csvtable import csv_table
 
-from aqmeasy.utils import smiles2enumerate, smiles2charge, smiles2multiplicity, smiles2findmetal
+from aqmeasy.utils import smiles2enumerate, smiles2charge, smiles2multiplicity
 import rdkit.rdBase
 from rdkit import Chem
 from rdkit.Chem import Draw as rdMolDraw2D, rdDepictor
@@ -21,18 +23,16 @@ LARGE_MOLECULE_SMILES_LENGTH_THRESHOLD = 50
 
 class CsvController(QObject):
     """Controller for the CSV model"""
-    def __init__(self, model):
+    def __init__(self, model, gen_command_model):
         self.model = model
+        self.gen_command_model = gen_command_model
         self.current_index = 1
-        self.total_index = self.get_total_index()
+        self.total_index = self.model.get_total_index()
         self.model.signals.updated.connect(self.update_table_from_model)
 
     def set_parent(self, parent) -> None:
         """Set the parent of the controller"""
         self.parent = parent
-
-    def get_total_index(self) -> int:
-        return len(self.model.__getitem__("SMILES"))
 
     def show_csv(self) -> None:
         self.csv = csv_table(
@@ -78,7 +78,7 @@ class CsvController(QObject):
         try:
             smiles = ".".join(selected_items)
             self.new_molecule()
-            index = self.get_total_index() - 1
+            index = self.model.get_total_index() - 1
             self.model["SMILES"][index] = smiles
             self.model["code_name"][index] = "Intermediate_" + "+".join(selected_code_names)
             self.model["charge"][index] = smiles2charge(smiles)
@@ -103,7 +103,7 @@ class CsvController(QObject):
         
         smiles = ".".join(selected_items)
         self.new_molecule()
-        index = self.get_total_index() - 1
+        index = self.model.get_total_index() - 1
 
         # to avoid duplicate names, need to check if the name already exists, if it does do magic trick of adding number at the end
         base_TS_name = "TS_" + "+".join(selected_code_names) 
@@ -126,8 +126,6 @@ class CsvController(QObject):
         return True
 
 
-
-
     def update_smiles_model(self, smiles):
         """Update the model with the current SMILES string.
         If constraints are present, update the model["SMILES"] with the enumerated SMILES string.
@@ -137,18 +135,18 @@ class CsvController(QObject):
             # self.parent.smiles_are_bad_bro(smiles)
             return
         if not smiles:
-            self.model.__setitem__("SMILES", "")[self.current_index - 1] = ""
-            self.model.__setitem__("code_name", "")[self.current_index - 1] = ""
-            self.model.__setitem__("charge", "")[self.current_index - 1] = ""
-            self.model.__setitem__("multiplicity", "")[self.current_index - 1] = ""
-            self.model.__setitem__("constraints_atoms", "")[self.current_index - 1] = ""
-            self.model.__setitem__("constraints_dist", "")[self.current_index - 1] = ""
-            self.model.__setitem__("constraints_angle", "")[self.current_index - 1] = ""
-            self.model.__setitem__("constraints_dihedral", "")[self.current_index - 1] = ""
-            self.model.__setitem__("complex_type", "")[self.current_index - 1] = ""
-            self.model.__setitem__("geom", "")[self.current_index - 1] = ""
-            if self.get_total_index() == 1:
-                gen_command["input"] = ""
+            self.model.set_item_at_index("SMILES", self.current_index - 1, "")
+            self.model.set_item_at_index("code_name", self.current_index - 1, "")
+            self.model.set_item_at_index("charge", self.current_index - 1, "")
+            self.model.set_item_at_index("multiplicity", self.current_index - 1, "")
+            self.model.set_item_at_index("constraints_atoms", self.current_index - 1, "")
+            self.model.set_item_at_index("constraints_dist", self.current_index - 1, "")
+            self.model.set_item_at_index("constraints_angle", self.current_index - 1, "")
+            self.model.set_item_at_index("constraints_dihedral", self.current_index - 1, "")
+            self.model.set_item_at_index("complex_type", self.current_index - 1, "")
+            self.model.set_item_at_index("geom", self.current_index - 1, "")
+            if self.model.get_total_index() == 1:
+                self.gen_command_model["input"] = ""
             self.model.signals.updated.emit()
             if hasattr(self, 'each_dist') and self.current_index in self.each_dist:
                 del self.each_dist[self.current_index]
@@ -177,15 +175,106 @@ class CsvController(QObject):
         else:
             self.model["SMILES"][self.current_index - 1] = smiles
     
-        # if smiles2findmetal(smiles) is not None:
-        #     metals = smiles2findmetal(smiles)
-        #     if len(metals) > 0:
-        #         self.parent.metal_atom_detected(metals)
-        #     else:
-        #         pass
-        gen_command["input"] = None
+        self.gen_command_model["input"] = None
         self.model.signals.updated.emit()
         
+
+    def import_file(self,file_name=None):
+        """Import an SDF or ChemDraw file, extract SMILES, and display them. For CSV files, read the data and update the model."""
+
+        if not file_name:
+            file_name, _ = QFileDialog.getOpenFileName(self.parent, "Import File", "", "ChemDraw Files (*.cdx *.cdxml);;SDF Files (*.sdf);;CSV files (*.csv)")
+        try:
+            for key in self.model.keys():
+                self.model[key].clear()
+            smiles_list = []
+
+            if file_name.endswith(".sdf"):
+                mol_supplier = Chem.SDMolSupplier(file_name)
+                for mol in mol_supplier:
+                    if mol is not None:
+                        smiles = Chem.MolToSmiles(mol)
+                        smiles_list.append(smiles)
+
+            elif file_name.endswith(".cdx"): 
+                with tempfile.NamedTemporaryFile(suffix=".sdf", delete=False) as temp_sdf:
+                    temp_sdf_path = temp_sdf.name 
+
+                try:
+                    # Run Open Babel to convert CDX to SDF and save it to the temp file
+                    subprocess.run(["obabel", file_name, "-O", temp_sdf_path], check=True)
+                    # print(f"Conversion successful: {temp_sdf_path}")
+
+                except subprocess.CalledProcessError as e:
+                    print(f"Error during conversion: {e}")
+
+                mol_supplier = Chem.SDMolSupplier(temp_sdf_path)
+                for mol in mol_supplier:
+                    if mol is not None:
+                        smiles = Chem.MolToSmiles(mol)
+                        smiles_list.append(smiles)
+
+                if os.path.exists(temp_sdf_path):
+                    os.remove(temp_sdf_path)
+
+            elif file_name.endswith(".cdxml"):
+                try:
+                    mols = Chem.MolsFromCDXMLFile(file_name, sanitize=True, removeHs=True)
+                    for mol in mols:
+                        if mol is not None:
+                            smiles = Chem.MolToSmiles(mol)
+                            smiles_list.append(smiles)
+                except Exception as e:
+                    QMessageBox.critical(self, "CDXML Read Error", f"Failed to read {file_name}:\n{str(e)}")
+
+            elif file_name.endswith(".csv"):
+                with open(file_name, 'r') as csvfile:
+                    reader = csv.DictReader(csvfile)
+                    for row in reader: 
+                        self.model.add_row(row)
+                    
+                self.total_index = self.model.get_total_index()
+                if self.total_index > 0:
+                    self.current_index = 1  # assuming indices start from 1
+                    self.parent.update_properties()
+                    self.parent.update_ui()
+                
+                self.gen_command_model.__setitem__("destination", os.path.dirname(file_name))
+                return
+
+            else:
+                QMessageBox.warning(self.parent, "Error", "Unsupported file format. Please select a ChemDraw, SDF, or CSV file.")
+                return
+            if not smiles_list:
+                QMessageBox.warning(self.parent, "Error", "No valid SMILES found in the file.")
+                return
+
+            for index, smiles in enumerate(smiles_list):
+                if index < len(self.model["SMILES"]):
+                    self.model["SMILES"][index] = smiles
+                    self.model["charge"][index] = smiles2charge(smiles)
+                    self.model["multiplicity"][index] = smiles2multiplicity(smiles)
+                else:
+                    for key in self.model.keys():
+                        self.model[key].append("")
+                    self.model["SMILES"][-1] = smiles
+                    self.model["charge"][-1] = smiles2charge(smiles)
+                    self.model["multiplicity"][-1] = smiles2multiplicity(smiles)
+            self.total_index = self.model.get_total_index()
+
+            for index in range(self.total_index):
+                self.model["code_name"][index] = f"mol_{index + 1}"
+                self.current_index = 1
+                
+            self.parent.update_properties()
+
+        except ImportError as e:
+            print(f"Error importing required module: {e}")
+        except IOError as e:
+            print(f"Error reading or writing file: {e}")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+
     def save_csv_file(self):
         """Save the csv_dictionary to a file."""
         try:
@@ -199,8 +288,8 @@ class CsvController(QObject):
                 self.parent.failure("Please enter a file name before saving.")
                 return False  # for the closing event
 
-            gen_command.__setitem__("input", file_name)
-            with open(gen_command.__getitem__("input"), 'w', newline='') as csvfile:
+            self.gen_command_model.__setitem__("input", file_name)
+            with open(self.gen_command_model.__getitem__("input"), 'w', newline='') as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerow(self.model.keys())
                 for i in range(len(self.model["SMILES"])):
@@ -214,9 +303,6 @@ class CsvController(QObject):
             logging.error(f"Error saving CSV file: {str(e)}")
 
             return False  # for the closing event
-
-
-
 
     def display_molecule(self,checked = None):
         """Display the molecule in the molecule_label using rdkit.Chem.Draw module"""
@@ -423,8 +509,6 @@ class CsvController(QObject):
                 self.selected_atoms = []
                 return
 
-
-
     def next_molecule(self):
         """Move to the next index in csv dictionary and update display."""
         if self.current_index == self.total_index == 1:
@@ -445,11 +529,9 @@ class CsvController(QObject):
 
     def new_molecule(self):
         """Create a new empty molecule entry in the csv dictionary and update the display."""
-        for key in self.model.keys():
-            self.model[key].append("")
-        self.current_index = len(self.model["SMILES"]) 
-        self.total_index = self.get_total_index()
-        self.model.signals.updated.emit()
+        self.model.add_row({}) # add empty row
+        self.current_index = self.model.get_total_index()
+        self.total_index = self.model.get_total_index()
         self.parent.update_ui()
 
     def delete_molecule(self) -> None:
@@ -457,13 +539,13 @@ class CsvController(QObject):
         
         Returns None"""
         if self.total_index == 1:
-            for key, value in self.model.items():
-                value.pop(self.current_index - 1)
+            self.model.delete_row(0)
+            self.current_index = 1
+            self.total_index = 1
             self.new_molecule()
             return
 
-        for key in self.model.keys():
-            self.model[key].pop(self.current_index - 1)
+        self.model.delete_row(self.current_index - 1)
 
         for constraint in ['each_dist', 'each_angle', 'each_dihedral']:
             if hasattr(self, constraint):
@@ -474,7 +556,7 @@ class CsvController(QObject):
         if hasattr(self, 'selected_atoms'):
             self.selected_atoms = []
 
-        self.total_index = self.get_total_index()
+        self.total_index = self.model.get_total_index()
         self.current_index = (self.current_index - 1) % (self.total_index + 1)
         if self.current_index == 0:
             self.current_index = 1
@@ -510,17 +592,18 @@ class Worker(QRunnable):
         """Runs AQME CSEARCH in the background. 
             
             Returns None."""
-        if gen_command["input"] == None or gen_command["input"] == "":
+            
+        if self.parent.model["input"] == None or self.parent.model["input"] == "":
             self.parent.error.emit("Please save the CSV file before running AQME.")
             return
         
         command_args = self.collect_csearch_params()
         logging.info("Collected csearch parameters:", command_args)
 
-        if gen_command["destination"] == None or gen_command["destination"] == "":
-            gen_command["destination"] = gen_command["input"].replace(".csv", "_aqme")
+        if self.parent.model["destination"] == None or self.parent.model["destination"] == "":
+            self.parent.model["destination"] = self.parent.model["input"].replace(".csv", "_aqme")
         
-        if gen_command["program"] == "rdkit":
+        if self.parent.model["program"] == "rdkit":
                 try:
                     # Begin the process by calling aqme csearch module 
                     csearch(**command_args)
@@ -529,7 +612,7 @@ class Worker(QRunnable):
                 except Exception as e:
                     logging.warning(f"Error encountered at csearch_thread when selecting RDKit: {e}")
 
-        elif gen_command["program"] == "crest":
+        elif self.parent.model["program"] == "crest":
                 try:
                     csearch(**command_args, **crest_command)
                 except Exception as e:

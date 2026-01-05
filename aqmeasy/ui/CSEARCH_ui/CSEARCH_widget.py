@@ -22,11 +22,11 @@ from aqmeasy.ui.icons import Icons
 
 
 class CSEARCHWidget(QWidget):
-    def __init__(self, parent, model):
+    def __init__(self, parent, model, general_command_model):
         super().__init__()
         self.parent = parent
         self.csv_model = model
-        self.control = CsvController(self.csv_model)
+        self.control = CsvController(self.csv_model, general_command_model)
         self.control.set_parent(self)
 
         self.setAcceptDrops(True)
@@ -255,7 +255,7 @@ class CSEARCHWidget(QWidget):
         # Row 4 - copy command/save csv
         self.copy_command_button = QPushButton("Copy Command", self)
         self.copy_command_button.setIcon(QIcon(Icons.command_line))
-        self.copy_command_button.clicked.connect(lambda: self.success("Command copied to clipboard.") if command2clipboard(self.aqme_rungen()) == True else self.failure("Failed to copy command to clipboard."))
+        # self.copy_command_button.clicked.connect(lambda: self.success("Command copied to clipboard.") if command2clipboard(self.aqme_rungen()) == True else self.failure("Failed to copy command to clipboard."))
         self.aqme_setup_grid.addWidget(self.copy_command_button, 4,0)
 
         # Row 5 - Run button
@@ -287,10 +287,10 @@ class CSEARCHWidget(QWidget):
         self.advanced_panel.setFixedHeight(0)
         self.main_layout.addWidget(self.advanced_panel)
 
-        advanced_layout = QGridLayout()
-        self.advanced_panel.setLayout(advanced_layout)
+        advanced_panel_layout = QVBoxLayout()
+        self.advanced_panel.setLayout(advanced_panel_layout)
         advanced_settings_group = QGroupBox("Advanced Settings")
-        self.advanced_panel.layout().addWidget(advanced_settings_group)
+        advanced_panel_layout.addWidget(advanced_settings_group)
         advanced_layout = QGridLayout()
         advanced_settings_group.setLayout(advanced_layout)
 
@@ -500,7 +500,7 @@ class CSEARCHWidget(QWidget):
     def _molecule_label_mouse_press(self,event):
         if event.button() == Qt.MouseButton.LeftButton:
             pos = event.position()
-        self.control.mousePressEvent(pos)    
+            self.control.mousePressEvent(pos)    
         QLabel.mousePressEvent(self.molecule_label, event)
 
         
@@ -630,10 +630,11 @@ class CSEARCHWidget(QWidget):
 
 # UI ELEMENTS UPDATE FUNCTIONS (This will definitely stay but might need to rewrite quite heavily)
 
+    @Slot()
     def update_ui(self):
         """Update all UI elements to reflect the current molecule's data."""
         try:
-            smiles = self.csv_model["SMILES"][self.control.current_index - 1]
+            smiles = self.csv_model.__getitem__("SMILES")[self.control.current_index - 1]
         except IndexError:
             smiles = "" 
         self.smiles_input.blockSignals(True)
@@ -664,7 +665,7 @@ class CSEARCHWidget(QWidget):
         self.update_properties()
         
     def index_and_total_label_update(self):
-        self.control.total_index = self.control.get_total_index()    
+        self.control.total_index = self.csv_model.get_total_index() 
         self.index_and_total_label.setText(f"{self.control.current_index}/{self.control.total_index}")
 
     def clear_focus_on_inputs(self):
@@ -682,15 +683,15 @@ class CSEARCHWidget(QWidget):
             msgBox.setText("Would you like to save the CSV file before exiting?")
             msgBox.setWindowIcon(icon)
             msgBox.setIconPixmap(icon.pixmap(64, 64))
-            msgBox.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+            msgBox.setStandardButtons(QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel)
             reply = msgBox.exec()
             
-            if reply == QMessageBox.Save:
+            if reply == QMessageBox.StandardButton.Save:
                 if not self.control.save_csv_file():
                     event.ignore()  # Prevent closing if saving fails
                 else:
                     event.accept()
-            elif reply == QMessageBox.Discard:
+            elif reply == QMessageBox.StandardButton.Discard:
                 event.accept()
             else:
                 event.ignore()
@@ -754,11 +755,13 @@ class CSEARCHWidget(QWidget):
                     for row in reader: 
                         self.csv_model.add_row(row)
                     
-                self.control.total_index = self.control.get_total_index()
+                self.control.total_index = self.csv_model.get_total_index()
                 if self.control.total_index > 0:
                     self.control.current_index = 1  # assuming indices start from 1
                     self.update_properties()
                     self.update_ui()
+                
+                self.control.gen_command_model.__setitem__("destination", os.path.dirname(file_name))
                 return
 
             else:
@@ -779,7 +782,7 @@ class CSEARCHWidget(QWidget):
                     self.csv_model["SMILES"][-1] = smiles
                     self.csv_model["charge"][-1] = smiles2charge(smiles)
                     self.csv_model["multiplicity"][-1] = smiles2multiplicity(smiles)
-            self.control.total_index = self.control.get_total_index()
+            self.control.total_index = self.csv_model.get_total_index()
 
             for index in range(self.control.total_index):
                 self.csv_model["code_name"][index] = f"mol_{index + 1}"
@@ -819,7 +822,7 @@ class CSEARCHWidget(QWidget):
             msg.setWindowIcon(icon)
             msg.setIconPixmap(icon.pixmap(64, 64))
         else:
-            msg.setIcon(QMessageBox.Information)
+            msg.setIcon(QMessageBox.Icon.Information)
         msg.exec()
 
     @Slot(str)
@@ -833,7 +836,7 @@ class CSEARCHWidget(QWidget):
             msg.setWindowIcon(icon)
             msg.setIconPixmap(icon.pixmap(64, 64))
         else:
-            msg.setIcon(QMessageBox.Critical)
+            msg.setIcon(QMessageBox.Icon.Critical)
         msg.exec()
 
     def _drag_enter(self,event):
@@ -884,4 +887,4 @@ class MessageBox(QMessageBox):
         
         self.setWindowIcon(icon)
         self.setIconPixmap(icon.pixmap(64, 64))
-        self.setStandardButtons(QMessageBox.Ok)
+        self.setStandardButtons(QMessageBox.StandardButton.Ok)

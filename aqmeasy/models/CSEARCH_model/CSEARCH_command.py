@@ -48,6 +48,8 @@ general_command_default = {
 
 general_command_model = command_model(**general_command_default) # ** unpacks the dictionary into keyword arguments
 
+
+
 summ_command_default = {
     "degree": 120.0
 }

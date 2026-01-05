@@ -12,7 +12,7 @@ class CSEARCH(QWidget):
         super().__init__()
         self.model = csv_dictionary
         self.worker = CSEARCHWorker(self, general_command_model)
-        self.main_widget = CSEARCHWidget(self, self.model)
+        self.main_widget = CSEARCHWidget(self, self.model, general_command_model)
         self.resize(1000, 900)
 
         self.setStyleSheet(stylesheets.QWidget)

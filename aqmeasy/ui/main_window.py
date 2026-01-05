@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
         else:
             logo.setText("Logo not found")
         logo.setOpenExternalLinks(True)
-        logo.mousePressEvent = lambda event: QDesktopServices.openUrl(QUrl("https://github.com/jvalegre/aqme"))
+        logo.mousePressEvent = lambda event: (QDesktopServices.openUrl(QUrl("https://github.com/jvalegre/aqme")), None)[1]
         logo.setCursor(Qt.CursorShape.PointingHandCursor)
 
 
@@ -53,7 +53,7 @@ class MainWindow(QMainWindow):
         else:
             readthedocs_label.setText('<a href="https://aqme.readthedocs.io/en/latest/">Docs</a>')
         
-        readthedocs_label.mousePressEvent = lambda event: QDesktopServices.openUrl(QUrl("https://aqme.readthedocs.io/en/latest/"))
+        readthedocs_label.mousePressEvent = lambda event: (QDesktopServices.openUrl(QUrl("https://aqme.readthedocs.io/en/latest/")), None)[1]
         
 
         layout.addWidget(logo,2, alignment=Qt.AlignmentFlag.AlignCenter)
@@ -152,7 +152,7 @@ class MainWindow(QMainWindow):
         QMessageBox.about(self, "About AQMEasy", about_text)
 
     def aboutQt(self):
-        QMessageBox.aboutQt(self, QApplication.aboutQt())
+        QMessageBox.aboutQt(self, str(QApplication.aboutQt()))
 
     def aboutRDKit(self):
         rdkit_text = """
