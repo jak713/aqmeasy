@@ -8,4 +8,4 @@
 4. Install pip dependencies: `pip install -r requirements.txt`
 5. Run the program with `python3 main.py`
 
-![aqmeasy preview](aqmeast-screencast-050126.gif)
+![aqmeasy preview](aqmeasy-screencast-050126.gif)
