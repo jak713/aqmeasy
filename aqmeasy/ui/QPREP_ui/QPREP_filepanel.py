@@ -147,6 +147,12 @@ class FilePanel(QWidget):
         self.status_text.setPlainText("All files cleared. Ready to select new files.")
         self.filesSelected.emit([])
 
+    def get_files_from_csearch(self, file_list):
+        """Receive files from CSEARCH"""
+        self.selected_files = file_list
+        self.update_file_list()
+        self.display_files_info()
+        self.filesSelected.emit(self.selected_files)
 
     def get_single_filename(self):
         """Select a single file"""

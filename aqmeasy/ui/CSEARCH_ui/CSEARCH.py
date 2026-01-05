@@ -8,8 +8,9 @@ from aqmeasy.models.CSEARCH_model.CSEARCH_model import csv_dictionary
 from aqmeasy.models.CSEARCH_model.CSEARCH_command import general_command_model
 
 class CSEARCH(QWidget):
-    def __init__(self):
+    def __init__(self, parent):
         super().__init__()
+        self.parent = parent
         self.model = csv_dictionary
         self.worker = CSEARCHWorker(self, general_command_model)
         self.main_widget = CSEARCHWidget(self, self.model, general_command_model)
@@ -20,3 +21,8 @@ class CSEARCH(QWidget):
         layout = QVBoxLayout()
         layout.addWidget(self.main_widget)
         self.setLayout(layout)
+
+    def open_qprep_after_csearch(self, destination_folder: str):
+        """Open QPREP from parent (main_window) with the generated SDF files after CSEARCH run."""
+        QPREP = self.parent.new_qprep_widget()
+        QPREP.file_panel.get_files_from_csearch([f"{destination_folder}/{name}_{general_command_model["program"]}.sdf" for name in self.model["code_name"] if name])

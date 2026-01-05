@@ -513,7 +513,7 @@ class CsvController(QObject):
         """Move to the next index in csv dictionary and update display."""
         if self.current_index == self.total_index == 1:
             return
-        self.current_index = (self.current_index + 1) % (len(self.model["SMILES"]) +1)
+        self.current_index = (self.current_index + 1) % (len(self.model["SMILES"]) + 1)
         if self.current_index == 0:
             self.current_index = 1
         self.parent.update_ui()
@@ -532,7 +532,7 @@ class CsvController(QObject):
         self.model.add_row({}) # add empty row
         self.current_index = self.model.get_total_index()
         self.total_index = self.model.get_total_index()
-        self.parent.update_ui()
+        self.parent.update_ui() 
 
     def delete_molecule(self) -> None:
         """Delete the current molecule and all associated data (including constraints) from the csv dictionary and update the display.
@@ -569,6 +569,7 @@ class CSEARCHWorker(QObject):
     result = Signal(str)
     error = Signal(str) # to send back to widget as failure
     finished = Signal(str)
+    confirm = Signal(str)  
 
     def __init__(self, parent, model):
         super().__init__()
@@ -619,7 +620,12 @@ class Worker(QRunnable):
                     logging.warning(f"Error encountered at csearch_thread when selecting CREST: {e}")
 
         # send finished signal to parent
-        self.parent.finished.emit("CSEARCH thread finished.")
+        self.parent.result.emit("CSEARCH completed successfully with parameters: " + "\n" + str(self.parent.model))
+        self.parent.finished.emit("CSEARCH run finished.")
+        if self.parent.confirm.emit("Would you like to open QPREP with the generated SDF file(s)?"):
+            # note parent = CSEARCHWorker, parent.parent = CSEARCH (CSEARCH.py) (possibly confusing)
+            self.parent.parent.open_qprep_after_csearch(self.parent.model["destination"])
+
 
     def collect_csearch_params(self) -> dict:
         """

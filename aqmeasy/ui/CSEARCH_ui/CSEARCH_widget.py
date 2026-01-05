@@ -1,8 +1,4 @@
 import logging
-import csv
-import os
-import subprocess
-import tempfile
 
 from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QTextEdit, QCheckBox, QMessageBox, QSizePolicy, QFileDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem, QFrame, QGridLayout, QDoubleSpinBox, QGroupBox
 from PySide6.QtCore import Qt, Slot
@@ -28,6 +24,8 @@ class CSEARCHWidget(QWidget):
         self.csv_model = model
         self.control = CsvController(self.csv_model, general_command_model)
         self.control.set_parent(self)
+
+        self.csv_model.signals.updated.connect(self.update_ui)
 
         self.setAcceptDrops(True)
         self.dragEnterEvent = self._drag_enter
@@ -64,7 +62,7 @@ class CSEARCHWidget(QWidget):
 
         self.import_button = QPushButton("Import", self)
         self.import_button.setIcon(QIcon(Icons.add_file))
-        self.import_button.clicked.connect(lambda: (logging.debug("at import_button >>> self.import_file()"), self.import_file()))
+        self.import_button.clicked.connect(lambda: (logging.debug("at import_button >>> self.control.import_file()"), self.control.import_file()))
         self.control1_layout.addWidget(self.import_button)
 
         self.show_all_button = QPushButton("Show All", self)
@@ -266,6 +264,7 @@ class CSEARCHWidget(QWidget):
         self.run_button.clicked.connect(self.parent.worker.run)
         self.parent.worker.error.connect(self.failure)
         self.parent.worker.finished.connect(self.success)
+        self.parent.worker.confirm.connect(self.yes_no_function_dialog)
         
         self.aqme_setup_grid.addWidget(self.run_button, 4, 1, 2, 1)
 
@@ -553,7 +552,7 @@ class CSEARCHWidget(QWidget):
             return
         try:
             smiles = pubchem2smiles(code_name)
-            current_text = self.csv_model["SMILES"][self.control.current_index - 1]
+            current_text = self.csv_model.__getitem__("SMILES")[self.control.current_index - 1]
             new_text = f"{current_text}.{smiles}" if current_text else smiles
             if isinstance(new_text, str):
                 self.smiles_input.setText(new_text)
@@ -563,8 +562,8 @@ class CSEARCHWidget(QWidget):
         except Exception as e:
             self.failure(f"An error occurred: {str(e)}")
             
-        if not self.csv_model["code_name"][self.control.current_index - 1]:
-            self.csv_model["code_name"][self.control.current_index - 1] = code_name
+        if not self.csv_model.__getitem__("code_name")[self.control.current_index - 1]:
+            self.csv_model.set_item_at_index("code_name", self.control.current_index - 1, code_name)
 
         
         self.update_properties()
@@ -698,106 +697,6 @@ class CSEARCHWidget(QWidget):
         else:
             event.accept()
 
-
-# CHEMDRAW FUNCTIONS 
-# NOTE THIS NEEDS TO BE MOVED OVER TO THE CONTROLLER, THERE IS NO REASON WHY IT SHOULD BE WITHIN THE UI 
-    def import_file(self,file_name=None):
-        """Import an SDF or ChemDraw file, extract SMILES, and display them. For CSV files, read the data and update the model."""
-
-        if not file_name:
-            file_name, _ = QFileDialog.getOpenFileName(self, "Import File", "", "ChemDraw Files (*.cdx *.cdxml);;SDF Files (*.sdf);;CSV files (*.csv)")
-        try:
-            for key in self.csv_model.keys():
-                self.csv_model[key].clear()
-            smiles_list = []
-
-            if file_name.endswith(".sdf"):
-                mol_supplier = Chem.SDMolSupplier(file_name)
-                for mol in mol_supplier:
-                    if mol is not None:
-                        smiles = Chem.MolToSmiles(mol)
-                        smiles_list.append(smiles)
-
-            elif file_name.endswith(".cdx"): 
-                with tempfile.NamedTemporaryFile(suffix=".sdf", delete=False) as temp_sdf:
-                    temp_sdf_path = temp_sdf.name 
-
-                try:
-                    # Run Open Babel to convert CDX to SDF and save it to the temp file
-                    subprocess.run(["obabel", file_name, "-O", temp_sdf_path], check=True)
-                    # print(f"Conversion successful: {temp_sdf_path}")
-
-                except subprocess.CalledProcessError as e:
-                    print(f"Error during conversion: {e}")
-
-                mol_supplier = Chem.SDMolSupplier(temp_sdf_path)
-                for mol in mol_supplier:
-                    if mol is not None:
-                        smiles = Chem.MolToSmiles(mol)
-                        smiles_list.append(smiles)
-
-                if os.path.exists(temp_sdf_path):
-                    os.remove(temp_sdf_path)
-
-            elif file_name.endswith(".cdxml"):
-                try:
-                    mols = Chem.MolsFromCDXMLFile(file_name, sanitize=True, removeHs=True)
-                    for mol in mols:
-                        if mol is not None:
-                            smiles = Chem.MolToSmiles(mol)
-                            smiles_list.append(smiles)
-                except Exception as e:
-                    QMessageBox.critical(self, "CDXML Read Error", f"Failed to read {file_name}:\n{str(e)}")
-
-            elif file_name.endswith(".csv"):
-                with open(file_name, 'r') as csvfile:
-                    reader = csv.DictReader(csvfile)
-                    for row in reader: 
-                        self.csv_model.add_row(row)
-                    
-                self.control.total_index = self.csv_model.get_total_index()
-                if self.control.total_index > 0:
-                    self.control.current_index = 1  # assuming indices start from 1
-                    self.update_properties()
-                    self.update_ui()
-                
-                self.control.gen_command_model.__setitem__("destination", os.path.dirname(file_name))
-                return
-
-            else:
-                QMessageBox.warning(self, "Error", "Unsupported file format. Please select a ChemDraw, SDF, or CSV file.")
-                return
-            if not smiles_list:
-                QMessageBox.warning(self, "Error", "No valid SMILES found in the file.")
-                return
-
-            for index, smiles in enumerate(smiles_list):
-                if index < len(self.csv_model["SMILES"]):
-                    self.csv_model["SMILES"][index] = smiles
-                    self.csv_model["charge"][index] = smiles2charge(smiles)
-                    self.csv_model["multiplicity"][index] = smiles2multiplicity(smiles)
-                else:
-                    for key in self.csv_model.keys():
-                        self.csv_model[key].append("")
-                    self.csv_model["SMILES"][-1] = smiles
-                    self.csv_model["charge"][-1] = smiles2charge(smiles)
-                    self.csv_model["multiplicity"][-1] = smiles2multiplicity(smiles)
-            self.control.total_index = self.csv_model.get_total_index()
-
-            for index in range(self.control.total_index):
-                self.csv_model["code_name"][index] = f"mol_{index + 1}"
-                self.control.current_index = 1
-                
-            self.csv_model.signals.updated.emit()
-            self.update_properties()
-
-        except ImportError as e:
-            print(f"Error importing required module: {e}")
-        except IOError as e:
-            print(f"Error reading or writing file: {e}")
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-
 # AQME RUN SETUP FUNCTIONS
 
     def select_output_directory(self):
@@ -839,6 +738,22 @@ class CSEARCHWidget(QWidget):
             msg.setIcon(QMessageBox.Icon.Critical)
         msg.exec()
 
+    @Slot(str)
+    def yes_no_function_dialog(self, message:str) -> bool:
+        pixmap = QPixmap(Icons.blue)
+        msgBox = QMessageBox(self)
+        msgBox.setWindowTitle("Input Required")
+        msgBox.setText(message)
+        if not pixmap.isNull():
+            icon = QIcon(pixmap)
+            msgBox.setWindowIcon(icon)
+            msgBox.setIconPixmap(icon.pixmap(64, 64))
+        else:
+            msgBox.setIcon(QMessageBox.Icon.Question)
+        msgBox.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        reply = msgBox.exec()
+        return reply == QMessageBox.StandardButton.Yes
+
     def _drag_enter(self,event):
         mime = event.mimeData()
         if mime and mime.hasUrls():
@@ -868,7 +783,7 @@ class CSEARCHWidget(QWidget):
             urls = mime.urls()
             if urls:
                 file_path = urls[0].toLocalFile()
-                self.import_file(file_path)
+                self.control.import_file(file_path)
         else:
             event.ignore()
 

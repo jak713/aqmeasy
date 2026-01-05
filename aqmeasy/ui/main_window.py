@@ -191,16 +191,21 @@ class MainWindow(QMainWindow):
         pass
 
     def new_csearch_widget(self):
-        self.new_csearch = CSEARCH()
-        self.new_csearch.show()
+        if not hasattr(self, 'csearch') or self.csearch.isHidden():
+            self.csearch = CSEARCH(self)
+            self.csearch.show()
 
     def new_qprep_widget(self):
-        self.new_qprep = QPREP()
-        self.new_qprep.show()
+        if not hasattr(self, 'qprep') or self.qprep.isHidden():
+            self.qprep = QPREP()
+            self.qprep.show()
+            # Need to return this to be able to call it from CSEARCH after a run
+            return self.qprep
 
     def new_qcorr_widget(self):
-        self.new_qcorr = QCORR()
-        self.new_qcorr.show()
+        if not hasattr(self, 'qcorr') or self.qcorr.isHidden():
+            self.qcorr = QCORR()
+            self.qcorr.show()
 
     def new_qdescp_widget(self):
         """Opens a new window for secret stuff"""
