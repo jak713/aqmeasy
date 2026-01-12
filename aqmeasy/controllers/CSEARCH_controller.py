@@ -15,7 +15,6 @@ from aqmeasy.utils import smiles2enumerate, smiles2charge, smiles2multiplicity, 
 
 from aqme.csearch import csearch
 
-from aqmeasy.utils import smiles2enumerate, smiles2charge, smiles2multiplicity
 import rdkit.rdBase
 from rdkit import Chem
 from rdkit.Chem import Draw as rdMolDraw2D, rdDepictor
@@ -132,7 +131,6 @@ class CsvController(QObject):
         self.model["constraints_dihedral"][index] = ""
         self.model.signals.updated.emit()
         return True
-
 
     def update_smiles_model(self, smiles):
         """Update the model with the current SMILES string.

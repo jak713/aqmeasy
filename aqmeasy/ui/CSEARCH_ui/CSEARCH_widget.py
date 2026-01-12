@@ -99,11 +99,10 @@ class CSEARCHWidget(QWidget):
         self.molecule_label.resizeEvent = lambda event: self.log_box_label.move(5, self.molecule_label.height() - self.log_box_label.height())
 
     # VARIOUS INPUTS
-        self.smiles_input = QTextEdit(self)
+        self.smiles_input = QPlainTextEdit(self)
         self.smiles_input.setPlaceholderText("Enter SMILES, search PubChem below or drop in a ChemDraw/csv/sdf file...")
         self.smiles_input.setAutoFillBackground(True)
         self.smiles_input.setAcceptDrops(False)
-        self.smiles_input.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.right_layout.addWidget(self.smiles_input, 1)
 
         self.smiles_input.textChanged.connect(lambda: self.control.update_smiles_model(self.smiles_input.toPlainText()))
@@ -118,13 +117,11 @@ class CSEARCHWidget(QWidget):
         self.search_pubchem_input.returnPressed.connect(self.smiles_from_pubchem)
         self.control2_layout.addWidget(self.search_pubchem_input)
 
-        self.search_pubchem_advanced_button = QPushButton(self)
-        self.search_pubchem_advanced_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView))
-        # this is for Getting a full results list for common compound names (https://pubchempy.readthedocs.io/en/latest/guide/searching.html)
-        # probs wont incorporate advanced search types but idk yet
-        # might also add searching for SIDs along with name and CID IDK yet need to ask Juanvi
-        self.search_pubchem_advanced_button.setToolTip("Advanced PubChem Search")
-        self.control2_layout.addWidget(self.search_pubchem_advanced_button)
+        self.smiles_tutorial_button = QPushButton(self)
+        self.smiles_tutorial_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView))
+        self.smiles_tutorial_button.setToolTip("SMILES Tutorial")
+        self.smiles_tutorial_button.clicked.connect(self.control.open_smiles_tutorial)
+        self.control2_layout.addWidget(self.smiles_tutorial_button)
 
         self.right_layout.addLayout(self.control2_layout)
         self.right_layout.addLayout(self.control3_layout)
@@ -197,7 +194,6 @@ class CSEARCHWidget(QWidget):
         self.shell_output.setReadOnly(True)
         shell_layout = QVBoxLayout(shell_group)
         shell_layout.addWidget(self.shell_output)
-        self.parent.worker.result.connect(self.shell_output.append)
 
         self.bottom_layout.addWidget(shell_group, 2)
 

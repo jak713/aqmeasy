@@ -74,7 +74,7 @@ class QPrepWorker(QObject):
                     qprep(files=file_path,
                           program=self.params['software'],
                           qm_input=self.params["keywords"] + ' ' + self.params['functional'] + " " + 
-                                  self.params['basis'] + " " + self.params['solvent_block'],
+                                   self.params['basis'] + " " + self.params['solvent_block'],
                           mem=f"{self.params['mem']}GB",
                           nprocs=self.params['nprocs'],
                     )
