@@ -1,4 +1,5 @@
 aqme
+psutil
 pyside6
 coverage
 pytest-qt
