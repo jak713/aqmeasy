@@ -1,10 +1,19 @@
 import logging
 import csv
-import os
+import os, sys
+from io import StringIO
+import psutil
+import time
+import threading
+import select
 import subprocess
 import tempfile
 from aqmeasy.models.CSEARCH_model.CSEARCH_command import general_command_default, crest_command_model as crest_command
 from aqmeasy.ui.CSEARCH_ui.CSEARCH_csvtable import csv_table
+from aqmeasy.ui.CSEARCH_ui.CSEARCH_SmilesTutorialViewer import SmilesTutorialViewer
+from aqmeasy.utils import smiles2enumerate, smiles2charge, smiles2multiplicity, command2clipboard
+
+from aqme.csearch import csearch
 
 from aqmeasy.utils import smiles2enumerate, smiles2charge, smiles2multiplicity
 import rdkit.rdBase
@@ -12,8 +21,7 @@ from rdkit import Chem
 from rdkit.Chem import Draw as rdMolDraw2D, rdDepictor
 from PySide6.QtWidgets import QInputDialog, QMessageBox, QFileDialog
 from PySide6.QtGui import QPixmap
-from PySide6.QtCore import QObject,QRunnable, Slot, Signal, QThreadPool
-from aqme.csearch import csearch
+from PySide6.QtCore import QObject, Signal, QThread, QTimer
 
 ELECTRON_LABEL_X_OFFSET = 15
 ELECTRON_LABEL_Y_OFFSET = 25
@@ -577,91 +585,256 @@ class CsvController(QObject):
         self.model.signals.updated.emit()
         self.parent.update_ui()
 
+    def open_smiles_tutorial(self):
+        """Open the SMILES tutorial, uses QWebEngineView to open the URL."""
+        self.smiles_tutorial_viewer = SmilesTutorialViewer()
 
+    def generate_csearch_command(self):
+        """Generate the CSEARCH command based on the current model settings and copy it to clipboard."""
+        command_args = self.parent.parent.worker.collect_csearch_params()
+        command_str = "python3 -m aqme --csearch " + " ".join(f"--{k} '{v}'" for k,v in command_args.items())
+        return command_str
 
-class CSEARCHWorker(QObject):  
+class StreamCapture:
+    """Captures output and emits it via signal in real-time."""
+    def __init__(self, signal):
+        self.signal = signal
+        self.buffer = StringIO()
+    
+    def write(self, text):
+        if text and text.strip():  # Only emit non-empty lines
+            self.signal.emit(text.rstrip())
+        self.buffer.write(text)
+    
+    def flush(self):
+        pass  # Required for file-like object
+    
+    def getvalue(self):
+        return self.buffer.getvalue()
+    
+
+class QThreadLogHandler(logging.Handler):
+    """Custom logging handler that emits logs via Qt signal."""
+    def __init__(self, signal):
+        super().__init__()
+        self.signal = signal
+    
+    def emit(self, record):
+        msg = self.format(record)
+        self.signal.emit(msg)
+
+class FDCapture(threading.Thread):
+    """Capture output at file descriptor level."""
+    def __init__(self, fd, signal, stop_event):
+        super().__init__(daemon=True)
+        self.fd = fd
+        self.signal = signal
+        self.stop_event = stop_event
+        
+    def run(self):
+        """Read from file descriptor and emit via signal."""
+        while not self.stop_event.is_set():
+            try:
+                # Use select with timeout to check if data is available
+                if select.select([self.fd], [], [], 0.1)[0]:
+                    data = os.read(self.fd, 4096)
+                    if data:
+                        text = data.decode('utf-8', errors='replace')
+                        # Split by lines and emit each
+                        for line in text.splitlines():
+                            if line.strip():
+                                self.signal.emit(line)
+            except Exception as e:
+                # File descriptor might be closed
+                break
+
+class CSEARCHThread(QThread):
     result = Signal(str)
-    error = Signal(str) # to send back to widget as failure
-    finished = Signal(str)
-    confirm = Signal(str)  
-
+    error = Signal(str)
+    finished_signal = Signal(str)
+    confirm = Signal(str, str)
+    
     def __init__(self, parent, model):
         super().__init__()
-        self.parent = parent
+        self.parent_widget = parent
         self.model = model
-        self.threadpool = QThreadPool()
+        self._stop_requested = False
+        self._killer_active = False
+
+    def request_stop(self):
+        """Request the thread to stop and kill any running subprocesses."""
+        self._stop_requested = True
+        self._killer_active = True
+        self.result.emit("Stopping CSEARCH and terminating subprocesses...")
+        
+        # Start aggressive subprocess killing in a loop
+        QTimer.singleShot(0, self.aggressive_kill_loop)
+
+    def aggressive_kill_loop(self):
+        """Aggressively kill CSEARCH-related processes in the destination directory."""
+        kill_duration = 5  # Kill for 5 seconds
+        start_time = time.time()
+        killed_count = 0
+        
+        # Get the destination directory to match against
+        target_dir = os.path.abspath(self.model.__get__("destination"))
+        
+        while time.time() - start_time < kill_duration and self._killer_active:
+            try:
+                # Check all processes on the system
+                for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'cwd']):
+                    try:
+                        proc_name = proc.info['name'].lower()
+                        
+                        # Check if it's a process we care about
+                        if any(name in proc_name for name in ['crest', 'xtb', 'obabel', 'rdkit']):
+                            # Get the working directory of the process
+                            try:
+                                proc_cwd = proc.cwd()
+                                
+                                # Check if process is running in our target directory or subdirectory
+                                if proc_cwd.startswith(target_dir):
+                                    self.result.emit(f"Killing: {proc.info['name']} (PID: {proc.info['pid']}) in {proc_cwd}")
+                                    psutil.Process(proc.info['pid']).kill()
+                                    killed_count += 1
+                            except (psutil.AccessDenied, psutil.NoSuchProcess):
+                                # If we can't get cwd, try checking command line for directory hints
+                                cmdline = proc.info.get('cmdline', [])
+                                if cmdline and any(target_dir in str(arg) for arg in cmdline):
+                                    self.result.emit(f"Killing (by cmdline): {proc.info['name']} (PID: {proc.info['pid']})")
+                                    psutil.Process(proc.info['pid']).kill()
+                                    killed_count += 1
+                                    
+                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                        pass
+            
+            except Exception as e:
+                logging.error(f"Error in kill loop: {e}")
+            
+            time.sleep(0.2)  # Check every 200ms for new processes
+        
+        self.result.emit(f"Kill loop finished. Killed {killed_count} processes.")
 
     def run(self) -> None:
-        """Run the csearch function."""
-        worker = Worker(self)
-        self.threadpool.start(worker.csearch_thread())
-
-class Worker(QRunnable):
-    """Worker for csearch thread"""
-    def __init__(self, parent):
-        super().__init__()
-        self.parent = parent
-
-    @Slot()
-    def csearch_thread(self) -> None:
-        """Runs AQME CSEARCH in the background. 
-            
-            Returns None."""
-            
-        if self.parent.model["input"] == None or self.parent.model["input"] == "":
-            self.parent.error.emit("Please save the CSV file before running AQME.")
+        """Runs AQME CSEARCH in the background."""
+        
+        if self.model["input"] is None or self.model["input"] == "":
+            self.error.emit("Please save the CSV file before running AQME.")
+            self.result.emit("CSEARCH aborted: No input CSV file specified.")
+            return
+        
+        if self._stop_requested:
+            self.result.emit("CSEARCH cancelled before starting.")
             return
         
         command_args = self.collect_csearch_params()
-        logging.info("Collected csearch parameters:", command_args)
+        self.result.emit(f"Starting CSEARCH with parameters: {command_args}")
         
-        if self.parent.model["program"] == "rdkit":
-                try:
-                    # Begin the process by calling aqme csearch module 
+        # Set up logging capture
+        log_handler = QThreadLogHandler(self.result)
+        log_handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(message)s')
+        log_handler.setFormatter(formatter)
+        
+        root_logger = logging.getLogger()
+        aqme_logger = logging.getLogger('aqme')
+        
+        root_logger.addHandler(log_handler)
+        aqme_logger.addHandler(log_handler)
+        
+        # Redirect stdout/stderr at file descriptor level
+        stdout_pipe_read, stdout_pipe_write = os.pipe()
+        stderr_pipe_read, stderr_pipe_write = os.pipe()
+        
+        # Save original file descriptors
+        original_stdout_fd = os.dup(sys.stdout.fileno())
+        original_stderr_fd = os.dup(sys.stderr.fileno())
+        
+        # Create stop event for capture threads
+        stop_event = threading.Event()
+        
+        # Start capture threads
+        stdout_capture = FDCapture(stdout_pipe_read, self.result, stop_event)
+        stderr_capture = FDCapture(stderr_pipe_read, self.result, stop_event)
+        stdout_capture.start()
+        stderr_capture.start()
+        
+        try:
+            # Redirect file descriptors
+            os.dup2(stdout_pipe_write, sys.stdout.fileno())
+            os.dup2(stderr_pipe_write, sys.stderr.fileno())
+            
+            if self.model["program"] == "rdkit":
+                self.result.emit("Running RDKit conformer search...")
+                if not self._stop_requested:
                     csearch(**command_args)
-                    # CAVEAT: need to find a way to reliably capture stdout and stderr 
-
-                except Exception as e:
-                    logging.warning(f"Error encountered at csearch_thread when selecting RDKit: {e}")
-
-        elif self.parent.model["program"] == "crest":
-                try:
+                    
+            elif self.model["program"] == "crest":
+                self.result.emit("Running CREST conformer search (this might take a while)...")
+                if not self._stop_requested:
                     csearch(**command_args, **crest_command)
-                except Exception as e:
-                    logging.warning(f"Error encountered at csearch_thread when selecting CREST: {e}")
-
-        # send finished signal to parent
-        self.parent.result.emit("CSEARCH completed successfully with parameters: " + "\n" + str(self.parent.model))
-        self.parent.finished.emit("CSEARCH run finished.")
-        if self.parent.confirm.emit("Would you like to open QPREP with the generated SDF file(s)?"):
-            # note parent = CSEARCHWorker, parent.parent = CSEARCH (CSEARCH.py) (possibly confusing)
-            self.parent.parent.open_qprep_after_csearch(self.parent.model["destination"])
-
+            
+            if self._stop_requested:
+                self.result.emit("CSEARCH was stopped.")
+                self._killer_active = False
+                return
+            
+            self.result.emit("CSEARCH completed successfully!")
+            self.finished_signal.emit("CSEARCH run finished.")
+            self.confirm.emit(
+                "Would you like to open QPREP with the generated SDF file(s)?",
+                self.model["destination"]
+            )
+            
+        except Exception as e:
+            if self._stop_requested:
+                self.result.emit("CSEARCH stopped by user.")
+                self._killer_active = False
+            else:
+                logging.exception(f"Error encountered during CSEARCH: {e}")
+                self.error.emit(f"Error during CSEARCH: {str(e)}")
+        
+        finally:
+            # Restore original file descriptors
+            os.dup2(original_stdout_fd, sys.stdout.fileno())
+            os.dup2(original_stderr_fd, sys.stderr.fileno())
+            
+            # Close pipe file descriptors
+            os.close(original_stdout_fd)
+            os.close(original_stderr_fd)
+            os.close(stdout_pipe_write)
+            os.close(stderr_pipe_write)
+            
+            # Stop capture threads
+            stop_event.set()
+            stdout_capture.join(timeout=1)
+            stderr_capture.join(timeout=1)
+            
+            # Close read pipes
+            os.close(stdout_pipe_read)
+            os.close(stderr_pipe_read)
+            
+            # Remove logging handlers
+            root_logger.removeHandler(log_handler)
+            aqme_logger.removeHandler(log_handler)
 
     def collect_csearch_params(self) -> dict:
-        """
-        Collects csearch parameters from the  as dict, compares them to default_values, if different stores them as attributes of self. 
-        
-        Returns:
-            csearch_params (dict): Dictionary of csearch parameters to be passed to aqme.csearch function.
-        """
+        """Collects csearch parameters from the model."""
         csearch_params = {}
 
-        if self.parent.model["program"] == "":
-                self.parent.model.__setitem__("program", "rdkit")
-        if self.parent.model["destination"] == None or self.parent.model["destination"] == "":
-                if self.parent.model["input"] != "" and self.parent.model["input"] != None:
-                    self.parent.model.__setitem__("destination", self.parent.model["input"].replace(".csv", "_aqme"))
+        if self.model["program"] == "":
+            self.model["program"] = "rdkit"
+        if self.model["destination"] is None or self.model["destination"] == "":
+            if self.model["input"] != "" and self.model["input"] is not None:
+                self.model["destination"] = self.model["input"].replace(".csv", "_aqme")
 
         try:
-            params = self.parent.model # Parent of worker is CSEARCHWorker, its model is the general_command_model (see CSEARCH.py)
-            logging.info("Current parameters:", params)
+            params = self.model
             for key, value in params.items():
                 if key in general_command_default:
-                    logging.info(f"Comparing {key}: current value = {value}, default value = {general_command_default[key]}")
                     if value != general_command_default[key]:
                         csearch_params[key] = value
         except Exception as e:
-            logging.warning(f"Error encountered at collect_csearch_params when extracting params from model: {e}")
+            logging.warning(f"Error at collect_csearch_params: {e}")
 
         return csearch_params

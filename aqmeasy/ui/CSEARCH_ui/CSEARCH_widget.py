@@ -1,10 +1,10 @@
 import logging
 
-from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QTextEdit, QCheckBox, QMessageBox, QSizePolicy, QFileDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem, QFrame, QGridLayout, QDoubleSpinBox, QGroupBox
+from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QPlainTextEdit, QCheckBox, QMessageBox, QSizePolicy, QFileDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem, QFrame, QGridLayout, QDoubleSpinBox, QGroupBox, QProgressBar
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, QDoubleValidator, QTextCursor, QIntValidator
+from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, QDoubleValidator, QTextCursor, QIntValidator    
 
-from rdkit import Chem
+# from rdkit import Chem
 
 from aqmeasy.utils import  pubchem2smiles, smiles2enumerate, smiles2numatoms, smiles2numelectrons, smiles2findmetal, smiles2charge, smiles2multiplicity, command2clipboard
 
@@ -42,6 +42,8 @@ class CSEARCHWidget(QWidget):
         self.control2_layout = QHBoxLayout()    
         self.control3_layout = QHBoxLayout()
 
+        self.middle_layout = QHBoxLayout()
+
         self.right_layout.addLayout(self.control1_layout)
         self.bottom_layout = QHBoxLayout()
         self.main_layout = QVBoxLayout()
@@ -50,6 +52,7 @@ class CSEARCHWidget(QWidget):
         self.top_layout.addLayout(self.right_layout, 1)  
         self.main_layout.addLayout(self.top_layout, 3)
         self.main_layout.addLayout(self.bottom_layout, 1)
+        self.main_layout.addLayout(self.middle_layout)
         self.setLayout(self.main_layout)
 
         self.index_and_total_label = QLabel(f"{self.control.current_index}/{self.control.total_index}")
@@ -180,6 +183,12 @@ class CSEARCHWidget(QWidget):
 
         self.right_layout.addWidget(self.properties_table, 2)
 
+        # Progress bar in middle layout
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setFixedHeight(10)
+        self.middle_layout.addWidget(self.progress_bar)
+
+
         shell_group = QGroupBox("Shell Output")
 
         self.shell_output = QTextBrowser(self)
@@ -249,7 +258,7 @@ class CSEARCHWidget(QWidget):
         # Row 4 - copy command/save csv
         self.copy_command_button = QPushButton("Copy Command", self)
         self.copy_command_button.setIcon(QIcon(Icons.command_line))
-        # self.copy_command_button.clicked.connect(lambda: self.success("Command copied to clipboard.") if command2clipboard(self.aqme_rungen()) == True else self.failure("Failed to copy command to clipboard."))
+        self.copy_command_button.clicked.connect(lambda: self.success("Command copied to clipboard.") if command2clipboard(self.control.generate_csearch_command()) == True else self.failure("Failed to copy command to clipboard."))
         self.aqme_setup_grid.addWidget(self.copy_command_button, 4,0)
 
         # Row 5 - Run button
@@ -257,11 +266,14 @@ class CSEARCHWidget(QWidget):
         self.run_button.setStyleSheet(stylesheets.RunButton)
         self.run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
 
-        self.run_button.clicked.connect(self.parent.worker.run)
+        self.run_button.clicked.connect(self.toggle_csearch)
+
         self.parent.worker.error.connect(self.failure)
-        self.parent.worker.finished.connect(self.success)
-        self.parent.worker.confirm.connect(self.yes_no_function_dialog)
-        
+        self.parent.worker.result.connect(self.shell_output.append)
+        self.parent.worker.finished_signal.connect(self.success)
+        self.parent.worker.confirm.connect(lambda msg: self.handle_qprep_confirm(msg, self.parent.worker.model["destination"]))
+        self.parent.worker.finished.connect(self.on_thread_complete)
+
         self.aqme_setup_grid.addWidget(self.run_button, 4, 1, 2, 1)
 
         for widget in [self.smiles_input, self.smiles_output, self.properties_table,  self.shell_output, self.molecule_label, self.atom_electron_label]:
@@ -551,7 +563,7 @@ class CSEARCHWidget(QWidget):
             current_text = self.csv_model.__getitem__("SMILES")[self.control.current_index - 1]
             new_text = f"{current_text}.{smiles}" if current_text else smiles # Allow for multople molecules 
             if isinstance(new_text, str): # To keep pylance happy
-                self.smiles_input.setText(new_text)
+                self.smiles_input.setPlainText(new_text)
 
         except IndexError:
             self.failure("No compound found for the given input. Please check the CID or name.")
@@ -633,7 +645,7 @@ class CSEARCHWidget(QWidget):
         except IndexError:
             smiles = "" 
         self.smiles_input.blockSignals(True)
-        self.smiles_input.setText(smiles)
+        self.smiles_input.setPlainText(smiles)
 
         try:
             self.smiles_output.setText(smiles2enumerate(smiles))
@@ -668,10 +680,33 @@ class CSEARCHWidget(QWidget):
         self.search_pubchem_input.clearFocus()
 
     def closeEvent(self, event):
-        """Handle the close event to prompt saving the CSV file, with the added icon."""
+        """Handle the close event to stop CSEARCH if running and prompt saving the CSV file."""
         pixmap = QPixmap(Icons.blue)
         icon = QIcon(pixmap)
         
+        # First, check if CSEARCH is running
+        if hasattr(self, 'worker') and self.parent.worker.isRunning():
+            msgBox = QMessageBox(self)
+            msgBox.setWindowTitle("CSEARCH Running")
+            msgBox.setText("CSEARCH is still running. Stop it and continue closing?")
+            msgBox.setWindowIcon(icon)
+            msgBox.setIconPixmap(icon.pixmap(64, 64))
+            msgBox.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            reply = msgBox.exec()
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                # Stop the worker
+                self.parent.worker.request_stop()
+                self.parent.worker.wait(5000)  # Wait up to 5 seconds
+                if self.parent.worker.isRunning():
+                    self.parent.worker.terminate()
+                    self.parent.worker.wait()
+                self.shell_output.append("CSEARCH stopped due to application closure.")
+            else:
+                event.ignore()
+                return
+        
+        # Then, check if CSV needs saving
         if self.file_name is None: 
             msgBox = QMessageBox(self)
             msgBox.setWindowTitle("Save CSV")
@@ -704,6 +739,54 @@ class CSEARCHWidget(QWidget):
             self.output_dir_input.setText(f"{self.output_directory}")
         else:
             return
+        
+    def toggle_csearch(self):
+        """Toggle between starting and stopping CSEARCH."""
+        if self.parent.worker.isRunning():
+            # Stop the running thread
+            self.stop_csearch()
+        else:
+            # Start a new thread
+            self.start_csearch()
+
+    def start_csearch(self):
+        """Start CSEARCH thread."""
+        self.run_button.setText("Stop CSEARCH")
+        self.run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaStop))
+        
+        # Reset stop flag
+        self.parent.worker._stop_requested = False
+        self.parent.worker.start()
+        self.shell_output.append("Starting CSEARCH...")
+        # Begin progress loop to simulate progress bar updates
+        self.progress_bar.setRange(0, 0)  # Indeterminate mode
+
+    def stop_csearch(self):
+        """Request CSEARCH to stop."""
+        self.run_button.setEnabled(False)
+        self.run_button.setText("Stopping...")
+        self.parent.worker.request_stop()
+        
+        # Give it more time (10 seconds) to kill all spawned processes
+        if not self.parent.worker.wait(10000):  # Wait 10 seconds
+            self.parent.worker.terminate()
+            self.parent.worker.wait()
+            self.shell_output.append("CSEARCH thread forcefully terminated.")
+        
+        # Ensure killer loop has stopped
+        self.parent.worker._killer_active = False
+
+    def handle_qprep_confirm(self, message: str, destination: str) -> None:
+        """Ask user and open QPREP if they say yes."""
+        if self.yes_no_dialog(message):
+            self.parent.open_qprep_after_csearch(destination)
+
+    def on_thread_complete(self):
+        """Called when thread finishes."""
+        self.run_button.setEnabled(True)
+        self.run_button.setText("Run CSEARCH")
+        self.run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+        self.progress_bar.setRange(0, 100)
 
 # random 
     @Slot(str)
@@ -735,7 +818,7 @@ class CSEARCHWidget(QWidget):
         msg.exec()
 
     @Slot(str)
-    def yes_no_function_dialog(self, message:str) -> bool:
+    def yes_no_dialog(self, message:str) -> bool:
         pixmap = QPixmap(Icons.blue)
         msgBox = QMessageBox(self)
         msgBox.setWindowTitle("Input Required")
@@ -749,7 +832,7 @@ class CSEARCHWidget(QWidget):
         msgBox.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         reply = msgBox.exec()
         return reply == QMessageBox.StandardButton.Yes
-
+    
     def _drag_enter(self,event):
         mime = event.mimeData()
         if mime and mime.hasUrls():

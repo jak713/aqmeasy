@@ -3,7 +3,7 @@ from PySide6.QtCore import Qt
 from aqmeasy.ui.stylesheets import stylesheets
 
 from aqmeasy.ui.CSEARCH_ui.CSEARCH_widget import CSEARCHWidget
-from aqmeasy.controllers.CSEARCH_controller import CSEARCHWorker
+from aqmeasy.controllers.CSEARCH_controller import CSEARCHThread
 from aqmeasy.models.CSEARCH_model.CSEARCH_model import csv_dictionary
 from aqmeasy.models.CSEARCH_model.CSEARCH_command import general_command_model
 
@@ -13,7 +13,7 @@ class CSEARCH(QWidget):
         if parent:
             self.parent = parent
         self.model = csv_dictionary
-        self.worker = CSEARCHWorker(self, general_command_model)
+        self.worker = CSEARCHThread(self, general_command_model)
         self.main_widget = CSEARCHWidget(self, self.model, general_command_model)
         self.resize(1000, 900)
 
