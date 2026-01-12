@@ -1,0 +1,4 @@
+SMILES,code_name,charge,multiplicity,constraints_atoms,constraints_dist,constraints_angle,constraints_dihedral,complex_type,geom
+CC(C)CC1=CC=C(C=C1)C(C)C(=O)O,ibuprofen,0,1,,,,,,
+CC(=O)NC1=CC=C(C=C1)O,paracetamol,0,1,,,,,,
+CC(=O)OC1=CC=CC=C1C(=O)O,aspirin,0,1,,,,,,

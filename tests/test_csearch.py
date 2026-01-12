@@ -5,7 +5,7 @@ from pytestqt import qtbot
 from PySide6.QtCore import Qt
 
 from aqmeasy.ui.CSEARCH_ui.CSEARCH import CSEARCH
-from aqmeasy.controllers.CSEARCH_controller import Worker
+from aqmeasy.controllers.CSEARCH_controller import CSEARCHThread
 
 test_smiles = ["CCO", "C1=CC=CC=C1", "C(C(=O)O)N", "CC(=O)OC1=CC=CC=C1C(=O)O", "C1CCCCC1", "C1=CC=CN=C1", "CCN(CC)CC", "C(CCl)Br", "CC(C)O", "C1=CC=C(C=C1)O"]
 
@@ -74,7 +74,7 @@ class TestSyncToCSVModel:
         for smiles in test_smiles:
             with qtbot.waitSignal(control.model.signals.updated, timeout=1000):
                 control.new_molecule()  # ensure the row exists
-                smiles_input.setText(smiles)
+                smiles_input.setPlainText(smiles)
                 assert control.model.__getitem__("SMILES")[control.current_index - 1] == smiles
         
         for _ in test_smiles:
@@ -141,7 +141,7 @@ class TestCSVTable:
         assert csv_table.get_row_count() == 1
         row_count = 1 # csv_table should have 1 row to begin with
         for smiles in test_smiles:
-            main_widget.smiles_input.setText(smiles)
+            main_widget.smiles_input.setPlainText(smiles)
             assert csv_table.get_row_count() == row_count
             row_count += 1
             with qtbot.waitSignal(main_widget.new_molecule_button.clicked, timeout = 1000):
@@ -164,16 +164,14 @@ class TestCSEARCHWorker:
         For default inputs, there should only be one UI-imposed change, which is the program. Without specifying the program, aqme cannot run. 
         """
         CSEARCHworker = csearch_widget.worker
-        worker = Worker(CSEARCHworker)
-        params = worker.collect_csearch_params()
+        params = CSEARCHworker.collect_csearch_params()
 
         assert params == {"program": "rdkit"}
 
     def test_collect_research_params_with_input(self, csearch_widget):
         CSEARCHworker = csearch_widget.worker
-        worker = Worker(CSEARCHworker)
         CSEARCHworker.model.__setitem__("input", "test.csv")
-        params = worker.collect_csearch_params()
+        params = CSEARCHworker.collect_csearch_params()
 
         assert params["input"] == "test.csv"
         assert params["program"] == "rdkit"
