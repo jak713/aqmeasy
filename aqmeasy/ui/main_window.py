@@ -4,6 +4,8 @@ from PySide6.QtGui import QAction, QPixmap, QDesktopServices, QIcon
 from aqmeasy.ui.CSEARCH_ui.CSEARCH import CSEARCH
 from aqmeasy.ui.QPREP_ui.QPREP import QPREP
 from aqmeasy.ui.QCORR_ui.QCORR import QCORR
+from aqmeasy.ui.CMIN_ui.CMIN import CMIN
+from aqmeasy.ui.QDESCP_ui.QDESCP import QDESCP
 from aqmeasy.ui.stylesheets import stylesheets
 from PySide6.QtCore import Qt, QUrl
 import os
@@ -17,6 +19,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("AQMEasy 0.1")
         self.create_menu()
         self.move(0, 0)
+        self.setMinimumWidth(550)
 
         #on close destroy all child windows too
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
@@ -69,6 +72,13 @@ class MainWindow(QMainWindow):
         self.button_for_csearch.setFixedHeight(50)
         self.button_for_csearch.clicked.connect(self.new_csearch_widget)
         button_layout.addWidget(self.button_for_csearch)
+
+        label_for_cmin = QLabel("Geometry\nRefinement:")
+        label_layout.addWidget(label_for_cmin)
+        self.button_for_cmin = QPushButton("CMIN")
+        self.button_for_cmin.setFixedHeight(50)
+        self.button_for_cmin.clicked.connect(self.new_cmin_widget)
+        button_layout.addWidget(self.button_for_cmin)
         
         label_for_qprep = QLabel("Quantum Chem\nPreprocessing:")
         label_layout.addWidget(label_for_qprep)
@@ -91,7 +101,7 @@ class MainWindow(QMainWindow):
         button_for_qdescp.clicked.connect(self.new_qdescp_widget)
         button_layout.addWidget(button_for_qdescp)
         
-        labels = [label_for_csearch, label_for_qprep, label_for_qcorr, label_for_qdescp]
+        labels = [label_for_csearch, label_for_cmin,label_for_qprep, label_for_qcorr, label_for_qdescp]
         label_font = labels[0].font()
         label_font.setBold(True)
 
@@ -191,25 +201,26 @@ class MainWindow(QMainWindow):
         pass
 
     def new_csearch_widget(self):
-        if not hasattr(self, 'csearch') or self.csearch.isHidden():
-            self.csearch = CSEARCH(self)
-            self.csearch.show()
+        self.csearch = CSEARCH(self)
+        self.csearch.show()
+
+    def new_cmin_widget(self):
+        self.cmin = CMIN()
+        self.cmin.show()
 
     def new_qprep_widget(self):
-        if not hasattr(self, 'qprep') or self.qprep.isHidden():
-            self.qprep = QPREP()
-            self.qprep.show()
-            # Need to return this to be able to call it from CSEARCH after a run
-            return self.qprep
+        self.qprep = QPREP()
+        self.qprep.show()
+        # Need to return this to be able to call it from CSEARCH after a run
+        return self.qprep
 
     def new_qcorr_widget(self):
-        if not hasattr(self, 'qcorr') or self.qcorr.isHidden():
-            self.qcorr = QCORR()
-            self.qcorr.show()
+        self.qcorr = QCORR()
+        self.qcorr.show()
 
     def new_qdescp_widget(self):
-        """Opens a new window for secret stuff"""
-        pass
+        self.qdescp = QDESCP()
+        self.qdescp.show()
 
     def closeEvent(self, event):
         event.accept()

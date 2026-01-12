@@ -2,7 +2,6 @@
 #  Stylesheets for AQMEasy UI components #
 ##########################################
 
-# Made very ad-hoc, based on the ocean breeze scheme on coolors.co and WILL NEED a cleanup...
 class stylesheets:
 
     QPushButton = """
@@ -231,6 +230,20 @@ QTextEdit {
 QTextEdit::selection {
     background-color: #00B4D8;
 }"""
+
+    QPlainTextEdit = """
+QPlainTextEdit {
+    background-color: #020338;
+    color: #CAF0F8;
+    border: 1px solid #00B4D8;
+    border-radius: 3px;
+    padding: 2px;
+}
+
+QPlainTextEdit::selection {
+    background-color: #00B4D8;
+}"""
+
 
     QTextBrowser = """
 QTextBrowser {
@@ -483,6 +496,18 @@ QPushButton:hover {
 }
 """
 
+    ProgressBar = """
+QProgressBar {
+    border: 1px solid #00B4D8;
+    border-radius: 5px;
+    text-align: center;
+    background-color: #020338;
+    color: #CAF0F8;
+}
+QProgressBar::chunk {
+    background-color: #00B4D8;
+    border-radius: 5px;
+}"""
 ##########################################
 
     QWidget = """
@@ -498,7 +523,7 @@ QToolTip {
     padding: 3px;
     font-size: 12px;
 }   
-""" + QScrollBar + QLabel + QPushButton + QComboBox + QLineEdit + QTextEdit + QCheckBox + QSlider + QGroupBox + QTableWidget + QListWidget + QTreeView + QSpinBox + QDoubleSpinBox + QDialog + QInputDialog + QWebEngineView 
+""" + QScrollBar + QLabel + QPushButton + QComboBox + QLineEdit + QTextEdit + QCheckBox + QSlider + QGroupBox + QTableWidget + QListWidget + QTreeView + QSpinBox + QDoubleSpinBox + QDialog + QInputDialog + QWebEngineView + QPlainTextEdit + ProgressBar
 
     QMainWindow = """
 QMainWindow {
