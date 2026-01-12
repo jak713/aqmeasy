@@ -4,9 +4,7 @@ from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxL
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, QDoubleValidator, QTextCursor, QIntValidator    
 
-# from rdkit import Chem
-
-from aqmeasy.utils import  pubchem2smiles, smiles2enumerate, smiles2numatoms, smiles2numelectrons, smiles2findmetal, smiles2charge, smiles2multiplicity, command2clipboard
+from aqmeasy.utils import  pubchem2smiles, smiles2enumerate, smiles2numatoms, smiles2numelectrons, smiles2findmetal, smiles2ismetalcomplex,command2clipboard
 
 from aqmeasy.controllers.CSEARCH_controller import CsvController
 from aqmeasy.ui.stylesheets import stylesheets
@@ -22,6 +20,7 @@ class CSEARCHWidget(QWidget):
         self.control.set_parent(self)
 
         self.csv_model.signals.updated.connect(self.update_ui)
+        self.metal_detected_in_smiles = False
 
         self.setAcceptDrops(True)
         self.dragEnterEvent = self._drag_enter
@@ -31,8 +30,6 @@ class CSEARCHWidget(QWidget):
         self.file_name = None # this actually not needed but i need to fix the logic when nothing has been changed in the UI and we want to close the app (i.e. no need to save)
         
         QShortcut(QKeySequence(Qt.Key.Key_Escape), self, lambda: self.clear_focus_on_inputs())
-        
-        self.smiles_w_metal = [] # will take this out later, right now the feature is not implemented
 
         self.top_layout = QHBoxLayout()
         self.left_layout = QVBoxLayout()
@@ -93,6 +90,7 @@ class CSEARCHWidget(QWidget):
         self.atom_electron_label = QLabel(self.molecule_label)
         self.atom_electron_label.setStyleSheet("background-color: rgba(255, 255, 255, 0); border: none; font-size: 10px; color: black;")
         self.atom_electron_label.setFixedSize(150, 30)
+
         self.log_box_label = QLabel(self.molecule_label)
         self.log_box_label.setStyleSheet("background-color: rgba(255, 255, 255, 0); border: none; font-size: 10px; color: black;")        
         self.log_box_label.setFixedSize(550, 20)
@@ -163,6 +161,13 @@ class CSEARCHWidget(QWidget):
         self.properties_table.horizontalHeader().setVisible(False)
         self.properties_table.verticalHeader().setVisible(False)
         self.properties_table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        complex_type_combo = QComboBox()
+        complex_type_combo.addItems(["", "squareplanar", "squarepyramidal", "linear", "trigonalplanar"])
+        complex_type_combo.currentTextChanged.connect(lambda text: self.handle_combobox_change(8, text))
+        self.properties_table.setCellWidget(8,1,complex_type_combo)
+        self.properties_table.cellWidget(8,1).setEnabled(False)
+
 
         self.is_programmatic_update = False
         self.update_properties()
@@ -506,8 +511,6 @@ class CSEARCHWidget(QWidget):
             self.control.mousePressEvent(pos)    
         QLabel.mousePressEvent(self.molecule_label, event)
 
-        
-
     def toggle_panel(self, height, width):
         expanded_height = 200
         if self.advanced_settings_button.isChecked():
@@ -519,25 +522,23 @@ class CSEARCHWidget(QWidget):
             self.resize(width, height- expanded_height)
             self.advanced_settings_button.setIcon(QIcon(Icons.eye))
 
-
     def handle_property_change(self, item):
         """Handle changes to editable properties and update the csv_dictionary."""
         logging.debug("at handle_property_change >>> handling property change")
-        if item.row() == 0:  
+        if item.row() == 1:  
             self.csv_model["code_name"][self.control.current_index - 1] = item.text()
-        elif item.row() == 1:  
+        elif item.row() == 2:  
             self.csv_model["charge"][self.control.current_index - 1] = item.text()
             # Track user-defined charge
             if not hasattr(self, 'user_defined_charge'):
                 self.user_defined_charge = {}
             self.user_defined_charge[self.control.current_index] = item.text()
-        elif item.row() == 2:  
+        elif item.row() == 3:  
             self.csv_model["multiplicity"][self.control.current_index - 1] = item.text()
             # Track user-defined multiplicity
             if not hasattr(self, 'user_defined_multiplicity'):
                 self.user_defined_multiplicity = {}
             self.user_defined_multiplicity[self.control.current_index] = item.text()
-
 
 # SMILES HANDILING FUNCTIONS (this to certain extent is also UI handling)
     def smiles_from_pubchem(self):
@@ -569,9 +570,8 @@ class CSEARCHWidget(QWidget):
         if not self.csv_model.__getitem__("code_name")[self.control.current_index - 1]:
             self.csv_model.set_item_at_index("code_name", self.control.current_index - 1, code_name)
 
-        
         self.update_properties()
-        self.update_ui()
+        # self.update_ui()
         self.search_pubchem_input.clear()
 
     def resizeEvent(self, event):
@@ -622,14 +622,30 @@ class CSEARCHWidget(QWidget):
             for row in range(self.properties_table.rowCount()):
                 item = self.properties_table.item(row, 1)
                 if item:
-                    if row in [0, 1, 2]:
+                    if row in  [1, 2, 3]:
                         item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
                     else:  
                         item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                        
+
+            combo = self.properties_table.cellWidget(8, 1)
+            if combo:  # Check if the widget exists
+                if self.metal_detected_in_smiles:
+                    combo.setEnabled(True)
+                    complex_type = self.csv_model.__getitem__("complex_type")[self.control.current_index - 1]
+                    index = combo.findText(complex_type)
+                    if index != -1:
+                        combo.setCurrentIndex(index)
+                else:
+                    combo.setEnabled(False)
+
             self.properties_table.blockSignals(False)
         finally:
             self.is_programmatic_update = old_value
+    
+    def handle_combobox_change(self, row, text):
+        """Handle changes in the complex_type combobox and update the model."""
+        if row == 8:
+            self.csv_model.set_item_at_index("complex_type", self.control.current_index - 1, text)
 
 # UI ELEMENTS UPDATE FUNCTIONS (This will definitely stay but might need to rewrite quite heavily)
 
@@ -665,8 +681,16 @@ class CSEARCHWidget(QWidget):
             print(f"Error calculating atom/electron counts: {e}")
             self.atom_electron_label.setText(" Electrons: 0\n Atoms: 0")
 
+        self.metal_detected_in_smiles = smiles2ismetalcomplex(smiles)
+        if self.metal_detected_in_smiles:
+            self.log_box_label.setText(f"Metal atom(s) detected in SMILES: {smiles2findmetal(smiles)} Please specify the complex type.")
+        else:
+            self.log_box_label.setText("")
         self.update_properties()
         
+    def smiles_are_bad_bro(self, smiles: str):
+        self.log_box_label.setText(f"Invalid SMILES string: {smiles}. ")
+
     def index_and_total_label_update(self):
         self.control.total_index = self.csv_model.get_total_index() 
         self.index_and_total_label.setText(f"{self.control.current_index}/{self.control.total_index}")

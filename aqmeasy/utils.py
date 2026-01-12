@@ -92,18 +92,6 @@ def smiles2charge(smiles):
     charge = Chem.GetFormalCharge(mol)
     return charge
 
-# if not hasattr(self, 'user_defined_multiplicity'):
-#             self.user_defined_multiplicity = {}
-        
-#         if self.current_index in self.user_defined_multiplicity:
-#             return
-
-# if not hasattr(self, 'user_defined_charge'):
-#             self.user_defined_charge = {}
-        
-#         if self.current_index in self.user_defined_charge:
-#             return
-
 def smiles2multiplicity(smiles: str) -> int:
     """Convert a SMILES string to the multiplicity of the molecule.
     Args:
@@ -173,6 +161,22 @@ def smiles2findmetal(smiles: str) -> list:
         if atom.GetSymbol() in transition_metals:
             metal_atoms.append(atom.GetSymbol())
     return metal_atoms
+
+def smiles2ismetalcomplex(smiles: str) -> bool:
+    """Check if a SMILES string contains transition metal atoms.
+    Args:
+        smiles (str): The SMILES string of the molecule.
+    Returns:
+        bool: True if the molecule contains transition metal atoms, False otherwise."""
+    mol = Chem.MolFromSmiles(smiles)
+    transition_metals = ['Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co','Ni', 'Cu', 'Zn', 
+                        'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 
+                            'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 
+                            'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds', 'Rg', 'Cn', 'Nh', 'Fl', 'Mc', 'Lv', 'Ts', 'Og']
+    for atom in mol.GetAtoms():
+        if atom.GetSymbol() in transition_metals:
+            return True
+    return False
     
 def command2clipboard(command) -> bool:
     """Copy a command to the clipboard.

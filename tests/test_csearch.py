@@ -5,8 +5,6 @@ from pytestqt import qtbot
 from PySide6.QtCore import Qt
 
 from aqmeasy.ui.CSEARCH_ui.CSEARCH import CSEARCH
-from aqmeasy.controllers.CSEARCH_controller import CSEARCHThread
-
 test_smiles = ["CCO", "C1=CC=CC=C1", "C(C(=O)O)N", "CC(=O)OC1=CC=CC=C1C(=O)O", "C1CCCCC1", "C1=CC=CN=C1", "CCN(CC)CC", "C(CCl)Br", "CC(C)O", "C1=CC=C(C=C1)O"]
 
 test_code_names = ["ethanol", "benzene", "glycine", "aspirin", "cyclohexane", "pyridine", "triethylamine", "bromochloromethane", "isopropanol", "phenol"]

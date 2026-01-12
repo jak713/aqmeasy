@@ -11,7 +11,7 @@ import tempfile
 from aqmeasy.models.CSEARCH_model.CSEARCH_command import general_command_default, crest_command_model as crest_command
 from aqmeasy.ui.CSEARCH_ui.CSEARCH_csvtable import csv_table
 from aqmeasy.ui.CSEARCH_ui.CSEARCH_SmilesTutorialViewer import SmilesTutorialViewer
-from aqmeasy.utils import smiles2enumerate, smiles2charge, smiles2multiplicity, command2clipboard
+from aqmeasy.utils import smiles2enumerate, smiles2charge, smiles2multiplicity
 
 from aqme.csearch import csearch
 
@@ -138,7 +138,7 @@ class CsvController(QObject):
         If the SMILES string changes, remove the constraints."""
         mol = Chem.MolFromSmiles(smiles)
         if not mol:
-            # self.parent.smiles_are_bad_bro(smiles)
+            self.parent.smiles_are_bad_bro(smiles)
             return
         if not smiles:
             self.model.set_item_at_index("SMILES", self.current_index - 1, "")
