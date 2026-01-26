@@ -64,7 +64,7 @@ class QPrepWorker(QObject):
             
             for i, file_path in enumerate(processed_files):
                 self.progressUpdate.emit(f"Processing file {i+1} of {total_files}: {os.path.basename(file_path)}", 
-                                       i+1, total_files)
+                                        i+1, total_files)
                 
                 # Create individual parameters for each file
                 file_params = self.params.copy()
@@ -72,63 +72,21 @@ class QPrepWorker(QObject):
                 
                 try:
                     qprep(files=file_path,
-                          program=self.params['software'],
-                          qm_input=self.params["keywords"] + ' ' + self.params['functional'] + " " + 
-                                   self.params['basis'] + " " + self.params['solvent_block'],
-                          mem=f"{self.params['mem']}GB",
-                          nprocs=self.params['nprocs'],
-                    )
+                            program=self.params['software'],
+                            qm_input=self.params["keywords"] + ' ' + self.params['functional'] + " " + 
+                            self.params['basis'] + " " + self.params['solvent_block'],
+                            mem=f"{self.params['mem']}GB",
+                            nprocs=self.params['nprocs'], destination=self.params.get('output_dir', '')
+                            )
                 except Exception as file_error:
                     print(f"Error processing {file_path}: {str(file_error)}")
                     # Continue with other files even if one fails
                     continue
 
-            # Move all generated files to user-selected output directory if specified
-            output_dir = self.params.get('output_dir', '').strip()
-            qcalc_dir = os.path.join(os.path.dirname(__file__), 'QCALC')
-            
-            moved_files_count = 0
-            if output_dir and os.path.isdir(output_dir) and os.path.abspath(output_dir) != os.path.abspath(qcalc_dir):
-                if os.path.exists(qcalc_dir):
-                    for fname in os.listdir(qcalc_dir):
-                        src = os.path.join(qcalc_dir, fname)
-                        dst = os.path.join(output_dir, fname)
-                        if os.path.isfile(src):
-                            try:
-                                # Handle duplicate filenames in output directory
-                                counter = 1
-                                original_dst = dst
-                                while os.path.exists(dst):
-                                    name, ext = os.path.splitext(original_dst)
-                                    dst = f"{name}_{counter}{ext}"
-                                    counter += 1
-                                
-                                shutil.move(src, dst)
-                                moved_files_count += 1
-                            except Exception as move_error:
-                                print(f"Error moving file {src}: {str(move_error)}")
-                    
-                    # Clean up empty QCALC directory
-                    try:
-                        if os.path.exists(qcalc_dir) and not os.listdir(qcalc_dir):
-                            shutil.rmtree(qcalc_dir, ignore_errors=True)
-                    except Exception:
-                        pass
-
-            # Clean up copied files from testfiles directory
-            for copied_file in copied_files:
-                try:
-                    if os.path.exists(copied_file):
-                        os.remove(copied_file)
-                except Exception:
-                    pass
-
             self.finished.emit()
             
             result_message = f"Successfully processed {total_files} input file(s)."
-            if moved_files_count > 0:
-                result_message += f"\n{moved_files_count} output files moved to specified directory."
-            
+
             self.resultReady.emit(result_message)
             
         except Exception as e:
