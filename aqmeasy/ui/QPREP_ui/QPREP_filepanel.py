@@ -405,7 +405,11 @@ class FilePanel(QWidget):
         params['input_file'] = self.selected_files[0] if self.selected_files else ''
         
         output_dir = self.output_dir_edit.text().strip()
-        params['output_dir'] = output_dir
+        if output_dir != '':
+            params['output_dir'] = output_dir
+        else:
+            # If no output directory specified, use directory of the first input file
+            params['output_dir'] = os.path.dirname(params['input_files'][0]) if params['input_files'] else ''
 
         if self.parameter_panel:
             try:

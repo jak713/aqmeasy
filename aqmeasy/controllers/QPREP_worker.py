@@ -25,6 +25,10 @@ class QPrepWorker(QObject):
             if not input_files:
                 self.errorReady.emit("No input files provided.")
                 return
+            
+            # If output_dir not specified, assume directory of the first input file
+            if not self.params.get('output_dir'):
+                self.params['output_dir'] = os.path.dirname(os.path.abspath(input_files[0]))
 
             # Create testfiles directory
             testfiles_dir = os.path.join(os.path.dirname(__file__), 'testfiles')
@@ -78,10 +82,37 @@ class QPrepWorker(QObject):
                             mem=f"{self.params['mem']}GB",
                             nprocs=self.params['nprocs'], destination=self.params.get('output_dir', '')
                             )
+                        
+                    # Move QPREP_data.dat file to output_dir, or append to it if already exists
+                    output_dir = self.params.get('output_dir', '')
+                    qprep_data_src = os.path.join(os.getcwd(), 'QPREP_data.dat')
+                    qprep_data_dest = os.path.join(output_dir, 'QPREP_data.dat')
+                    if os.path.exists(qprep_data_src):
+                        if os.path.exists(qprep_data_dest):
+                            with open(qprep_data_src, 'r') as src_file, open(qprep_data_dest, 'a') as dest_file:
+                                dest_file.write(src_file.read())
+                            os.remove(qprep_data_src)
+                        else:
+                            shutil.move(qprep_data_src, qprep_data_dest)
+
                 except Exception as file_error:
                     print(f"Error processing {file_path}: {str(file_error)}")
                     # Continue with other files even if one fails
                     continue
+
+            for copied_file in copied_files:
+                try:
+                    if os.path.exists(copied_file):
+                        os.remove(copied_file)
+                except Exception:
+                    pass
+
+            # Remove testfiles directory if empty
+            try:
+                if os.path.exists(testfiles_dir) and not os.listdir(testfiles_dir):
+                    os.rmdir(testfiles_dir)
+            except Exception:
+                pass
 
             self.finished.emit()
             
