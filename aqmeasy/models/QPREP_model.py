@@ -5,11 +5,15 @@ from PySide6.QtCore import QObject, Signal
 
 class InputModel(QObject):
     """Able to read when button is changed, i.e going from GAUSSIAN -> ORCA ETC"""
-    softwareChanged = Signal(str)
-    functionalChanged = Signal(str)
-    basisSetChanged = Signal(str)
-    nprocsChanged = Signal(int)
-    memChanged = Signal(int)
+    software_Changed = Signal(str)
+    functional_Changed = Signal(str)
+    basis_set_Changed = Signal(str)
+    nprocs_Changed = Signal(int)
+    mem_Changed = Signal(int)
+    solvent_model_Changed = Signal(str)
+    solvent_Changed = Signal(str)
+    dispersion_Changed = Signal(str)
+    # More signals needed see solvent etc etc ALSO fix method/functional split
 
     def __init__(self):
         super().__init__()
@@ -18,41 +22,65 @@ class InputModel(QObject):
         self._basis_set = '6-31G(d)'
         self._nprocs = 8
         self._mem = 1
+        self._solvent_model = ""
+        self._solvent = ""
+        self._dispersion = ""
 
     def software(self):
         return self._software
-    def setSoftware(self, value):
+    def set_software(self, value):
         if self._software != value:
             self._software = value
-            self.softwareChanged.emit(value)
+            self.software_Changed.emit(value)
 
     def functional(self):
         return self._functional
-    def setFunctional(self, value):
+    def set_functional(self, value):
         if self._functional != value:
             self._functional = value
-            self.functionalChanged.emit(value)
+            self.functional_Changed.emit(value)
 
-    def basisSet(self):
+    def basis_set(self):
         return self._basis_set
-    def setBasisSet(self, value):
+    def set_basis_set(self, value):
         if self._basis_set != value:
             self._basis_set = value
-            self.basisSetChanged.emit(value)
+            self.basis_set_Changed.emit(value)
 
     def nprocs(self):
         return self._nprocs
-    def setNprocs(self, value):
+    def set_nprocs(self, value):
         if self._nprocs != value:
             self._nprocs = value
-            self.nprocsChanged.emit(value)
+            self.nprocs_Changed.emit(value)
 
     def mem(self):
         return self._mem
-    def setMem(self, value):
+    def set_mem(self, value):
         if self._mem != value:
             self._mem = value
-            self.memChanged.emit(value)
+            self.mem_Changed.emit(value)
+
+    def solvent_model(self):
+        return self._solvent_model
+    def set_solvent_model(self, value):
+        if self._solvent_model != value:
+            self._solvent_model = value
+            self.solvent_model_Changed.emit(value)
+
+    def solvent(self):
+        return self._solvent
+    def set_solvent(self, value):
+        if self._solvent != value:
+            self._solvent = value
+            self.solvent_Changed.emit(value)
+
+    def dispersion(self):
+        return self._dispersion
+    def set_dispersion(self, value):
+        if self._dispersion != value:
+            self._dispersion = value
+            self.dispersion_Changed.emit(value)
 
     def as_dict(self):
         """Returns the current state of choices as a dict, and is once again updated upon changing, so that correct user selection is created in the file."""
@@ -61,5 +89,21 @@ class InputModel(QObject):
             'functional': self._functional,
             'basis_set': self._basis_set,
             'nprocs': self._nprocs,
-            'mem': self._mem
+            'mem': self._mem,
+            'solvent_model': self._solvent_model,
+            'solvent': self._solvent,
+            'dispersion': self._dispersion,
         }
+    
+    def input_as_dict(self, qm_input:dict) -> None:
+        """Updates the model attributes from a given qm_input dictionary."""
+        for key, value in qm_input.items():
+            if hasattr(self, f"set_{key}"):
+                setter = getattr(self, f"set_{key}")
+                setter(value)
+                # Emit the corresponding signal
+                signal_name = f"{key}_Changed"
+                signal = getattr(self, signal_name, None)
+                if signal:
+                    print(f"Emitting signal for {key} with value {value}")
+                    signal.emit(value)

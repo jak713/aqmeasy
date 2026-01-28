@@ -1,10 +1,9 @@
 import sys
-import os
 
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, 
-                            QHBoxLayout, QLabel, QFrame, QGroupBox)
+                            QHBoxLayout)
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QCloseEvent
 from aqmeasy.ui.QPREP_ui.QPREP_molecularviewer import MoleculeViewer
 from aqmeasy.ui.QPREP_ui.QPREP_parameterpanel import ParameterPanel 
 from aqmeasy.ui.QPREP_ui.QPREP_filepanel import FilePanel   
@@ -13,8 +12,10 @@ from aqmeasy.ui.stylesheets import stylesheets
 
 class QPREP(QWidget):
     """QPREP Widget opens a window"""
-    def __init__(self):
+    def __init__(self, parent=None):
         super().__init__()
+        if parent is not None:
+            self.parent = parent
         self.setStyleSheet(stylesheets.QWidget)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.setWindowTitle("QPREP")
@@ -44,6 +45,7 @@ class QPREP(QWidget):
         # Right panel - Molecular Analysis (options part)
         right_panel = QVBoxLayout()
         right_panel.addWidget(self.molecular_viewer.options_container, 1)
+        right_panel.addWidget(self.molecular_viewer.viewer_group, 2)
         # Add the three top panels to the top horizontal layout
         top_h_layout.addLayout(left_panel, 1)  
         top_h_layout.addLayout(middle_panel, 1)
@@ -51,9 +53,13 @@ class QPREP(QWidget):
         
         # Add the top panels and the 3D viewer to the main vertical layout
         main_v_layout.addLayout(top_h_layout, 1)
-        right_panel.addWidget(self.molecular_viewer.viewer_group, 2)
         
         self.setLayout(main_v_layout)
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        if hasattr(self, 'parent') and self.parent is not None:
+            self.parent.button_for_qprep.setEnabled(True)
+        return super().closeEvent(event)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

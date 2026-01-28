@@ -196,7 +196,7 @@ class CsvController(QObject):
         """Import an SDF or ChemDraw file, extract SMILES, and display them. For CSV files, read the data and update the model."""
 
         if not file_name:
-            file_name, _ = QFileDialog.getOpenFileName(self.parent, "Import File", "", "ChemDraw Files (*.cdx *.cdxml);;SDF Files (*.sdf);;CSV files (*.csv)")
+            file_name, _ = QFileDialog.getOpenFileName(self.parent, "Import File", "", "Accepted Files (*.cdxml *.sdf *.csv);;ChemDraw Files (*.cdx *.cdxml);;SDF Files (*.sdf);;CSV files (*.csv)")
         try:
             for key in self.model.keys():
                 self.model[key].clear()

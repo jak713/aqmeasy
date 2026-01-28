@@ -82,24 +82,24 @@ class MainWindow(QMainWindow):
         
         label_for_qprep = QLabel("Quantum Chem\nPreprocessing:")
         label_layout.addWidget(label_for_qprep)
-        button_for_qprep = QPushButton("QPREP")
-        button_for_qprep.setFixedHeight(50)
-        button_for_qprep.clicked.connect(self.new_qprep_widget)
-        button_layout.addWidget(button_for_qprep)
+        self.button_for_qprep = QPushButton("QPREP")
+        self.button_for_qprep.setFixedHeight(50)
+        self.button_for_qprep.clicked.connect(self.new_qprep_widget)
+        button_layout.addWidget(self.button_for_qprep)
         
         label_for_qcorr = QLabel("Quantum Chem\nCorrections:")
         label_layout.addWidget(label_for_qcorr)
-        button_for_qcorr = QPushButton("QCORR")
-        button_for_qcorr.setFixedHeight(50)
-        button_for_qcorr.clicked.connect(self.new_qcorr_widget)
-        button_layout.addWidget(button_for_qcorr)
+        self.button_for_qcorr = QPushButton("QCORR")
+        self.button_for_qcorr.setFixedHeight(50)
+        self.button_for_qcorr.clicked.connect(self.new_qcorr_widget)
+        button_layout.addWidget(self.button_for_qcorr)
 
         label_for_qdescp = QLabel("Quantum Chem\nDescriptors:")
         label_layout.addWidget(label_for_qdescp)
-        button_for_qdescp = QPushButton("QDESCP")
-        button_for_qdescp.setFixedHeight(50)
-        button_for_qdescp.clicked.connect(self.new_qdescp_widget)
-        button_layout.addWidget(button_for_qdescp)
+        self.button_for_qdescp = QPushButton("QDESCP")
+        self.button_for_qdescp.setFixedHeight(50)
+        self.button_for_qdescp.clicked.connect(self.new_qdescp_widget)
+        button_layout.addWidget(self.button_for_qdescp)
         
         labels = [label_for_csearch, label_for_cmin,label_for_qprep, label_for_qcorr, label_for_qdescp]
         label_font = labels[0].font()
@@ -203,24 +203,29 @@ class MainWindow(QMainWindow):
     def new_csearch_widget(self):
         self.csearch = CSEARCH(self)
         self.csearch.show()
+        self.button_for_csearch.setEnabled(False)
 
     def new_cmin_widget(self):
-        self.cmin = CMIN()
+        self.cmin = CMIN(self)
         self.cmin.show()
+        self.button_for_cmin.setEnabled(False)
 
     def new_qprep_widget(self):
-        self.qprep = QPREP()
+        self.qprep = QPREP(self)
         self.qprep.show()
         # Need to return this to be able to call it from CSEARCH after a run
+        self.button_for_qprep.setEnabled(False)
         return self.qprep
 
     def new_qcorr_widget(self):
-        self.qcorr = QCORR()
+        self.qcorr = QCORR(self)
         self.qcorr.show()
+        self.button_for_qcorr.setEnabled(False)
 
     def new_qdescp_widget(self):
-        self.qdescp = QDESCP()
+        self.qdescp = QDESCP(self)
         self.qdescp.show()
+        self.button_for_qdescp.setEnabled(False)
 
     def closeEvent(self, event):
         event.accept()

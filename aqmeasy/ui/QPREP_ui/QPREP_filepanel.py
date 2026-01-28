@@ -1,9 +1,9 @@
 import os
 import sys
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QFileDialog, QListWidget, QListWidgetItem, QSizePolicy, QApplication, QStyle
+    QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QFileDialog, QListWidget, QListWidgetItem, QSizePolicy, QApplication, QStyle, QProgressBar
 )
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QThread, Signal, Qt
 from PySide6.QtGui import QIcon
 from aqmeasy.controllers.QPREP_worker import QPrepWorker
 from aqmeasy.ui.stylesheets import stylesheets
@@ -104,6 +104,11 @@ class FilePanel(QWidget):
         self.slurm_btn.clicked.connect(self.generate_slurm_script)
         button_layout.addWidget(self.slurm_btn)
 
+        # Progress Bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.progress_bar.setMaximumHeight(10)
+
         # Status Display
         status_group = QGroupBox("Status / Preview")
         status_layout = QVBoxLayout()
@@ -120,6 +125,7 @@ class FilePanel(QWidget):
         layout.addWidget(input_group)
         layout.addWidget(output_group)
         layout.addLayout(button_layout)
+        layout.addWidget(self.progress_bar)
         layout.addWidget(status_group)
         layout.addStretch()
         self.setLayout(layout)
@@ -390,12 +396,15 @@ class FilePanel(QWidget):
     def on_qprep_error(self, error_message):
         self.status_text.setPlainText(f"ERROR: Failed to generate input files.\n\n{error_message}")
 
+
+
+# TODO: REVISE
     def collect_input_params(self):
         params = {}
         if self.model:
             params['software'] = self.model.software().lower()
             params['functional'] = self.model.functional()
-            params['basis'] = self.model.basisSet()
+            params['basis'] = self.model.basis_set()
             params['nprocs'] = self.model.nprocs()
             params['mem'] = self.model.mem()
             
@@ -465,6 +474,11 @@ class FilePanel(QWidget):
         params['molecule_name'] = os.path.splitext(os.path.basename(first_file))[0]
         
         return params
+
+
+
+
+
 
     def get_output_directory(self):
         directory = QFileDialog.getExistingDirectory(
