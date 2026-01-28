@@ -325,6 +325,13 @@ class FilePanel(QWidget):
 
     def generate_orca_preview(self, params):
         calc_line = f"! {params['functional']} {params['basis']}"
+        f = (params.get("functional") or "").lower()
+        functional_includes_disp = ("-d3" in f) or ("-d4" in f) or f.endswith("-v")
+
+        disp = params.get("dispersion", "")
+        if disp and not functional_includes_disp:
+            calc_line += f" {disp}"
+        
         if params['keywords']:
             calc_line += f" {params['keywords']}"
         if params['solvent_block']:
@@ -405,6 +412,7 @@ class FilePanel(QWidget):
             params['software'] = self.model.software().lower()
             params['functional'] = self.model.functional()
             params['basis'] = self.model.basis_set()
+            params['dispersion'] = self.model.dispersion()
             params['nprocs'] = self.model.nprocs()
             params['mem'] = self.model.mem()
             

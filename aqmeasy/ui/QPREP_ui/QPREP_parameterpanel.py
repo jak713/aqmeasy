@@ -4,7 +4,7 @@ from aqmeasy.models.QPREP_model import InputModel
 from aqmeasy.ui.stylesheets import stylesheets
 from aqmeasy.software_data import Orca, Gaussian, TranslationDict
 
-class ParameterPanel(QWidget): 
+class ParameterPanel(QWidget):
     """Parameter selection panel, Deals with all calculation selections for GAUSSIAN and ORCA """
     def __init__(self, model=None):
         super().__init__()
@@ -223,6 +223,7 @@ class ParameterPanel(QWidget):
         self.solvation_combo.clear()
         self.solvent_combo.clear()
         self.calc_combo.clear()
+        self.dispersion_combo.clear()
         
         if software_name == "Orca":
             self.method_combo.addItems(self.ORCA_METHODS)
@@ -243,6 +244,7 @@ class ParameterPanel(QWidget):
             self.software_combo.setCurrentText("Gaussian")
             self.mem_title.setText('Memory (total in GB):')
             self.calc_combo.addItems(Gaussian.GAUSSIAN_RUNTYPES)
+        self.update_dispersion_ui()
             
     def on_nprocs_changed(self, value):
         self.nprocs_label.setText(str(value))
@@ -283,16 +285,40 @@ class ParameterPanel(QWidget):
     def setDisableAutoChargeMult(self, state):
         self.charge_spin.setDisabled(not state)
         self.multiplicity_spin.setDisabled(not state)
+    
+    def check_functional_for_dispersion(self, functional):
+        f = (functional or "").strip().lower()
+        return ("-d3" in f) or ("-d4" in f) or f.endswith("-v")
+    
+    def update_dispersion_ui(self):
+        method = self.method_combo.currentText()
+        functional = self.model.functional()
+
+        if method != "DFT":
+            self.dispersion_scheme.setText("Dispersion Scheme")
+            self.dispersion_combo.setDisabled(True)
+            if self.model.dispersion() != "":
+                self.model.set_dispersion("")
+            return
+
+        if self.check_functional_for_dispersion(functional):
+            self.dispersion_scheme.setText("Dispersion Scheme (included)")
+            self.dispersion_combo.setDisabled(True)
+            if self.model.dispersion() != "":
+                self.model.set_dispersion("")
+        else:
+            self.dispersion_scheme.setText("Dispersion Scheme")
+            self.dispersion_combo.setDisabled(False)
 
     def setMethod(self, method):
-        if not method == "DFT":
+        if method != "DFT":
             self.functional_combo.setDisabled(True)
-            self.dispersion_combo.setDisabled(True)
             self.model.set_functional(method)
         else:
             self.functional_combo.setDisabled(False)
-            self.dispersion_combo.setDisabled(False)
             self.model.set_functional(self.functional_combo.currentText())
+
+        self.update_dispersion_ui()
 
     def set_functional(self, functional):
         if functional in self.ORCA_FUNCTIONALS or functional in self.GAUSSIAN_FUNCTIONALS:
@@ -300,7 +326,8 @@ class ParameterPanel(QWidget):
             self.functional_combo.setCurrentText(functional)
         else:
             self.method_combo.setCurrentText(functional)
-        self.set_info() 
+        self.update_dispersion_ui()
+        self.set_info()
 
     def set_info(self):
         calc_type = TranslationDict.get(self.calc_combo.currentText())

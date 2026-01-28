@@ -75,13 +75,30 @@ class QPrepWorker(QObject):
                 file_params['input_file'] = file_path
                 
                 try:
-                    qprep(files=file_path,
-                            program=self.params['software'],
-                            qm_input=self.params["keywords"] + ' ' + self.params['functional'] + " " + 
-                            self.params['basis'] + " " + self.params['solvent_block'],
-                            mem=f"{self.params['mem']}GB",
-                            nprocs=self.params['nprocs'], destination=self.params.get('output_dir', '')
-                            )
+                    functional = self.params.get("functional", "")
+                    basis = self.params.get("basis", "")
+                    keywords = self.params.get("keywords", "")
+                    solvent_block = self.params.get("solvent_block", "")
+                    disp = self.params.get("dispersion", "")
+
+                    f = (functional or "").lower()
+                    functional_includes_disp = ("-d3" in f) or ("-d4" in f) or f.endswith("-v")
+
+                    parts = [keywords, functional, basis]
+                    if disp and not functional_includes_disp:
+                        parts.append(disp)
+                    if solvent_block:
+                        parts.append(solvent_block)
+                    
+                    qm_input = " ".join(p for p in parts if p)
+                    qprep(
+                        files=file_path,
+                        program=self.params['software'],
+                        qm_input=qm_input,
+                        mem=f"{self.params['mem']}GB",
+                        nprocs=self.params['nprocs'],
+                        destination=self.params.get('output_dir', '')
+                    )
                         
                     # Move QPREP_data.dat file to output_dir, or append to it if already exists
                     output_dir = self.params.get('output_dir', '')
