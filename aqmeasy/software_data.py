@@ -57,23 +57,27 @@ class Orca:
     ORCA_METHODS = ["DFT", "HF", "MP2", "CCSD", "CCSD(T)", "DLPNO-CCSD","DLPNO-CCSD(T)"]
 
 # Note: Require an "Other" option for the user to input their desired un-listed functional
-    ORCA_FUNCTIONALS = ["BP86",
-                    "B3LYP", "PBE0", "M06L", "r2SCAN", "B97M-V", "B97M-D4", "M06", "M062X", "PW6B95", "wB97", "wB97X", "wB97X-D4", "wB97M-V", "wB97M-D4", "B2PLYP", "wB2PLYP", "LDA"
+    ORCA_FUNCTIONALS = [
+                    "BP86", "B3LYP", "PBE0", "M06L", "r2SCAN", "B97M-V", "B97M-D4", 
+                    "M06", "M062X", "PW6B95", "wB97", "wB97X", "wB97X-D4rev", "wB97X-D4", 
+                    "wB97M-V", "wB97M-D4rev", "wB97M-D4", "B2PLYP", "wB2PLYP", "LDA"
                     ]
             
     ORCA_BASIS_SETS = [
                     '6-31G(d)', 'cc-pVDZ', 'cc-pVTZ', 'cc-pVQZ', 'aug-cc-pVDZ',
-                    'aug-cc-pVTZ', 'aug-cc-pVQZ', 'def2-SVP', 'def2-TZVP', 'def2-QZVP',
-                    'def2-TVZPP', 'def2-QZVPP', 'def2-TZVPPD', 'def2-QZVPPD', 'ma-def2-SVP',
-                    'ma-def2-TZVP', 'ma-def2-QZVP',
+                    'aug-cc-pVTZ', 'aug-cc-pVQZ', 'def2-SVP', 'def2-TZVP', 'def2-TZVP(-f)', 
+                    'def2-QZVP', 'def2-TVZPP', 'def2-QZVPP', 'def2-TZVPPD', 'def2-QZVPPD', 
+                    'ma-def2-SVP', 'ma-def2-TZVP', 'ma-def2-QZVP',
                     ]
     
-    ORCA_DISPERSION_CORRECTIONS = ["", "D4", "D3BJ", "D3ZERO"]
+    ORCA_DISPERSION_CORRECTIONS = ["", "D4rev", "D4", "D3BJ", "D3ZERO"]
     
     ORCA_SOLVENT_MODELS = ["", "CPCM", "SMD", "COSMO-RS", "DRACO"]
 
     ORCA_SOLVENTS = [
-            "", "Water", "Methanol", "Ethanol", "Acetone", "DMSO", 'Toluene', 'Aniline', 'Benzene', 'Chloroform', 'Carbon Disulfide', 'DCM', 'diethyl ether', 'DMF', 'Ethyl Acetate', 'Nitromethane', 'THF',
+            "", "Water", "Methanol", "Ethanol", "Acetone", "DMSO", 'Toluene', 'Aniline', 
+            'Benzene', 'Chloroform', 'Carbon Disulfide', 'DCM', 'diethyl ether', 'DMF', 
+            'Ethyl Acetate', 'Nitromethane', 'THF',
         ]
 
 class Gaussian:
@@ -86,21 +90,24 @@ class Gaussian:
     GAUSSIAN_METHODS = ["HF", "DFT", "MP2", "CCSD", "CCSD(T)",]
             
     GAUSSIAN_FUNCTIONALS =[
-                        'APFD', 'B3LYP', 'BPV86', 'B3PW91', 'CAM-B3LYP','HCTH', 'HSEH1PBE', 'LSDA', 'MPW1PW91', 'PBEPBE', 'TPSSTPSS', 'WB97XD'
+                        'APFD', 'B3LYP', 'BPV86', 'B3PW91', 'CAM-B3LYP','HCTH', 'HSEH1PBE', 
+                        'LSDA', 'MPW1PW91', 'PBEPBE', 'TPSSTPSS', 'WB97XD'
                         ]
             
     GAUSSIAN_BASIS_SETS = [
                         'STO-3G', '3-21G', '6-31G(d)', '6-31G(d,p)', 'LANL2DZ',
                         'cc-pVDZ', 'cc-pVTZ', 'cc-pVQZ', 'cc-p5VZ', 'cc-p6VZ',
-                        'aug-cc-pVDZ', 'aug-cc-pVTZ', 'aug-cc-pVQZ', 'aug-cc-p5VZ', 'aug-cc-p6VZ',
-                        'Def2SV', 'Def2TZV', 'Def2QZV', 'Def2SVP', 'Def2TZVP',
-                        'Def2QZVP', 'Def2SVPP', 'Def2TZVPP', 
+                        'aug-cc-pVDZ', 'aug-cc-pVTZ', 'aug-cc-pVQZ', 'aug-cc-p5VZ', 
+                        'aug-cc-p6VZ', 'Def2SV', 'Def2TZV', 'Def2QZV', 'Def2SVP', 
+                        'Def2TZVP', 'Def2QZVP', 'Def2SVPP', 'Def2TZVPP', 
                         'Def2QZVPP', 'Def2TZVPD', 'Def2QZVPD',
                         ]
     
     GAUSSIAN_SOLVENT_MODELS = ["None", "PCM", "SMD", "IEFPCM", "CPCM"]
 
     GAUSSIAN_SOLVENTS = [
-            "None", "Water", "Methanol", "Ethanol", "Acetone", "DMSO", "Benzene", "Chloroform", "Toluene", "Acetonitrile", "Dichloromethane", "DiethylEther", "Hexane", "Heptane", "Octanol", "THF", "DMF", "Ethyl Acetate", "Nitromethane"
+            "None", "Water", "Methanol", "Ethanol", "Acetone", "DMSO", "Benzene", "Chloroform", 
+            "Toluene", "Acetonitrile", "Dichloromethane", "DiethylEther", "Hexane", "Heptane", 
+            "Octanol", "THF", "DMF", "Ethyl Acetate", "Nitromethane"
         ]
     

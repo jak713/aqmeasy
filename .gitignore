@@ -4,6 +4,7 @@ dist/
 
 run_app.py
 tests/test_files/
+aqmeasy/controllers/testfiles/
 
 .pytest_cache/
 .coverage
@@ -13,3 +14,7 @@ htmlcov/
 __pycache__/
 
 CSEARCH/
+
+.DS_Store
+**/.DS_Store
+
