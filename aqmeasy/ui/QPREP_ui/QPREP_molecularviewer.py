@@ -53,7 +53,7 @@ class MoleculeViewer(QWidget):
         style_row = QHBoxLayout()
         style_row.addWidget(QLabel("Display Style:"))
         self.style_selector = QComboBox()
-        self.style_selector.addItems(['Stick', 'Ball and Stick', 'VdW Spheres' 'Surface'])
+        self.style_selector.addItems(['Stick', 'Ball and Stick', 'VdW Spheres', 'Surface'])
         self.style_selector.currentIndexChanged.connect(self.render_selected_molecule)
         style_row.addWidget(self.style_selector)
         display_layout.addLayout(style_row)
