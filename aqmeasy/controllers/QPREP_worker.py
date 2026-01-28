@@ -81,16 +81,10 @@ class QPrepWorker(QObject):
                     solvent_block = self.params.get("solvent_block", "")
                     disp = self.params.get("dispersion", "")
 
-                    f = (functional or "").lower()
-                    functional_includes_disp = ("-d3" in f) or ("-d4" in f) or f.endswith("-v")
-
-                    parts = [keywords, functional, basis]
-                    if disp and not functional_includes_disp:
-                        parts.append(disp)
-                    if solvent_block:
-                        parts.append(solvent_block)
+                    parts = [keywords, functional, basis, solvent_block, disp]
                     
                     qm_input = " ".join(p for p in parts if p)
+                    
                     qprep(
                         files=file_path,
                         program=self.params['software'],
