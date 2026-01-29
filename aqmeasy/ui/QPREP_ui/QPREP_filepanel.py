@@ -1,7 +1,7 @@
 import os
 import sys
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QFileDialog, QListWidget, QListWidgetItem, QSizePolicy, QApplication, QStyle, QProgressBar
+    QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QFileDialog, QListWidget, QListWidgetItem, QSizePolicy, QApplication, QStyle, QProgressBar,
 )
 from PySide6.QtCore import QThread, Signal, Qt
 from PySide6.QtGui import QIcon
@@ -396,9 +396,6 @@ class FilePanel(QWidget):
     def on_qprep_error(self, error_message):
         self.status_text.setPlainText(f"ERROR: Failed to generate input files.\n\n{error_message}")
 
-
-
-# TODO: REVISE
     def collect_input_params(self):
         params = {}
         if self.model:
@@ -407,6 +404,7 @@ class FilePanel(QWidget):
             params['basis'] = self.model.basis_set()
             params['nprocs'] = self.model.nprocs()
             params['mem'] = self.model.mem()
+            params['dispersion'] = self.model.dispersion()
             
         # Use selected_files list instead of single file
         params['input_files'] = self.selected_files
@@ -462,23 +460,19 @@ class FilePanel(QWidget):
             params["solvent_block"] = ''
             
         job_types = {
-            'Single Point': '',
-            'Geometry Optimization': 'opt',
-            'Frequency': 'freq',
-            'Opt+Freq': 'opt freq',
+            'SP': '',
+            'OPT': 'opt',
+            'FREQ': 'freq',
+            'OPT+FREQ': 'opt freq',
+            'NUMFREQ' : 'numfreq',
         }
-        params["keywords"] = job_types.get(params['job_type'], "")
+        params["keywords"] = job_types.get(params['job_type'], '') + params['dispersion']
         
         # Set molecule_name to first file for general use
         first_file = params['input_files'][0] if params['input_files'] else 'input'
         params['molecule_name'] = os.path.splitext(os.path.basename(first_file))[0]
         
         return params
-
-
-
-
-
 
     def get_output_directory(self):
         directory = QFileDialog.getExistingDirectory(

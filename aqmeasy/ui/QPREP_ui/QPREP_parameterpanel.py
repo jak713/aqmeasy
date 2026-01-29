@@ -75,6 +75,7 @@ class ParameterPanel(QWidget):
         self.functional_combo = QComboBox()
         self.functional_combo.setDisabled(True)
         self.functional_combo.currentTextChanged.connect(self.model.set_functional)
+        self.functional_combo.currentTextChanged.connect(self.on_set_functional)
         func_row.addWidget(self.functional_combo)
         functional_layout.addLayout(func_row)
 
@@ -223,6 +224,7 @@ class ParameterPanel(QWidget):
         self.solvation_combo.clear()
         self.solvent_combo.clear()
         self.calc_combo.clear()
+        self.dispersion_combo.clear()
         
         if software_name == "Orca":
             self.method_combo.addItems(self.ORCA_METHODS)
@@ -234,6 +236,7 @@ class ParameterPanel(QWidget):
             self.software_combo.setCurrentText("Orca")
             self.mem_title.setText('Memory (per core in GB):')
             self.calc_combo.addItems(Orca.ORCA_RUNTYPES)
+
         elif software_name == "Gaussian":
             self.method_combo.addItems(self.GAUSSIAN_METHODS)
             self.functional_combo.addItems(self.GAUSSIAN_FUNCTIONALS)
@@ -243,6 +246,12 @@ class ParameterPanel(QWidget):
             self.software_combo.setCurrentText("Gaussian")
             self.mem_title.setText('Memory (total in GB):')
             self.calc_combo.addItems(Gaussian.GAUSSIAN_RUNTYPES)
+
+    def on_set_functional(self, functional):
+        if self.model.check_functional_for_dispersion(functional):
+            self.dispersion_combo.setDisabled(True)
+        else:
+            self.dispersion_combo.setDisabled(False)
             
     def on_nprocs_changed(self, value):
         self.nprocs_label.setText(str(value))
@@ -283,17 +292,16 @@ class ParameterPanel(QWidget):
     def setDisableAutoChargeMult(self, state):
         self.charge_spin.setDisabled(not state)
         self.multiplicity_spin.setDisabled(not state)
-
+    
     def setMethod(self, method):
-        if not method == "DFT":
+        if method != "DFT":
             self.functional_combo.setDisabled(True)
             self.dispersion_combo.setDisabled(True)
             self.model.set_functional(method)
         else:
             self.functional_combo.setDisabled(False)
-            self.dispersion_combo.setDisabled(False)
             self.model.set_functional(self.functional_combo.currentText())
-
+            
     def set_functional(self, functional):
         if functional in self.ORCA_FUNCTIONALS or functional in self.GAUSSIAN_FUNCTIONALS:
             self.method_combo.setCurrentText("DFT")

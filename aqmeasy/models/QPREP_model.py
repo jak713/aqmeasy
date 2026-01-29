@@ -13,7 +13,6 @@ class InputModel(QObject):
     solvent_model_Changed = Signal(str)
     solvent_Changed = Signal(str)
     dispersion_Changed = Signal(str)
-    # More signals needed see solvent etc etc ALSO fix method/functional split
 
     def __init__(self):
         super().__init__()
@@ -25,6 +24,10 @@ class InputModel(QObject):
         self._solvent_model = ""
         self._solvent = ""
         self._dispersion = ""
+
+    def check_functional_for_dispersion(self, functional):
+        f = (functional or "").strip().lower()
+        return ("-d3" in f) or ("-d4" in f) or f.endswith("-v")
 
     def software(self):
         return self._software
@@ -39,6 +42,8 @@ class InputModel(QObject):
         if self._functional != value:
             self._functional = value
             self.functional_Changed.emit(value)
+            if self.check_functional_for_dispersion(value):
+                self.set_dispersion("")
 
     def basis_set(self):
         return self._basis_set

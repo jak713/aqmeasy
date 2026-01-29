@@ -52,7 +52,8 @@ class Orca:
     Data taken from ORCA manual Release 6.0 dated December 13, 2024
     """
 
-    ORCA_RUNTYPES = ["SP", "OPT", "FREQ", "OPT+FREQ", "NUMFREQ", "TD-DFT"]
+    ORCA_RUNTYPES = ["SP", "OPT", "FREQ", "OPT+FREQ", "NUMFREQ",]
+    # "TD-DFT" to be added BUT this requires specification of NROOTS, multiplicity, etc. (not core functionality)
 
     ORCA_METHODS = ["DFT", "HF", "MP2", "CCSD", "CCSD(T)", "DLPNO-CCSD","DLPNO-CCSD(T)"]
 

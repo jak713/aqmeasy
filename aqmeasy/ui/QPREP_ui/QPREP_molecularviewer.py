@@ -2,7 +2,7 @@ import os
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QLabel,  QComboBox, 
-    QMessageBox, QGroupBox,  QApplication, QSlider, QFormLayout, QSizePolicy
+    QMessageBox, QGroupBox,  QApplication, QSlider, QFormLayout, QSizePolicy, QTextBrowser
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtCore import  Qt
@@ -40,8 +40,10 @@ class MoleculeViewer(QWidget):
         # File Information Section
         file_group = QGroupBox("File Information")
         file_layout = QVBoxLayout()
-        self.file_info_label = QLabel("No files selected")
-        self.file_info_label.setWordWrap(True)
+        self.file_info_label = QTextBrowser()
+        self.file_info_label.setPlaceholderText("No files selected")
+        self.file_info_label.setMinimumHeight(100)
+        self.file_info_label.setMaximumHeight(150)
         file_layout.addWidget(self.file_info_label)
         file_group.setLayout(file_layout)
         options_layout.addWidget(file_group)
