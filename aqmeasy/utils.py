@@ -4,6 +4,9 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 from rdkit import Chem
 from rdkit.Chem.Draw import rdMolDraw2D
+from PySide6.QtSvg import QSvgRenderer
+from PySide6.QtGui import QPainter
+from PySide6.QtCore import Qt
 
 import pubchempy as pcp
 import os
@@ -211,3 +214,18 @@ def resource_path(relative_path):
     base_path = Path(__file__).resolve().parent
     
     return str(base_path / relative_path)
+
+def load_svg_as_pixmap(path, width=None, height=None):
+    renderer = QSvgRenderer(path)
+    
+    if width is None or height is None:
+        default_size = renderer.defaultSize()
+        width = width or default_size.width()
+        height = height or default_size.height()
+    
+    pixmap = QPixmap(width, height)
+    pixmap.fill(Qt.transparent)
+    painter = QPainter(pixmap)
+    renderer.render(painter)
+    painter.end()
+    return pixmap

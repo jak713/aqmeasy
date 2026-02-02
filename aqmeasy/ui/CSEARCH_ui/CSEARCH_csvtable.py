@@ -10,10 +10,10 @@ class csv_table(QDialog):
         self.model = csv_model
         self.setStyleSheet(stylesheets.QWidget)
         self.setWindowTitle("CSV Data")
-        self.resize(1000, 500)
+        self.resize(1280, 500)
 
         main_layout = QVBoxLayout()
-        group = QGroupBox("Double click to edit cells")
+        group = QGroupBox("Double click to edit cells. Hold ⌘ or Ctrl to select multiple cells.")
         layout = QVBoxLayout()
 
         table = QTableWidget()

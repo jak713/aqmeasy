@@ -7,6 +7,7 @@ from aqmeasy.ui.QCORR_ui.QCORR import QCORR
 from aqmeasy.ui.CMIN_ui.CMIN import CMIN
 from aqmeasy.ui.QDESCP_ui.QDESCP import QDESCP
 from aqmeasy.ui.stylesheets import stylesheets
+from aqmeasy.utils import load_svg_as_pixmap
 from PySide6.QtCore import Qt, QUrl
 import os
 
@@ -30,7 +31,7 @@ class MainWindow(QMainWindow):
         logo = QLabel(self)
         logo_path = os.path.join(os.path.dirname(__file__), "resources", "aqme-logo-blue.svg")
 
-        logo_icon = QPixmap(logo_path)
+        logo_icon = load_svg_as_pixmap(logo_path)
         if not logo_icon.isNull():
             logo.setPixmap(logo_icon)
         else:

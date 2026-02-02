@@ -4,7 +4,7 @@ from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxL
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, QDoubleValidator, QTextCursor, QIntValidator    
 
-from aqmeasy.utils import  pubchem2smiles, smiles2enumerate, smiles2numatoms, smiles2numelectrons, smiles2findmetal, smiles2ismetalcomplex,command2clipboard
+from aqmeasy.utils import  pubchem2smiles, smiles2enumerate, smiles2numatoms, smiles2numelectrons, smiles2findmetal, smiles2ismetalcomplex,command2clipboard, load_svg_as_pixmap 
 
 from aqmeasy.controllers.CSEARCH_controller import CsvController
 from aqmeasy.ui.stylesheets import stylesheets
@@ -57,17 +57,17 @@ class CSEARCHWidget(QWidget):
         self.control1_layout.addWidget(self.index_and_total_label)
 
         self.import_button = QPushButton("Import", self)
-        self.import_button.setIcon(QIcon(Icons.add_file))
+        self.import_button.setIcon(QIcon(load_svg_as_pixmap(Icons.add_file)))
         self.import_button.clicked.connect(lambda: (logging.debug("at import_button >>> self.control.import_file()"), self.control.import_file()))
         self.control1_layout.addWidget(self.import_button)
 
         self.show_all_button = QPushButton("Show All", self)
-        self.show_all_button.setIcon(QIcon(Icons.external_link))
+        self.show_all_button.setIcon(QIcon(load_svg_as_pixmap(Icons.external_link)))
         self.show_all_button.clicked.connect(self.control.show_csv)
         self.control1_layout.addWidget(self.show_all_button)
 
         self.save_csv_button = QPushButton(self)
-        self.save_csv_button.setIcon(QIcon(Icons.save))
+        self.save_csv_button.setIcon(QIcon(load_svg_as_pixmap(Icons.save)))
         self.save_csv_button.setToolTip("Save CSV file")
         self.save_csv_button.clicked.connect(lambda: (logging.debug("at save_csv_button >>> save_csv"), self.control.save_csv_file()))
         self.control1_layout.addWidget(self.save_csv_button)
@@ -98,7 +98,7 @@ class CSEARCHWidget(QWidget):
 
     # VARIOUS INPUTS
         self.smiles_input = QPlainTextEdit(self)
-        self.smiles_input.setPlaceholderText("Enter SMILES, search PubChem below or drop in a ChemDraw/csv/sdf file...")
+        self.smiles_input.setPlaceholderText("Enter SMILES, search PubChem below, drop in a ChemDraw/CSV/SDF file or click on the icon below for a SMILES tutorial...")
         self.smiles_input.setAutoFillBackground(True)
         self.smiles_input.setAcceptDrops(False)
         self.right_layout.addWidget(self.smiles_input, 1)
@@ -126,23 +126,23 @@ class CSEARCHWidget(QWidget):
 
     # CONTROL BUTTONS
         self.delete_button = QPushButton()
-        self.delete_button.setIcon(QIcon(Icons.trash))
+        self.delete_button.setIcon(QIcon(load_svg_as_pixmap(Icons.trash)))
         self.delete_button.clicked.connect(self.control.delete_molecule)
         self.control3_layout.addWidget(self.delete_button)
 
         self.new_molecule_button = QPushButton()
-        self.new_molecule_button.setIcon(QIcon(Icons.plus))
+        self.new_molecule_button.setIcon(QIcon(load_svg_as_pixmap(Icons.plus)))
         self.new_molecule_button.clicked.connect(lambda: (logging.debug("at new_molecule_button >>> self.new_molecule()"), self.control.new_molecule()))
         self.control3_layout.addWidget(self.new_molecule_button)
 
         self.previous_button = QPushButton()
-        self.previous_button.setIcon(QIcon(Icons.chevron_double_left))
+        self.previous_button.setIcon(QIcon(load_svg_as_pixmap(Icons.chevron_double_left)))
         self.previous_button.clicked.connect(lambda: (logging.debug("at previous_button >>> self.previous_molecule"), self.control.previous_molecule()))
         QShortcut(QKeySequence(Qt.Key.Key_Left), self, self.control.previous_molecule)
         self.control3_layout.addWidget(self.previous_button)
 
         self.next_button = QPushButton()
-        self.next_button.setIcon(QIcon(Icons.chevron_double_right))
+        self.next_button.setIcon(QIcon(load_svg_as_pixmap(Icons.chevron_double_right)))
         self.next_button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.next_button.clicked.connect(lambda: (logging.debug("at next_button >>> self.next_molecule"), self.control.next_molecule()))
         QShortcut(QKeySequence(Qt.Key.Key_Right), self, self.control.next_molecule)
@@ -249,7 +249,7 @@ class CSEARCHWidget(QWidget):
 
         self.output_dir_button = QPushButton(self)
 
-        self.output_dir_button.setIcon(QIcon(Icons.folder_open))
+        self.output_dir_button.setIcon(QIcon(load_svg_as_pixmap(Icons.folder_open)))
         self.output_dir_button.clicked.connect(self.select_output_directory)
         output_dir_layout = QHBoxLayout()
         output_dir_layout.addWidget(self.output_dir_input)
@@ -258,7 +258,7 @@ class CSEARCHWidget(QWidget):
 
         # Row 4 - copy command/save csv
         self.copy_command_button = QPushButton("Copy Command", self)
-        self.copy_command_button.setIcon(QIcon(Icons.command_line))
+        self.copy_command_button.setIcon(QIcon(load_svg_as_pixmap(Icons.command_line)))
         self.copy_command_button.clicked.connect(lambda: self.success("Command copied to clipboard.") if command2clipboard(self.control.generate_csearch_command()) == True else self.failure("Failed to copy command to clipboard."))
         self.aqme_setup_grid.addWidget(self.copy_command_button, 4,0)
 
