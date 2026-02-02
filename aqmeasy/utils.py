@@ -52,8 +52,12 @@ def pubchem2smiles(search_text: str) -> str | None:
             compound = pcp.get_compounds(search_text, 'name')[0]
 
         smiles = compound.smiles
-    except:
-        raise ValueError("No SMILES found for the given input.")
+    except Exception as e:
+        print(f"PubChem error type: {type(e).__name__}")
+        print(f"PubChem error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise ValueError(f"No SMILES found for the given input: {e}")
     return smiles
 
 def smiles2enumerate(smiles:str) -> str:

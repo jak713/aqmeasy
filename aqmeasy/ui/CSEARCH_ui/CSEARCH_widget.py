@@ -540,7 +540,6 @@ class CSEARCHWidget(QWidget):
                 self.user_defined_multiplicity = {}
             self.user_defined_multiplicity[self.control.current_index] = item.text()
 
-# SMILES HANDILING FUNCTIONS (this to certain extent is also UI handling)
     def smiles_from_pubchem(self):
         """
         Fetches the canonical SMILES string for a compound from PubChem using its CID, CAS, or name, and updates the input field and model accordingly.
@@ -565,13 +564,12 @@ class CSEARCHWidget(QWidget):
         except IndexError:
             self.failure("No compound found for the given input. Please check the CID or name.")
         except Exception as e:
-            self.failure(f"An error occurred: {str(e)}")
+            self.failure(f"An error occurred for {code_name}: {str(e)}")
             
         if not self.csv_model.__getitem__("code_name")[self.control.current_index - 1]:
             self.csv_model.set_item_at_index("code_name", self.control.current_index - 1, code_name)
 
         self.update_properties()
-        # self.update_ui()
         self.search_pubchem_input.clear()
 
     def resizeEvent(self, event):
