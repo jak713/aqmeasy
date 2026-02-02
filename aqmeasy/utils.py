@@ -36,14 +36,14 @@ def smiles2pixmap(smiles:str) -> QPixmap:
     return pixmap
 
 def pubchem2smiles(search_text: str) -> str | None:
-    """Convert a search text (CID, or name) to a SMILES string using PubChem.
-    Args:
-        search_text (str): The search text (CID or name).
-    Returns:
-        str: The SMILES string of the compound."""
+    """Convert a search text (CID, or name) to a SMILES string using PubChem."""
     search_text = search_text.strip()
     if not search_text:
         raise ValueError("Query cannot be empty.")
+    
+    # Disable SSL verification for corporate networks
+    import ssl
+    ssl._create_default_https_context = ssl._create_unverified_context
     
     try:
         if search_text.isdigit():
@@ -53,10 +53,6 @@ def pubchem2smiles(search_text: str) -> str | None:
 
         smiles = compound.smiles
     except Exception as e:
-        print(f"PubChem error type: {type(e).__name__}")
-        print(f"PubChem error: {e}")
-        import traceback
-        traceback.print_exc()
         raise ValueError(f"No SMILES found for the given input: {e}")
     return smiles
 
