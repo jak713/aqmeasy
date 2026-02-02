@@ -1,0 +1,18 @@
+name: aqmeasy
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - crest
+  - xtb
+  - openbabel
+  - psutil
+  - pyside6
+  - pytest
+  - pytest-qt
+  - coverage
+  - pubchempy
+  - py3dmol
+  - pip
+  - pip:
+      - aqme

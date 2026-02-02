@@ -366,11 +366,12 @@ class CsvController(QObject):
 
             drawer.DrawMolecule(mol, highlightAtoms=highlight_atoms, highlightAtomColors=highlight_colors)
             drawer.FinishDrawing()
-            drawer.WriteDrawingText("/tmp/molecule.svg")
+            svg_path = os.path.join(tempfile.gettempdir(), "molecule.svg")
+            drawer.WriteDrawingText(svg_path)
             
             self.atom_coords = [drawer.GetDrawCoords(i) for i in range(mol.GetNumAtoms())]
 
-            pixmap = QPixmap("/tmp/molecule.svg")
+            pixmap = QPixmap(svg_path)
             if self.parent.molecule_label is not None:
                 self.parent.molecule_label.setPixmap(pixmap)
                 
@@ -670,12 +671,12 @@ class CSEARCHThread(QThread):
 
     def aggressive_kill_loop(self):
         """Aggressively kill CSEARCH-related processes in the destination directory."""
-        kill_duration = 5  # Kill for 5 seconds
+        kill_duration = 3  # Kill for 3 seconds
         start_time = time.time()
         killed_count = 0
         
         # Get the destination directory to match against
-        target_dir = os.path.abspath(self.model.__get__("destination"))
+        target_dir = os.path.abspath(self.model.__getitem__("destination"))
         
         while time.time() - start_time < kill_duration and self._killer_active:
             try:

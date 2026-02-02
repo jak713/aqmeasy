@@ -3,12 +3,12 @@ from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 from rdkit import Chem
-from rdkit.Chem import AllChem, Descriptors
 from rdkit.Chem.Draw import rdMolDraw2D
 
 import pubchempy as pcp
 import os
 import sys
+import tempfile
 
 def smiles2pixmap(smiles:str) -> QPixmap:
     """Convert a SMILES string to a QPixmap image of the molecule. Only used in csv_table.
@@ -22,8 +22,14 @@ def smiles2pixmap(smiles:str) -> QPixmap:
     drawer = rdMolDraw2D.MolDraw2DCairo(300, 300)
     drawer.DrawMolecule(mol)
     drawer.FinishDrawing()
-    drawer.WriteDrawingText("/tmp/molecule.png")
-    pixmap = QPixmap("/tmp/molecule.png")
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+        tmp_path = tmp_file.name
+    drawer.WriteDrawingText(tmp_path)
+    pixmap = QPixmap(tmp_path)
+    try:
+        os.unlink(tmp_path)
+    except:
+        pass
     pixmap = pixmap.scaled(120, 120, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
     return pixmap
 
