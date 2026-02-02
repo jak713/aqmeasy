@@ -8,9 +8,13 @@ from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtGui import QPainter
 from PySide6.QtCore import Qt
 
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+
 import pubchempy as pcp
 import os
 import tempfile
+
 
 def smiles2pixmap(smiles:str) -> QPixmap:
     """Convert a SMILES string to a QPixmap image of the molecule. Only used in csv_table.
@@ -40,11 +44,6 @@ def pubchem2smiles(search_text: str) -> str | None:
     search_text = search_text.strip()
     if not search_text:
         raise ValueError("Query cannot be empty.")
-    
-    # Disable SSL verification for corporate networks
-    import ssl
-    ssl._create_default_https_context = ssl._create_unverified_context
-    
     try:
         if search_text.isdigit():
             compound = pcp.get_compounds(int(search_text), 'cid')[0]
