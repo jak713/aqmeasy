@@ -7,7 +7,6 @@ from rdkit.Chem.Draw import rdMolDraw2D
 
 import pubchempy as pcp
 import os
-import sys
 import tempfile
 
 def smiles2pixmap(smiles:str) -> QPixmap:
