@@ -210,4 +210,4 @@ def resource_path(relative_path):
     # If not running as bundled app, use the script's directory
     base_path = Path(__file__).resolve().parent
     
-    return os.path.join(base_path, relative_path)
+    return str(base_path / relative_path)
