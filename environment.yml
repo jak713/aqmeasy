@@ -16,3 +16,4 @@ dependencies:
   - pip
   - pip:
       - aqme
+      - pyside6-addons
