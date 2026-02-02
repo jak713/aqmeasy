@@ -8,9 +8,6 @@ from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtGui import QPainter
 from PySide6.QtCore import Qt
 
-import ssl
-ssl._create_default_https_context = ssl._create_unverified_context
-
 import pubchempy as pcp
 import os
 import tempfile

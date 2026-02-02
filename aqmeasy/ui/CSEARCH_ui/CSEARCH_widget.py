@@ -567,7 +567,7 @@ class CSEARCHWidget(QWidget):
             self.failure(f"An error occurred for {code_name}: {str(e)}")
             
         if not self.csv_model.__getitem__("code_name")[self.control.current_index - 1]:
-            self.csv_model.set_item_at_index("code_name", self.control.current_index - 1, code_name)
+            self.csv_model.set_item_at_index("code_name", self.control.current_index - 1, code_name.replace(" ", "_"))
 
         self.update_properties()
         self.search_pubchem_input.clear()
