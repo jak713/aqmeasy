@@ -29,7 +29,4 @@ class CSEARCH(QWidget):
         QPREP = self.parent.new_qprep_widget() # type: ignore # 
         QPREP.file_panel.get_files_from_csearch([f"{destination_folder}/{name}_{general_command_model['program']}.sdf" for name in self.model["code_name"] if name])
 
-    def closeEvent(self, event: QCloseEvent) -> None:
-        if hasattr(self, 'parent') and self.parent is not None:
-            self.parent.button_for_csearch.setEnabled(True)
-        return super().closeEvent(event)
+    

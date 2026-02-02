@@ -204,7 +204,7 @@ class MainWindow(QMainWindow):
     def new_csearch_widget(self):
         self.csearch = CSEARCH(self)
         self.csearch.show()
-        self.button_for_csearch.setEnabled(False)
+        # self.button_for_csearch.setEnabled(False)
 
     def new_cmin_widget(self):
         self.cmin = CMIN(self)
