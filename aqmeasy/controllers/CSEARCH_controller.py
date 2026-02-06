@@ -661,163 +661,85 @@ class CSEARCHThread(QThread):
         self._killer_active = False
 
     def request_stop(self):
-        """Request the thread to stop and kill any running subprocesses."""
-        self._stop_requested = True
-        self._killer_active = True
-        self.result.emit("Stopping CSEARCH and terminating subprocesses...")
-        
-        # Start aggressive subprocess killing in a loop
-        QTimer.singleShot(0, self.aggressive_kill_loop)
+            """Request the thread to stop."""
+            self._stop_requested = True
+            self.result.emit("Stop requested - CSEARCH will terminate...")
 
-    def aggressive_kill_loop(self):
-        """Aggressively kill CSEARCH-related processes in the destination directory."""
-        kill_duration = 3  # Kill for 3 seconds
-        start_time = time.time()
-        killed_count = 0
-        
-        # Get the destination directory to match against
-        target_dir = os.path.abspath(self.model.__getitem__("destination"))
-        
-        while time.time() - start_time < kill_duration and self._killer_active:
-            try:
-                # Check all processes on the system
-                for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'cwd']):
-                    try:
-                        proc_name = proc.info['name'].lower()
-                        
-                        # Check if it's a process we care about
-                        if any(name in proc_name for name in ['crest', 'xtb', 'obabel', 'rdkit']):
-                            # Get the working directory of the process
-                            try:
-                                proc_cwd = proc.cwd()
-                                
-                                # Check if process is running in our target directory or subdirectory
-                                if proc_cwd.startswith(target_dir):
-                                    self.result.emit(f"Killing: {proc.info['name']} (PID: {proc.info['pid']}) in {proc_cwd}")
-                                    psutil.Process(proc.info['pid']).kill()
-                                    killed_count += 1
-                            except (psutil.AccessDenied, psutil.NoSuchProcess):
-                                # If we can't get cwd, try checking command line for directory hints
-                                cmdline = proc.info.get('cmdline', [])
-                                if cmdline and any(target_dir in str(arg) for arg in cmdline):
-                                    self.result.emit(f"Killing (by cmdline): {proc.info['name']} (PID: {proc.info['pid']})")
-                                    psutil.Process(proc.info['pid']).kill()
-                                    killed_count += 1
-                                    
-                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                        pass
-            
-            except Exception as e:
-                logging.error(f"Error in kill loop: {e}")
-            
-            time.sleep(0.2)  # Check every 200ms for new processes
-        
-        self.result.emit(f"Kill loop finished. Killed {killed_count} processes.")
 
-    def run(self) -> None:
-        """Runs AQME CSEARCH in the background."""
-        
-        if self.model["input"] is None or self.model["input"] == "":
-            self.error.emit("Please save the CSV file before running AQME.")
-            self.result.emit("CSEARCH aborted: No input CSV file specified.")
-            return
-        
-        if self._stop_requested:
-            self.result.emit("CSEARCH cancelled before starting.")
-            return
-        
-        command_args = self.collect_csearch_params()
-        self.result.emit(f"Starting CSEARCH with parameters: {command_args}")
-        
-        # Set up logging capture
-        log_handler = QThreadLogHandler(self.result)
-        log_handler.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(message)s')
-        log_handler.setFormatter(formatter)
-        
-        root_logger = logging.getLogger()
-        aqme_logger = logging.getLogger('aqme')
-        
-        root_logger.addHandler(log_handler)
-        aqme_logger.addHandler(log_handler)
-        
-        # Redirect stdout/stderr at file descriptor level
-        stdout_pipe_read, stdout_pipe_write = os.pipe()
-        stderr_pipe_read, stderr_pipe_write = os.pipe()
-        
-        # Save original file descriptors
-        original_stdout_fd = os.dup(sys.stdout.fileno())
-        original_stderr_fd = os.dup(sys.stderr.fileno())
-        
-        # Create stop event for capture threads
-        stop_event = threading.Event()
-        
-        # Start capture threads
-        stdout_capture = FDCapture(stdout_pipe_read, self.result, stop_event)
-        stderr_capture = FDCapture(stderr_pipe_read, self.result, stop_event)
-        stdout_capture.start()
-        stderr_capture.start()
-        
+    def run(self):
+        """Run CSEARCH with minimal, debuggable code."""
         try:
-            # Redirect file descriptors
-            os.dup2(stdout_pipe_write, sys.stdout.fileno())
-            os.dup2(stderr_pipe_write, sys.stderr.fileno())
-            
-            if self.model["program"] == "rdkit":
-                self.result.emit("Running RDKit conformer search...")
-                if not self._stop_requested:
-                    csearch(**command_args)
-                    
-            elif self.model["program"] == "crest":
-                self.result.emit("Running CREST conformer search (this might take a while)...")
-                if not self._stop_requested:
-                    csearch(**command_args, **crest_command)
-            
-            if self._stop_requested:
-                self.result.emit("CSEARCH was stopped.")
-                self._killer_active = False
+            # Validate input
+            if not self.model.get("input"):
+                self.error.emit("Please save the CSV file before running AQME.")
                 return
             
-            self.result.emit("CSEARCH completed successfully!")
-            self.finished_signal.emit("CSEARCH run finished.")
-            self.confirm.emit(
-                "Would you like to open QPREP with the generated SDF file(s)?",
-                self.model["destination"]
-            )
-            
-        except Exception as e:
             if self._stop_requested:
-                self.result.emit("CSEARCH stopped by user.")
-                self._killer_active = False
-            else:
-                logging.exception(f"Error encountered during CSEARCH: {e}")
-                self.error.emit(f"Error during CSEARCH: {str(e)}")
-        
-        finally:
-            # Restore original file descriptors
-            os.dup2(original_stdout_fd, sys.stdout.fileno())
-            os.dup2(original_stderr_fd, sys.stderr.fileno())
+                self.result.emit("CSEARCH cancelled.")
+                return
             
-            # Close pipe file descriptors
-            os.close(original_stdout_fd)
-            os.close(original_stderr_fd)
-            os.close(stdout_pipe_write)
-            os.close(stderr_pipe_write)
+            # Collect parameters
+            command_args = self._collect_csearch_params()
+            self.result.emit(f"Starting CSEARCH: {command_args}")
             
-            # Stop capture threads
-            stop_event.set()
-            stdout_capture.join(timeout=1)
-            stderr_capture.join(timeout=1)
+            # Capture output
+            original_stdout = sys.stdout
+            original_stderr = sys.stderr
+            stdout_capture = StringIO()
+            stderr_capture = StringIO()
             
-            # Close read pipes
-            os.close(stdout_pipe_read)
-            os.close(stderr_pipe_read)
+            try:
+                sys.stdout = stdout_capture
+                sys.stderr = stderr_capture
+                
+                # Run CSEARCH
+                if self.model["program"] == "crest":
+                    self.result.emit("Running CREST conformer search...")
+                    csearch(**command_args, **crest_command)
+                else:
+                    self.result.emit("Running RDKit conformer search...")
+                    csearch(**command_args)
+                
+                # Emit captured output
+                if stdout_capture.getvalue():
+                    self.result.emit(stdout_capture.getvalue())
+                if stderr_capture.getvalue():
+                    self.result.emit(stderr_capture.getvalue())
+                
+                if self._stop_requested:
+                    self.result.emit("CSEARCH stopped by user.")
+                    return
+                
+                # Success
+                self.result.emit("CSEARCH completed successfully!")
+                self.finished_signal.emit("CSEARCH finished.")
+                self.confirm.emit(
+                    "Would you like to open QPREP with the generated SDF file(s)?",
+                    self.model["destination"]
+                )
+                
+            finally:
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
+                
+        except Exception as e:
+            # Detailed error reporting
+            error_type = type(e).__name__
+            error_msg = str(e)
             
-            # Remove logging handlers
-            root_logger.removeHandler(log_handler)
-            aqme_logger.removeHandler(log_handler)
+            self.error.emit(f"{error_type}: {error_msg}")
+            self.result.emit(f"\n=== ERROR ===")
+            self.result.emit(f"{error_type}: {error_msg}")
+            self.result.emit(f"\nFull traceback:")
+            
+            # Show full traceback
+            tb_str = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
+            self.result.emit(tb_str)
+            
+            logging.exception(f"CSEARCH failed: {e}")
 
-    def collect_csearch_params(self) -> dict:
+
+    def _collect_csearch_params(self) -> dict:
         """Collects csearch parameters from the model."""
         csearch_params = {}
 

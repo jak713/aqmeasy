@@ -748,6 +748,15 @@ class CSEARCHWidget(QWidget):
 
 # AQME RUN SETUP FUNCTIONS
 
+    def validate_smiles_for_csearch(self):
+        """Check if SMILES are valid for CSEARCH."""
+        for smiles in self.csv_model["SMILES"]:
+            if "." in smiles and self.control.gen_command_model["program"] == "rdkit":
+                self.failure("RDKit doesn't support multi-molecule SMILES (containing '.'). "
+                            "Please use separate entries or try CREST.")
+                return False
+        return True
+
     def select_output_directory(self):
         """THIS SHOULD BE IN CONTROLLER, CONNECTED TO MODEL. 
         
@@ -769,6 +778,8 @@ class CSEARCHWidget(QWidget):
 
     def start_csearch(self):
         """Start CSEARCH thread."""
+        if not self.validate_smiles_for_csearch():
+            return
         self.run_button.setText("Stop CSEARCH")
         self.run_button.setIcon(QApplication.style().standardIcon(QStyle.StandardPixmap.SP_MediaStop))
         
