@@ -37,10 +37,25 @@ class MainWindow(QMainWindow):
         else:
             logo.setText("Logo not found")
         logo.setOpenExternalLinks(True)
-        logo.mousePressEvent = lambda event: (QDesktopServices.openUrl(QUrl("https://github.com/jvalegre/aqme")), None)[1]
+        logo.mousePressEvent = lambda _: (QDesktopServices.openUrl(QUrl("https://github.com/jvalegre/aqme")), None)[1]
         logo.setCursor(Qt.CursorShape.PointingHandCursor)
 
+        bottom_layout = QHBoxLayout()
+        bottom_layout.addStretch()
 
+        manual_label = QLabel(self)
+        manual_label.setOpenExternalLinks(True)
+        manual_label_path = os.path.join(os.path.dirname(__file__), "resources", "manual-icon-trans.svg")
+        manual_label_icon = QPixmap(manual_label_path)
+        if not manual_label_icon.isNull():
+            img = manual_label_icon.toImage()
+            img.invertPixels()
+            manual_label_icon = QPixmap.fromImage(img)
+            manual_label.setPixmap(manual_label_icon)
+        else:            manual_label.setText('<a href="https://github.com/jak713/aqmeasy/wiki">Manual</a>')
+        manual_label.mousePressEvent = lambda _: (QDesktopServices.openUrl(QUrl("https://github.com/jak713/aqmeasy/wiki")), None)[1]
+        manual_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        
         readthedocs_label = QLabel(self)
 
         readthedocs_label.setOpenExternalLinks(True)
@@ -57,11 +72,13 @@ class MainWindow(QMainWindow):
         else:
             readthedocs_label.setText('<a href="https://aqme.readthedocs.io/en/latest/">Docs</a>')
         
-        readthedocs_label.mousePressEvent = lambda event: (QDesktopServices.openUrl(QUrl("https://aqme.readthedocs.io/en/latest/")), None)[1]
+        readthedocs_label.mousePressEvent = lambda _: (QDesktopServices.openUrl(QUrl("https://aqme.readthedocs.io/en/latest/")), None)[1]
         
 
         layout.addWidget(logo,2, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(readthedocs_label,1, alignment=Qt.AlignmentFlag.AlignCenter)
+        bottom_layout.addWidget(readthedocs_label,1, alignment=Qt.AlignmentFlag.AlignCenter)
+        bottom_layout.addWidget(manual_label,1, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addLayout(bottom_layout)
         self.setCentralWidget(central_widget)
 
         label_layout = QHBoxLayout()
@@ -196,10 +213,24 @@ class MainWindow(QMainWindow):
         QMessageBox.about(self, "About CREST", crest_text)
 
     def aboutcclib(self):
-        pass
+        cclib_text = """
+        <div>
+            <h3>cclib</h3>
+            <p>cclib is an open-source library for parsing and analyzing computational chemistry log files.</p>
+            <p>Find out more at: <a href="https://cclib.github.io/">https://cclib.github.io/</a></p>
+        </div>
+        """
+        QMessageBox.about(self, "About cclib", cclib_text)
 
     def aboutpy3Dmol(self):
-        pass
+        py3Dmol_text = """
+        <div>
+            <h3>py3Dmol</h3>
+            <p>py3Dmol is a Python wrapper for the 3dmol.js library for interactive molecular visualization.</p>
+            <p>Find out more at: <a href="https://3dmol.org/">https://3dmol.org/</a></p>
+        </div>
+        """
+        QMessageBox.about(self, "About py3Dmol", py3Dmol_text)
 
     def new_csearch_widget(self):
         self.csearch = CSEARCH(self)

@@ -1,8 +1,9 @@
 import sys
+from pathlib import Path
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QIcon
+
 from aqmeasy.ui.main_window import MainWindow
-from pathlib import Path
 
 if __name__ == "__main__":
     app = QApplication([]) # won't need any args if ran as executable

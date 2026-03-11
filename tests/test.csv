@@ -1,7 +1,2 @@
 SMILES,code_name,charge,multiplicity,constraints_atoms,constraints_dist,constraints_angle,constraints_dihedral,complex_type,geom
-COc1cc(C2=C3C=CC4=[N]3->[Co]35<-[N]6=C(C=CC6=C(c6cc(OC)c(OC)c(OC)c6)c6ccc2[n]63)C(c2cc(OC)c(OC)c(OC)c2)=c2ccc([n]25)=C4c2cc(OC)c(OC)c(OC)c2)cc(OC)c1OC,mol_1,0,1,,,,,,
-C1=CCCC=C1,mol_2,0,1,,,,,,
-*1C=CCCC1,mol_3,0,1,,,,,,
-O=C1CC[CH+]C2=C(O1)c1ccc(Cl)cc1C2,mol_4,1,1,,,,,,
-N#Cc1ccc(-c2cc(-c3ccc(C#N)cc3)c(-c3ccc(C#N)cc3)cc2-c2ccc(C#N)cc2)cc1,mol_5,0,1,,,,,,
-[N]=O,mol_6,0,2,,,,,,
+CC(C)CC1=CC=C(C=C1)C(C)C(=O)O,ibuprofen,0,1,,,,,,

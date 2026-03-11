@@ -2,4 +2,4 @@ SMILES,code_name,charge,multiplicity,constraints_atoms,constraints_dist,constrai
 CCCF,a,0,1,,,,,,
 CC,b,0,1,,,,,,
 CC(C)CC1=CC=C(C=C1)C(C)C(=O)O,ibuprofen,0,1,,,,,,
-CC(C)CC1=CC=C(C=C1)C(C)C(=O)O.CC,Intermediate_ibuprofen+,0,1,,,,,,
+CCCS, d,0,1,,,,,,
