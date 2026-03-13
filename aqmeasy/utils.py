@@ -6,7 +6,6 @@ from rdkit import Chem
 from rdkit.Chem.Draw import rdMolDraw2D
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtGui import QPainter, QIcon
-from aqmeasy.ui.icons import Icons
 from PySide6.QtCore import Qt
 
 import pubchempy as pcp
