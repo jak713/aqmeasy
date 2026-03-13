@@ -1,11 +1,12 @@
 from pathlib import Path
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 from rdkit import Chem
 from rdkit.Chem.Draw import rdMolDraw2D
 from PySide6.QtSvg import QSvgRenderer
-from PySide6.QtGui import QPainter
+from PySide6.QtGui import QPainter, QIcon
+from aqmeasy.ui.icons import Icons
 from PySide6.QtCore import Qt
 
 import pubchempy as pcp
@@ -225,3 +226,31 @@ def load_svg_as_pixmap(path, width=None, height=None):
     renderer.render(painter)
     painter.end()
     return pixmap
+
+def success(self, message: str):
+    """Show success message"""
+    msg = QMessageBox(self)
+    msg.setWindowTitle("Success")
+    msg.setText(message)
+    pixmap = QPixmap(Icons.green)
+    if not pixmap.isNull():
+        icon = QIcon(pixmap)
+        msg.setWindowIcon(icon)
+        msg.setIconPixmap(icon.pixmap(64, 64))
+    else:
+        msg.setIcon(QMessageBox.Icon.Information)
+    msg.exec()
+    
+def failure(self, message: str):
+    """Show failure message"""
+    msg = QMessageBox(self)
+    msg.setWindowTitle("Error")
+    msg.setText(message)
+    pixmap = QPixmap(Icons.red)
+    if not pixmap.isNull():
+        icon = QIcon(pixmap)
+        msg.setWindowIcon(icon)
+        msg.setIconPixmap(icon.pixmap(64, 64))
+    else:
+        msg.setIcon(QMessageBox.Icon.Critical)
+    msg.exec()
