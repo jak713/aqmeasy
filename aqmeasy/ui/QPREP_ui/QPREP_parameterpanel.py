@@ -11,6 +11,7 @@ class ParameterPanel(QWidget):
         self.model = model or InputModel()
         self.setup_software_data()
         self.setup_ui()
+        self.setMaximumWidth(400)
     
     def setup_software_data(self):
         """Define software-specific functionals and basis sets"""
@@ -42,8 +43,9 @@ class ParameterPanel(QWidget):
 
         info_group = QGroupBox("Information")
         info_layout = QHBoxLayout()
+        info_group.setMaximumHeight(200)
         self.info_line = QTextBrowser()
-        self.info_line.setMaximumHeight(100)
+        self.info_line.setMaximumHeight(150)
         info_layout.addWidget(self.info_line)
         info_group.setLayout(info_layout)
         
@@ -121,7 +123,7 @@ class ParameterPanel(QWidget):
         # Memory in computational resources
 
         mem_row = QHBoxLayout()
-        self.mem_title = QLabel('Memory:')
+        self.mem_title = QLabel('Memory (per core in GB):')
         mem_row.addWidget(self.mem_title)
         self.mem_label = QLabel("1")
         mem_row.addWidget(self.mem_label)
@@ -234,7 +236,7 @@ class ParameterPanel(QWidget):
             self.solvation_combo.addItems(self.ORCA_SOLVENT_MODELS)
             self.solvent_combo.addItems(self.ORCA_SOLVENTS)
             self.software_combo.setCurrentText("Orca")
-            self.mem_title.setText('Memory (per core in GB):')
+            # self.mem_title.setText('Memory (per core in GB):')
             self.calc_combo.addItems(Orca.ORCA_RUNTYPES)
 
         elif software_name == "Gaussian":
@@ -244,7 +246,7 @@ class ParameterPanel(QWidget):
             self.solvation_combo.addItems(self.GAUSSIAN_SOLVENT_MODELS)
             self.solvent_combo.addItems(self.GAUSSIAN_SOLVENTS)
             self.software_combo.setCurrentText("Gaussian")
-            self.mem_title.setText('Memory (total in GB):')
+            # self.mem_title.setText('Memory (total in GB):')
             self.calc_combo.addItems(Gaussian.GAUSSIAN_RUNTYPES)
 
     def on_set_functional(self, functional):
