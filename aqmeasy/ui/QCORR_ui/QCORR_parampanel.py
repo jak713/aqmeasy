@@ -1,25 +1,20 @@
 import os
 from PySide6.QtWidgets import (
-    QApplication,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
     QGridLayout,
     QPushButton,
     QLabel,
-    QProgressBar,
     QCheckBox,
     QLineEdit,
     QSlider,
     QGroupBox,
     QDoubleSpinBox,
     QComboBox,
-    QFileDialog,
-    QSizePolicy,
-    QStyle,
     QFrame
 )
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QCloseEvent, QIcon
 from PySide6.QtCore import Qt
 
 from aqmeasy.ui.QPREP_ui.QPREP_parameterpanel import ParameterPanel
@@ -53,16 +48,17 @@ class ParamPanel(QWidget):
         fullcheck_check.setChecked(self.model.fullcheck)
         checkboxes_layout.addWidget(fullcheck_check)
         self.fullcheck_check = fullcheck_check
-        self.fullcheck_check.stateChanged.connect(lambda state: self.model.fullcheckChanged.emit(state == Qt.Checked))
+        self.fullcheck_check.stateChanged.connect(lambda state: self.model.fullcheckChanged.emit(state == Qt.CheckState.Checked))
 
         self.dup_check = QCheckBox("Disable Duplicate Filter")
         checkboxes_layout.addWidget(self.dup_check)
-        self.dup_check.stateChanged.connect(lambda state: self.model.nodupCheckChanged.emit(state == Qt.Checked))
+        self.dup_check.stateChanged.connect(lambda state: self.model.nodup_checkChanged.emit(state == Qt.CheckState.Checked))
         self.dup_check.stateChanged.connect(lambda state: self.on_dup_check_state_changed(state))
 
         reset_button = QPushButton("Reset Settings")
         checkboxes_layout.addWidget(reset_button)
-        # reset_button.clicked.connect(self.model.resetParameters.emit)
+        reset_button.clicked.connect(self.model.reset_to_defaults)
+        reset_button.clicked.connect(lambda: print(self.model.as_dict()))
 
         options_grid = QGridLayout()
         param_layout.addLayout(options_grid)
@@ -72,7 +68,7 @@ class ParamPanel(QWidget):
         self.ifreq_input = QDoubleSpinBox()
         self.ifreq_input.setRange(-100.0, 0.0)
         self.ifreq_input.setValue(self.model.ifreq_cutoff)
-        self.ifreq_input.valueChanged.connect(lambda value: self.model.ifreqCutoffChanged.emit(float(value)))
+        self.ifreq_input.valueChanged.connect(lambda value: self.model.ifreq_cutoffChanged.emit(float(value)))
         options_grid.addWidget(self.ifreq_input, 0, 1)
 
         ifreq_scale_label = QLabel(f"Amplitude Scale for Im. Frequencies: ")
@@ -88,7 +84,7 @@ class ParamPanel(QWidget):
         self.ifreq_scale_slide.setValue(int(self.model.amplitude_ifreq * 100))
         self.ifreq_scale_slide.setTickInterval(10)
         self.ifreq_scale_slide.valueChanged.connect(
-            lambda value: self.model.amplitudeIfreqChanged.emit(float(value/100)))
+            lambda value: self.model.amplitude_ifreqChanged.emit(float(value/100)))
         slider_layout.addWidget(self.ifreq_scale_slide)
 
         s2_threshold_label = QLabel("Spin Contamination Threshold (%): ")
@@ -97,31 +93,31 @@ class ParamPanel(QWidget):
         self.s2_threshold_input.setRange(0.0, 100.0)
         self.s2_threshold_input.setValue(self.model.s2_threshold)
         options_grid.addWidget(self.s2_threshold_input, 2, 1)
-        self.s2_threshold_input.valueChanged.connect(lambda value: self.model.s2ThresholdChanged.emit(float(value)))
+        self.s2_threshold_input.valueChanged.connect(lambda value: self.model.s2_thresholdChanged.emit(float(value)))
 
         dup_group = QGroupBox("Duplicate Filter Parameters")
         param_layout.addWidget(dup_group)
         dup_layout = QGridLayout()
         dup_group.setLayout(dup_layout)
 
-        dupThreshold_label = QLabel("Duplicate Energy Threshold (Hartree): ")
-        dup_layout.addWidget(dupThreshold_label, 0, 0)
-        self.dupThreshold_input = QDoubleSpinBox()
-        self.dupThreshold_input.setRange(0.0, 1.0)
-        self.dupThreshold_input.setSingleStep(0.0001)
-        self.dupThreshold_input.setDecimals(4)
-        self.dupThreshold_input.setValue(self.model.dup_threshold)
-        dup_layout.addWidget(self.dupThreshold_input, 0, 1)
-        self.dupThreshold_input.valueChanged.connect(lambda value: self.model.dupThresholdChanged.emit(float(value)))
+        dup_threshold_label = QLabel("Duplicate Energy Threshold (Hartree): ")
+        dup_layout.addWidget(dup_threshold_label, 0, 0)
+        self.dup_threshold_input = QDoubleSpinBox()
+        self.dup_threshold_input.setRange(0.0, 1.0)
+        self.dup_threshold_input.setSingleStep(0.0001)
+        self.dup_threshold_input.setDecimals(4)
+        self.dup_threshold_input.setValue(self.model.dup_threshold)
+        dup_layout.addWidget(self.dup_threshold_input, 0, 1)
+        self.dup_threshold_input.valueChanged.connect(lambda value: self.model.dup_thresholdChanged.emit(float(value)))
 
         roThreshold_label = QLabel("Rotational Constant Threshold (cm⁻¹): ")
         dup_layout.addWidget(roThreshold_label, 1, 0)
-        self.roThreshold_input = QDoubleSpinBox()
-        self.roThreshold_input.setRange(0.0, 10.0)
-        self.roThreshold_input.setSingleStep(0.1)
-        self.roThreshold_input.setValue(self.model.ro_threshold)
-        dup_layout.addWidget(self.roThreshold_input, 1, 1)
-        self.roThreshold_input.valueChanged.connect(lambda value: self.model.roThresholdChanged.emit(float(value)))
+        self.ro_threshold_input = QDoubleSpinBox()
+        self.ro_threshold_input.setRange(0.0, 10.0)
+        self.ro_threshold_input.setSingleStep(0.1)
+        self.ro_threshold_input.setValue(self.model.ro_threshold)
+        dup_layout.addWidget(self.ro_threshold_input, 1, 1)
+        self.ro_threshold_input.valueChanged.connect(lambda value: self.model.ro_thresholdChanged.emit(float(value)))
 
         isom_group = QGroupBox("Isomerisation Filter Parameters")
         param_layout.addWidget(isom_group)
@@ -133,7 +129,7 @@ class ParamPanel(QWidget):
         self.isom_type_input = QComboBox()
         self.isom_type_input.addItems(["None", ".out", ".log", ".xyz", ".sdf", ".mol"])
         isom_layout.addWidget(self.isom_type_input, 0, 1)
-        self.isom_type_input.currentTextChanged.connect(lambda value: self.model.isomTypeChanged.emit(value))
+        self.isom_type_input.currentTextChanged.connect(lambda value: self.model.isom_typeChanged.emit(value))
 
         self.isom_inputs_label = QLabel("Isomerisation Inputs Location (Optional): ")
         isom_layout.addWidget(self.isom_inputs_label, 1, 0)
@@ -194,30 +190,75 @@ class ParamPanel(QWidget):
         layout.addWidget(self.advanced_panel)
 
         # Adjust view on model changes
-        self.model.amplitudeIfreqChanged.connect(
-            lambda value: self.ifreq_scale_value.setText(f"{value:.2f}")
+        # fullcheckChanged = Signal(bool)
+        self.model.fullcheckChanged.connect(
+            lambda value: self.fullcheck_check.setChecked(value)
         )
-        self.model.s2ThresholdChanged.connect(
+
+        # varfileChanged = Signal(str)
+        ##################################################
+
+        # ifreq_cutoffChanged = Signal(float)
+        self.model.ifreq_cutoffChanged.connect(
+            lambda value: self.ifreq_input.setValue(value)
+        )
+
+        # amplitude_ifreqChanged = Signal(float)
+        self.model.amplitude_ifreqChanged.connect(
+            lambda value: (self.ifreq_scale_value.setText(f"{value:.2f}"), self.ifreq_scale_slide.setValue(int(value * 100)))
+        )
+
+        # freq_convChanged = Signal(str)
+        ##################################################
+
+        # s2_thresholdChanged = Signal(float)
+        self.model.s2_thresholdChanged.connect(
             lambda value: self.s2_threshold_input.setValue(value)
         )
-        self.model.roThresholdChanged.connect(
-            lambda value: self.roThreshold_input.setValue(value)
+
+        # nodup_checkChanged = Signal(bool)
+        self.model.nodup_checkChanged.connect(
+            lambda value: self.dup_check.setChecked(value)
         )
-        self.model.dupThresholdChanged.connect(
-            lambda value: self.dupThreshold_input.setValue(value)
+
+        # dup_thresholdChanged = Signal(float)
+        self.model.dup_thresholdChanged.connect(
+            lambda value: self.dup_threshold_input.setValue(value)
         )
-        self.model.isomTypeChanged.connect(
+
+        # ro_thresholdChanged = Signal(float)
+        self.model.ro_thresholdChanged.connect(
+            lambda value: self.ro_threshold_input.setValue(value)
+        )
+        
+        # isom_typeChanged = Signal(str)
+        self.model.isom_typeChanged.connect(
             lambda value: self.isom_type_input.setCurrentText(value)
         )
 
+        # isom_inputsChanged = Signal(str)
+        self.model.isom_inputsChanged.connect(
+            lambda value: self.isom_input_line.setText(value)
+        )
+
+        # vdwfracChanged = Signal(float)
+        self.model.vdwfracChanged.connect(
+            lambda value: self.vdwfrac_input.setValue(value)
+        )
+
+        # covfracChanged = Signal(float)
+        self.model.covfracChanged.connect(
+            lambda value: self.covfrac_input.setValue(value)
+        )
+
     def open_qprep_parameters(self):
-        self.qprep_dialog = qprep_parameters_dialog()
+        self.qprep_dialog = qprep_parameters_dialog(self.model)
         self.qprep_dialog.show()
     
     def on_dup_check_state_changed(self, state):
         """Enables/disables duplicate threshold inputs based on checkbox state."""
-        self.dupThreshold_input.setDisabled(state)
-        self.roThreshold_input.setDisabled(state)
+        self.dup_threshold_input.setDisabled(state)
+        self.ro_threshold_input.setDisabled(state)
 
     def toggle_panel(self, height, width):
         expanded_height = 500
@@ -234,10 +275,11 @@ class ParamPanel(QWidget):
 class qprep_parameters_dialog(QWidget):
     """Dialog to set QPREP parameters from QCORR"""
 
-    def __init__(self):
+    def __init__(self, model):
         super().__init__()
         self.setWindowTitle("QPREP Parameters")
         self.setStyleSheet(stylesheets.QWidget)
+        self.model = model
         self.init_ui()
 
     def init_ui(self):
@@ -251,7 +293,16 @@ class qprep_parameters_dialog(QWidget):
         close_button.setStyleSheet(stylesheets.QPushButton)
         close_button.clicked.connect(self.close)
         layout.addWidget(close_button)
+        if self.model.__getattribute__("qm_input") != "":
+            self.set_params()
 
-        # Need to take data from qprep model in parampanel to use in qm_input in qcorr model
-        # This can be done when the dialog is closed 
-        # Might have to preset the QPREP model with whatever theory is being looked at but this can be done later
+    def set_params(self):
+        """Sets the QPREP parameters in the panel from the QCORR model."""
+        qm_input_dict = self.model.__getattribute__("qm_input")
+        self.parameter_panel.model.input_as_dict(qm_input_dict)
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        # Assign the qprep model parameters to the qcorr model
+        self.model.__setattr__("qm_input",self.parameter_panel.model.as_dict())
+        print("QCORR model qm_input updated:", self.model.__getattribute__("qm_input"))
+        super().closeEvent(event)

@@ -8,9 +8,12 @@ from PySide6.QtWidgets import (
     QTextBrowser,
     QLineEdit,
     QPushButton,
+    QProgressBar,
+    QHBoxLayout,
+    
 )
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QTextOption, QTextCharFormat, QColor
+from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtGui import QTextOption, QTextCharFormat, QColor, QKeySequence, QShortcut, QTextCursor
 
 from aqmeasy.ui.icons import Icons
 from aqmeasy.controllers.QCORR_controllers.QCORR_ViewController import ViewController
@@ -32,10 +35,23 @@ class ViewPanel(QWidget):
         view_layout = QVBoxLayout()
         view_group.setLayout(view_layout)
 
+
+        search_dialog = SearchDialog()
+        view_layout.addWidget(search_dialog)
+        search_dialog.setVisible(False)
+        search_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        search_shortcut.activated.connect(lambda: search_dialog.setVisible(not search_dialog.isVisible()))
+        search_dialog.search_query_signal.connect(self.search)
+
+
         self.file_viewer = QTextBrowser()
         self.file_viewer.setFontFamily("Menlo")
         self.file_viewer.setWordWrapMode(QTextOption.WrapMode.NoWrap)
         view_layout.addWidget(self.file_viewer)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.progress_bar.setMaximumHeight(10)
 
         results_group = QGroupBox("QCORR Results")
         results_layout = QVBoxLayout()
@@ -56,6 +72,7 @@ class ViewPanel(QWidget):
         )
         results_layout.addWidget(self.results_view)
         layout.addWidget(view_group)
+        layout.addWidget(self.progress_bar)
         layout.addWidget(results_group)
 
     def update_ui(self):
@@ -84,5 +101,26 @@ class ViewPanel(QWidget):
         """Clear the file viewer content."""
         self.file_viewer.clear()
 
-# TODO
-# class searchDialog
+
+    @Slot(str)
+    def search(self, query):
+        ...
+        
+class SearchDialog(QWidget):
+    search_query_signal = Signal(str)
+
+    def __init__(self):
+        super().__init__()
+        
+        layout = QHBoxLayout()
+        search_line = QLineEdit()
+        search_line.setPlaceholderText("Search...")
+        layout.addWidget(search_line)
+        self.setLayout(layout)
+        # search_line.textChanged.connect(lambda text: self.search_query_signal.emit(text))
+        search_line.textChanged.connect(self.search)
+        self.search_line = search_line
+
+    def search(self):
+        query = self.search_line.text()
+        self.search_query_signal.emit(query)

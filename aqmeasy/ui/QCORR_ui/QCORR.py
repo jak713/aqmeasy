@@ -11,6 +11,7 @@ common. QCORR structures output data and automatically detects issues or errors,
 correct those issues, a cycle that can be repeated several times 
 """
 
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import  QWidget, QVBoxLayout, QHBoxLayout, QPushButton
 from PySide6.QtCore import Qt
 
@@ -27,8 +28,10 @@ from aqmeasy.controllers.QCORR_controllers.QCORR_worker import QCORRWorker
 from aqmeasy.ui.stylesheets import stylesheets
 
 class QCORR(QWidget):
-    def __init__(self):
+    def __init__(self, parent=None):
         super().__init__()
+        if parent is not None:
+            self.parent = parent
         self.file_model = FileModel()
         self.parameter_model = ParamModel()
         self.worker = QCORRWorker(self)
@@ -82,3 +85,8 @@ class QCORR(QWidget):
 
     def on_qcorr_result(self, result):
         self.view_panel.file_viewer.setText(result)
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        self.parent.button_for_qcorr.setEnabled(True)
+        return super().closeEvent(event)
+    

@@ -2,7 +2,7 @@ import glob
 import os
 import io, contextlib, traceback
 
-from PySide6.QtCore import QObject, Slot, QRunnable, QThreadPool, Signal
+from PySide6.QtCore import QObject, Slot, QRunnable, QThreadPool, Signal, QThread
 from aqmeasy.models.QCORR_model.QCORR_parammodel import default_values
 from aqme.qcorr import qcorr
 
@@ -154,3 +154,4 @@ class Worker(QRunnable):
             if not os.path.exists(dest):
                 os.rename(file, dest)
         return wdir
+    

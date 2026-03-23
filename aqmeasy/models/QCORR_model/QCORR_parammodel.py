@@ -1,3 +1,4 @@
+from typing import Any
 from PySide6.QtCore import QObject, Signal
 
 class ParamModel(QObject):
@@ -6,18 +7,17 @@ class ParamModel(QObject):
     fullcheckChanged = Signal(bool)
     varfileChanged = Signal(str)
 
-    ifreqCutoffChanged = Signal(float)
-    amplitudeIfreqChanged = Signal(float)
-    freqConvChanged = Signal(str)
+    ifreq_cutoffChanged = Signal(float)
+    amplitude_ifreqChanged = Signal(float)
+    freq_convChanged = Signal(str)
 
-    s2ThresholdChanged = Signal(float)
+    s2_thresholdChanged = Signal(float)
 
-    nodupCheckChanged = Signal(bool)
-    dupThresholdChanged = Signal(float)
-    roThresholdChanged = Signal(float)
-
-    isomTypeChanged = Signal(str)
-    isomInputsChanged = Signal(str)
+    nodup_checkChanged = Signal(bool)
+    dup_thresholdChanged = Signal(float)
+    ro_thresholdChanged = Signal(float)
+    isom_typeChanged = Signal(str)
+    isom_inputsChanged = Signal(str)
     vdwfracChanged = Signal(float)
     covfracChanged = Signal(float)
 
@@ -47,11 +47,23 @@ class ParamModel(QObject):
 
         self.qm_input = ""
 
+    def __setattr__(self, name: str, value: Any) -> None:
+        return super().__setattr__(name, value)
+    
+    def __getattribute__(self, name: str) -> Any:
+        return super().__getattribute__(name)
+
     def update_from_dict(self, params):
         """Updates the model parameters from a given dictionary."""
         for key, value in params.items():
             if hasattr(self, key):
                 setattr(self, key, value)
+                # Emit the corresponding signal
+                signal_name = f"{key}Changed"
+                signal = getattr(self, signal_name, None)
+                if signal:
+                    print(f"Emitting signal for {key} with value {value}")
+                    signal.emit(value)
 
     def as_dict(self):
         """Returns the current state of choices as a dict, and is once again updated upon changing, so that correct user selection is created in the file."""
@@ -71,6 +83,26 @@ class ParamModel(QObject):
             'covfrac': self.covfrac,
             'qm_input': self.qm_input
         }
+    
+    def reset_to_defaults(self):
+        """Resets all parameters to their default values."""
+        defaults = {
+            'fullcheck': True,
+            'varfile': None,
+            'ifreq_cutoff': 0.0,
+            'amplitude_ifreq': 0.2,
+            'freq_conv': None,
+            's2_threshold': 10.0,
+            'nodup_check': False,
+            'dup_threshold': 0.0001,
+            'ro_threshold': 0.1,
+            'isom_type': None,
+            'isom_inputs': None,
+            'vdwfrac': 0.50,
+            'covfrac': 1.10,
+            'qm_input': ""
+        }
+        self.update_from_dict(defaults)
     
 default_values = {
     'fullcheck': True,
