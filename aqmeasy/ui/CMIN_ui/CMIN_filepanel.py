@@ -1,0 +1,121 @@
+import os
+from xml.parsers.expat import model
+from PySide6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QLabel,
+    QListWidget, 
+    QListWidgetItem,
+    QGroupBox,
+    QLineEdit,
+    QApplication,
+    QSizePolicy,
+    QStyle
+)
+from PySide6.QtCore import  Qt
+from PySide6.QtGui import  QIcon
+from aqmeasy.ui.stylesheets import stylesheets
+from aqmeasy.ui.icons import Icons
+
+from aqmeasy.controllers.CMIN_controller import FileController
+
+
+
+class FilePanel(QWidget):
+    """File browser, batch file selection, drag and drop, file status"""
+
+    def __init__(self, parent, model):
+        super().__init__()
+        self.parent = parent
+        self.model = model
+        self.controller = FileController(model, self)
+        self.init_ui()
+        self.setAcceptDrops(True)
+
+
+    def init_ui(self):
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+        input_group = QGroupBox("Drop in files or folders below")
+        layout.addWidget(input_group)
+        layout = QVBoxLayout()
+        input_group.setLayout(layout)
+
+        selecting_layout = QHBoxLayout()
+        layout.addLayout(selecting_layout)
+
+        select_files = QPushButton()
+        select_files.setIcon(QIcon(Icons.file_open))
+        select_files.clicked.connect(self.controller.open_file_dialog)
+        selecting_layout.addWidget(select_files)
+
+        clear_files = QPushButton()
+        clear_files.setIcon(QIcon(Icons.trash))
+        clear_files.clicked.connect(self.controller.clear_file_list)
+        selecting_layout.addWidget(clear_files)
+
+        # file list view
+        self.file_view = QListWidget()
+        # Selection updates model's currently selected file
+        self.file_view.itemSelectionChanged.connect(lambda: self._on_file_selection_changed(self.file_view.currentItem().toolTip()))
+
+        layout.addWidget(self.file_view)
+
+        # output dir selection
+        output_layout = QHBoxLayout()
+        layout.addLayout(output_layout)
+        
+        output_label = QLabel("Output Directory:")
+        output_layout.addWidget(output_label)
+
+        self.output_dir_label = QLineEdit()
+        self.output_dir_label.setPlaceholderText("Select output directory...")
+        self.output_dir_label.setReadOnly(True)
+        output_layout.addWidget(self.output_dir_label)
+
+        select_output_dir = QPushButton()
+        select_output_dir.setIcon(QIcon(Icons.folder_open))
+        select_output_dir.clicked.connect(self.controller.select_output_directory)
+        output_layout.addWidget(select_output_dir)
+
+
+    def display_selected_files(self, filenames):
+        for file in filenames:
+            # check if file is already in the list
+            if not any(item.toolTip() == file for item in self.file_view.findItems("*", Qt.MatchFlag.MatchWildcard)):
+                item = QListWidgetItem(os.path.basename(file))
+                item.setToolTip(file)
+                self.file_view.addItem(item)
+
+    def _on_file_selection_changed(self, selected_item):
+        if self.model.isSelectable == False:
+            return
+        self.model.currently_selected_file = selected_item
+        self.model.currentlySelectedFileChanged.emit(selected_item)
+
+        # Use load_molecules_from_files to load the selected file into the molecule viewer
+        self.parent.molecule_viewer.load_molecules_from_files([selected_item])
+        
+    def dragEnterEvent(self, event):
+        urls = event.mimeData().urls()
+        if not urls:
+            event.ignore()
+            return
+        else:
+            for url in urls:
+                if not url.isLocalFile():
+                    event.ignore()
+                    return
+        event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        urls = event.mimeData().urls()
+        dirs = [url.toLocalFile() for url in urls if url.isLocalFile() and os.path.isdir(url.toLocalFile())]
+        if len(dirs) == 0 and len(urls) == 1 and os.path.isfile(urls[0].toLocalFile()):
+            self.controller.open_drop_file(urls[0].toLocalFile())
+            return
+        else:
+            self.controller.open_drop_folder(dirs)
+        event.acceptProposedAction()

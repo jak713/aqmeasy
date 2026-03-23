@@ -18,7 +18,6 @@ class MoleculeViewer(QWidget):
     """
     Main widget for Molecule Viewer application.
     Displays molecules from SDF files, with the 3D view integrated directly.
-    Now supports multiple files.
     """
 
     def __init__(self):
@@ -31,22 +30,21 @@ class MoleculeViewer(QWidget):
         self.web_view.setVisible(False)
 
     def setup_ui(self):
-        # This container holds all the options, but NOT the 3D viewer itself
         self.options_container = QWidget()
         options_layout = QVBoxLayout(self.options_container)
         options_layout.setContentsMargins(0, 0, 0, 0)
         options_layout.setSpacing(10)
 
         # File Information Section
-        file_group = QGroupBox("File Information")
+        self.file_group = QGroupBox("File Information")
         file_layout = QVBoxLayout()
         self.file_info_label = QTextBrowser()
         self.file_info_label.setPlaceholderText("No files selected")
         self.file_info_label.setMinimumHeight(100)
         self.file_info_label.setMaximumHeight(150)
         file_layout.addWidget(self.file_info_label)
-        file_group.setLayout(file_layout)
-        options_layout.addWidget(file_group)
+        self.file_group.setLayout(file_layout)
+        options_layout.addWidget(self.file_group)
 
         # Display Options Section
         display_group = QGroupBox("Display Options")
@@ -97,8 +95,6 @@ class MoleculeViewer(QWidget):
         self.bonds_label = QLabel("N/A")
         self.charge_label = QLabel("N/A")
         self.mult_label = QLabel("N/A")
-        # self.energy_label = QLabel("N/A")
-        # self.energy_label.setStyleSheet(stylesheets.QLabel)
 
 
         self.info_layout.addRow("Source File:", self.source_file_label)
@@ -108,14 +104,12 @@ class MoleculeViewer(QWidget):
         self.info_layout.addRow("Bonds:", self.bonds_label)
         self.info_layout.addRow("Charge:", self.charge_label)
         self.info_layout.addRow("Multiplicity:", self.mult_label)
-        # self.info_layout.addRow("Energy:", self.energy_label)
 
         self.info_group.setLayout(self.info_layout)
         options_layout.addWidget(self.info_group)
 
         options_layout.addStretch()
 
-        # 3D Viewer Section - This is the part that will be hidden/shown
         self.viewer_group = QGroupBox("3D Viewer")
         viewer_layout = QVBoxLayout()
         self.web_view = QWebEngineView()
@@ -138,7 +132,10 @@ class MoleculeViewer(QWidget):
         # Filter for SDF files only
         sdf_files = [f for f in filenames if f.lower().endswith('.sdf')]
         
-        if not sdf_files:
+        # Filter for XYZ files
+        xyz_files = [f for f in filenames if f.lower().endswith('.xyz')]
+
+        if not sdf_files and not xyz_files:
             self.clear_molecules()
             return
 
@@ -173,11 +170,39 @@ class MoleculeViewer(QWidget):
                         total_molecules += len(file_molecules)
                         
                 except Exception as file_error:
-                    print(f"Error loading {filename}: {str(file_error)}")
+                    print(f"Error loading SDF file {filename}: {str(file_error)}")
+                    continue
+
+            for filename in xyz_files:
+                try:
+                    with open(filename, 'r') as f:
+                        lines = f.readlines()
+                        num_atoms = int(lines[0].strip())
+                        mol_block = ''.join(lines[0:2+num_atoms])
+                        mol = Chem.MolFromXYZBlock(mol_block)
+
+                        if mol is not None:
+                            Chem.SanitizeMol(mol)
+                            mol_data = {
+                                'mol': mol,
+                                'original_idx': 0,
+                                'source_file': filename,
+                                'file_basename': os.path.basename(filename)
+                            }
+                            self.molecules.append(mol_data)
+                            self.loaded_files.append({
+                                'filename': filename,
+                                'basename': os.path.basename(filename),
+                                'molecule_count': 1
+                            })
+                            total_molecules += 1
+
+                except Exception as file_error:
+                    print(f"Error loading XYZ file {filename}: {str(file_error)}")
                     continue
 
             if not self.molecules:
-                QMessageBox.warning(self, "Error", "No valid molecules found in the SDF files.")
+                QMessageBox.warning(self, "Error", "No valid molecules found in the selected files.")
                 self.clear_molecules()
                 return
 
@@ -214,15 +239,12 @@ class MoleculeViewer(QWidget):
 
             self.molecule_selector.currentIndexChanged.connect(self.on_molecule_change)
 
-            # self.export_sdf_button.setEnabled(True)
-            # self.export_lowest_energy_molecules_btn.setEnabled(True)
-
             if self.molecules:
                 self.molecule_selector.setCurrentIndex(0)
                 self.on_molecule_change(0)
 
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to load molecules from SDF files.\n\n{str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to load molecules from files.\n\n{str(e)}")
             self.clear_molecules()
             self.web_view.setVisible(False)
 
@@ -251,7 +273,6 @@ class MoleculeViewer(QWidget):
         self.bonds_label.setText("N/A")
         self.charge_label.setText("N/A")
         self.mult_label.setText("N/A")
-        # self.energy_label.setText("N/A")
         self.source_file_label.setText("N/A")
 
     def on_molecule_change(self, index):
@@ -262,7 +283,6 @@ class MoleculeViewer(QWidget):
             self.bonds_label.setText("N/A")
             self.charge_label.setText("N/A")
             self.mult_label.setText("N/A")
-            # self.energy_label.setText("N/A")
             self.source_file_label.setText("N/A")
             return
 
@@ -293,27 +313,9 @@ class MoleculeViewer(QWidget):
             self.bonds_label.setText(str(num_bonds))
             self.charge_label.setText(str(charge))
             self.mult_label.setText(str(mult))
-            # self.energy_label.setText("Calculating...")
             self.source_file_label.setText(source_file)
 
             QApplication.processEvents()
-
-            # Calculate and display the energy
-            # try:
-            #     # First check for 3D coordinates, if not present, embed them
-            #     if mol.GetNumConformers() == 0:
-            #         AllChem.EmbedMolecule(mol, AllChem.ETKDG())
-
-            #     # Perform a quick energy minimization
-            #     ff = AllChem.MMFFGetMoleculeForceField(mol, AllChem.MMFFGetMoleculeProperties(mol))
-            #     ff.Minimize()
-            #     energy = ff.CalcEnergy()
-
-            #     # Update the displayed info with the energy
-            #     self.energy_label.setText(f"{energy:.4f} kcal/mol")
-
-            # except Exception as energy_e:
-            #     self.energy_label.setText("Error")
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error getting molecule details: {str(e)}")
@@ -323,7 +325,6 @@ class MoleculeViewer(QWidget):
             self.bonds_label.setText("Error")
             self.charge_label.setText("Error")
             self.mult_label.setText("Error")
-            # self.energy_label.setText("Error")
             self.source_file_label.setText("Error")
 
         self.render_selected_molecule()
@@ -331,6 +332,9 @@ class MoleculeViewer(QWidget):
     def render_selected_molecule(self):
         if not self.molecules:
             return
+        
+        # check if selected molecules ends with xyz
+        xyz = any(mol_data['source_file'].lower().endswith('.xyz') for mol_data in self.molecules)
 
         index = self.list_slider.value()
         if index < 0 or index >= len(self.molecules):
@@ -340,18 +344,18 @@ class MoleculeViewer(QWidget):
         mol = mol_data['mol']
         style = self.style_selector.currentText()
 
-        if not mol.GetNumConformers():
-            try:
-                AllChem.EmbedMolecule(mol)
-                AllChem.MMFFOptimizeMolecule(mol)
-            except:
-                QMessageBox.critical(self, "Error", "Could not generate 3D coordinates for this molecule.")
-                return
-
-        mol_block = Chem.MolToMolBlock(mol)
-
         viewer = py3Dmol.view(width='100%', height='100%')
-        viewer.addModel(mol_block, 'mol')
+
+        if xyz:
+            try:
+                xyz_block = Chem.MolToXYZBlock(mol)
+                viewer.addModel(xyz_block, 'xyz')
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Error converting molecule to XYZ format: {str(e)}")
+                return
+        else:
+            mol_block = Chem.MolToMolBlock(mol) 
+            viewer.addModel(mol_block, 'mol')
 
         if style == 'Stick':
             viewer.setStyle({'stick': {}})
