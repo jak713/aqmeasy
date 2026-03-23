@@ -33,6 +33,7 @@ class FilePanel(QWidget):
         self.molecular_viewer = molecular_viewer
         self.selected_files = []
         self.setup_ui()
+        self.setMaximumWidth(400)
 
         if self.molecular_viewer:
             self.filesSelected.connect(self.molecular_viewer.load_molecules_from_files)
@@ -47,6 +48,7 @@ class FilePanel(QWidget):
 
         # Input File Section
         input_group = QGroupBox("Input Files")
+        input_group.setMaximumHeight(200)
         input_layout = QVBoxLayout()
         
         # File selection buttons
@@ -117,7 +119,7 @@ class FilePanel(QWidget):
         self.status_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.status_text.setPlaceholderText("Ready to create input files")
         self.status_text.setReadOnly(True)
-        self.status_text.setMinimumHeight(300)
+        self.status_text.setMinimumHeight(400)
         status_layout.addWidget(self.status_text)
         status_group.setLayout(status_layout)
 
@@ -143,7 +145,6 @@ class FilePanel(QWidget):
             current_software = self.model.software().lower()
             if current_software != self.last_software:
                 self.last_software = current_software
-                self.update_button_color()
 
 
     def clear_files(self):
@@ -288,9 +289,9 @@ class FilePanel(QWidget):
                 preview_content += file_preview + "\n\n"
                 
                 if i < len(params['input_files']) - 1:  # Add separator between files
-                    preview_content += "=" * 70 + "\n\n"
-            
-            preview_content += f"{'=' * 70}\n\nThis is a preview of the input files that will be generated.\n"
+                    preview_content += "=" * 40 + "\n\n"
+        
+            preview_content += f"{'=' * 40}\n\nThis is a preview of the input files that will be generated.\n"
             preview_content += f"Total files to process: {len(params['input_files'])}\n"
             preview_content += "Click 'Make Input Files' to create the actual files."
             
@@ -403,7 +404,7 @@ class FilePanel(QWidget):
             params['functional'] = self.model.functional()
             params['basis'] = self.model.basis_set()
             params['nprocs'] = self.model.nprocs()
-            params['mem'] = self.model.mem()
+            params['mem'] = self.model.mem() if params['software'] == 'orca' else self.model.nprocs() * self.model.mem()
             params['dispersion'] = self.model.dispersion()
             
         # Use selected_files list instead of single file
@@ -466,7 +467,7 @@ class FilePanel(QWidget):
             'OPT+FREQ': 'opt freq',
             'NUMFREQ' : 'numfreq',
         }
-        params["keywords"] = job_types.get(params['job_type'], '') + params['dispersion']
+        params["keywords"] = job_types.get(params['job_type'], '') + " " + params['dispersion']
         
         # Set molecule_name to first file for general use
         first_file = params['input_files'][0] if params['input_files'] else 'input'
