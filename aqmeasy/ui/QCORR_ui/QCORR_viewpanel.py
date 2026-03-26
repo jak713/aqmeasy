@@ -1,4 +1,5 @@
 import os
+import json
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -27,6 +28,9 @@ class ViewPanel(QWidget):
         self.init_ui()
         self.update_ui()
         self.setMinimumWidth(400)
+
+        self.model.currentlySelectedFileChanged.connect(self.on_file_selected)
+
 
     def init_ui(self):
         layout = QVBoxLayout()
@@ -79,19 +83,78 @@ class ViewPanel(QWidget):
     def update_ui(self):
         """Update the UI elements based on the model's state."""
         w_dir = self.model.__get__w_dir_main__()
-        print(f"Updating UI with working directory: {w_dir}")
-        if w_dir:
+        if w_dir and os.path.exists(w_dir):
             # self.processed_files.setRootPath(w_dir)
             self.results_view.setRootIndex(self.processed_files.index(w_dir))
+
+    @Slot(str)
+    def on_file_selected(self, filepath):
+        """
+        Handle file selection from the file panel.
+        Load both the file content and associated JSON.
+        """
+        if not filepath or not os.path.isfile(filepath):
+            return
+        
+        self.display_file_content(filepath)
 
     def display_file_content(self, file_path):
         """Display the content of the selected file in the text viewer."""
         try:
-            with open(file_path, 'r') as file:
+            with open(file_path, 'r', encoding='utf-8', errors='replace') as file:
                 content = file.read()
                 self.file_viewer.setPlainText(content)
         except Exception as e:
             self.file_viewer.setPlainText(f"Error reading file: {e}")
+        
+        # Try to load associated JSON
+        self._try_load_associated_json(file_path)
+
+    def _try_load_associated_json(self, file_path):
+        """
+        Load JSON metadata for the selected file.
+        
+        JSON files are always located in a 'json_files' subdirectory
+        within the same directory as the output file.
+        
+        Structure:
+            QCORR_X/success/file.log          -> QCORR_X/success/json_files/file.json
+            QCORR_X/failed/error/file.log     -> QCORR_X/failed/error/json_files/file.json
+        """
+        if not file_path or not os.path.isfile(file_path):
+            return
+        
+        # Get directory containing the file
+        file_dir = os.path.dirname(file_path)
+        
+        # JSON is in json_files subdirectory
+        json_dir = os.path.join(file_dir, 'json_files')
+        
+        # Match basename: calc.log -> calc.json
+        filename = os.path.basename(file_path)
+        base_name = os.path.splitext(filename)[0]
+        json_path = os.path.join(json_dir, base_name + '.json')
+        
+        if os.path.isfile(json_path):
+            self._load_json_data(json_path)
+
+    def _load_json_data(self, json_path):
+        """Load JSON and pass to the analysis widget."""
+        try:
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+            
+            # Find the parent QCORR widget and load into json_panel
+            parent = self.parent()
+            while parent and not hasattr(parent, 'json_panel'):
+                parent = parent.parent()
+            
+            if parent and hasattr(parent, 'json_panel'):
+                parent.json_panel.load_json_data(data)
+        except Exception as e:
+            print(f"Error loading JSON {json_path}: {e}")
+
+        
 
     def _display_selected_files(self, filenames):
         """Display the list of selected files in the file viewer."""
@@ -102,6 +165,14 @@ class ViewPanel(QWidget):
         """Clear the file viewer content."""
         self.file_viewer.clear()
 
+    def refresh_results_tree(self):
+        """Force refresh of the file system model to show latest changes."""
+        w_dir = self.model.__get__w_dir_main__()
+        if w_dir and os.path.exists(w_dir):
+            # Force model refresh by resetting root path
+            self.processed_files.setRootPath('')
+            self.processed_files.setRootPath(w_dir)
+            self.results_view.setRootIndex(self.processed_files.index(w_dir))
 
     @Slot(str)
     def search(self, query):
