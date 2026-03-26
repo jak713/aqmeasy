@@ -1,11 +1,9 @@
-# aqmeasy/ui/QCORR_ui/QCORR_analysisswidget.py
 
 from typing import Dict, Any, Optional, List
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
     QTableWidget, QTableWidgetItem, QLabel, QPushButton,
     QComboBox, QSlider, QGroupBox, QHeaderView, QSplitter,
-    QDoubleSpinBox
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtCore import Qt, Signal
@@ -19,7 +17,7 @@ class QCORRAnalysisWidget(QWidget):
     
     Features:
     - Structured metadata display across multiple tabs
-    - Interactive vibrational mode visualization using py3Dmol
+    - Interactive vibrational mode visualisation using py3Dmol
     """
     
     def __init__(self, parent: Optional[QWidget] = None):
@@ -77,7 +75,7 @@ class GeneralInfoTab(QWidget):
         self.table = QTableWidget()
         self.table.setColumnCount(2)
         self.table.setHorizontalHeaderLabels(["Property", "Value"])
-        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         layout.addWidget(self.table)
     
     def populate(self, data: Dict[str, Any]):
@@ -100,6 +98,7 @@ class GeneralInfoTab(QWidget):
         for i, (key, value) in enumerate(items):
             self.table.setItem(i, 0, QTableWidgetItem(key))
             self.table.setItem(i, 1, QTableWidgetItem(str(value)))
+        self.table.resizeColumnToContents(1)
 
 
 class SystemInfoTab(QWidget):
@@ -113,7 +112,7 @@ class SystemInfoTab(QWidget):
         self.table = QTableWidget()
         self.table.setColumnCount(2)
         self.table.setHorizontalHeaderLabels(["Property", "Value"])
-        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         layout.addWidget(self.table)
     
     def populate(self, data: Dict[str, Any]):
@@ -137,6 +136,7 @@ class SystemInfoTab(QWidget):
         for i, (key, value) in enumerate(items):
             self.table.setItem(i, 0, QTableWidgetItem(key))
             self.table.setItem(i, 1, QTableWidgetItem(str(value)))
+        self.table.resizeColumnToContents(1)
 
 
 class EnergyInfoTab(QWidget):
@@ -150,7 +150,7 @@ class EnergyInfoTab(QWidget):
         self.table = QTableWidget()
         self.table.setColumnCount(2)
         self.table.setHorizontalHeaderLabels(["Property", "Value (Hartree)"])
-        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         layout.addWidget(self.table)
     
     def populate(self, data: Dict[str, Any]):
@@ -170,7 +170,7 @@ class EnergyInfoTab(QWidget):
             self.table.setItem(i, 0, QTableWidgetItem(key))
             value_str = f"{value:.6f}" if isinstance(value, (int, float)) else str(value)
             self.table.setItem(i, 1, QTableWidgetItem(value_str))
-# aqmeasy/ui/QCORR_ui/QCORR_analysiswidget.py
+        self.table.resizeColumnToContents(1)
 
 from typing import Dict, Any, Optional, List
 from PySide6.QtWidgets import (
@@ -187,7 +187,7 @@ import math
 
 class VibrationTab(QWidget):
     """
-    Tab for vibrational mode display and visualization.
+    Tab for vibrational mode display and visualisation.
     
     Features:
     - Table of frequencies with IR intensities
@@ -230,9 +230,9 @@ class VibrationTab(QWidget):
         viewer_layout = QVBoxLayout()
         viewer_widget.setLayout(viewer_layout)
         
-        
         # Controls
-        controls_group = QGroupBox("Visualization Controls")
+        controls_group = QGroupBox("visualisation Controls")
+        controls_group.setMaximumHeight(150)
         controls_layout = QVBoxLayout()
         controls_group.setLayout(controls_layout)
         
@@ -247,11 +247,11 @@ class VibrationTab(QWidget):
         # Amplitude control
         amplitude_layout = QHBoxLayout()
         amplitude_layout.addWidget(QLabel("Amplitude:"))
-        self.amplitude_spin = QDoubleSpinBox()
-        self.amplitude_spin.setRange(0.1, 5.0)
-        self.amplitude_spin.setValue(1.0)
-        self.amplitude_spin.setSingleStep(0.1)
-        self.amplitude_spin.valueChanged.connect(self.update_visualization)
+        self.amplitude_spin = QSlider(Qt.Horizontal)
+        self.amplitude_spin.setRange(1, 10)
+        self.amplitude_spin.setValue(1)
+        self.amplitude_spin.setSingleStep(1)
+        self.amplitude_spin.valueChanged.connect(self.update_visualisation)
         amplitude_layout.addWidget(self.amplitude_spin)
         controls_layout.addLayout(amplitude_layout)
         
@@ -261,7 +261,7 @@ class VibrationTab(QWidget):
         self.style_selector = QComboBox()
         self.style_selector.addItems(['Stick', 'Ball and Stick', 'VdW Spheres'])
         self.style_selector.setCurrentText('Ball and Stick')
-        self.style_selector.currentTextChanged.connect(self.update_visualization)
+        self.style_selector.currentTextChanged.connect(self.update_visualisation)
         style_layout.addWidget(self.style_selector)
         controls_layout.addLayout(style_layout)
         
@@ -316,7 +316,7 @@ class VibrationTab(QWidget):
         
         # Initialize viewer with structure
         if vibfreqs:
-            self.update_visualization()
+            self.update_visualisation()
     
     def on_mode_selected(self):
         """Handle mode selection from table."""
@@ -329,10 +329,10 @@ class VibrationTab(QWidget):
         """Handle mode selection from combo box."""
         if index >= 0:
             self.freq_table.selectRow(index)
-            self.update_visualization()
+            self.update_visualisation()
     
-    def update_visualization(self):
-        """Update the 3D molecular visualization with static structure and arrows."""
+    def update_visualisation(self):
+        """Update the 3D molecular visualisation with static structure and arrows."""
         if not self.json_data:
             return
         
@@ -480,7 +480,7 @@ class VibrationTab(QWidget):
     
     def stop_animation(self):
         """Stop animation and return to static view."""
-        self.update_visualization()
+        self.update_visualisation()
     
     def _create_xyz_block(self, coords: List[List[float]], atomnos: List[int]) -> str:
         """
@@ -531,7 +531,7 @@ class OrbitalInfoTab(QWidget):
         self.summary_table = QTableWidget()
         self.summary_table.setColumnCount(2)
         self.summary_table.setHorizontalHeaderLabels(["Property", "Value"])
-        self.summary_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.summary_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         layout.addWidget(self.summary_table)
         
         # Energy levels table
@@ -570,6 +570,7 @@ class OrbitalInfoTab(QWidget):
         for i, (key, value) in enumerate(summary_items):
             self.summary_table.setItem(i, 0, QTableWidgetItem(key))
             self.summary_table.setItem(i, 1, QTableWidgetItem(str(value)))
+        self.summary_table.resizeColumnToContents(1)
         
         # Orbital energies (show HOMO-5 to LUMO+5)
         if energies and homo_idx is not None:

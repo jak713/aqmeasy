@@ -54,10 +54,15 @@ class QCORR(QWidget):
         self.param_panel = ParamPanel()
         panel1.addWidget(self.param_panel)
 
-        self.toggle_button = QPushButton("<")
-        self.toggle_button.setStyleSheet(stylesheets.ToggleButton)
-        self.toggle_button.setCheckable(True)
-        self.toggle_button.toggled.connect(self.toggle_panel1)
+        self.toggle_button1 = QPushButton("<")
+        self.toggle_button1.setStyleSheet(stylesheets.ToggleButton)
+        self.toggle_button1.setCheckable(True)
+        self.toggle_button1.toggled.connect(self.toggle_panel1)
+
+        self.toggle_button2 = QPushButton("<")
+        self.toggle_button2.setStyleSheet(stylesheets.ToggleButton)
+        self.toggle_button2.setCheckable(True)
+        self.toggle_button2.toggled.connect(self.toggle_panel2)
 
         panel2.addWidget(self.view_panel)
 
@@ -65,8 +70,9 @@ class QCORR(QWidget):
         panel3.addWidget(self.json_panel)
 
         main_layout.addLayout(panel1)
-        main_layout.addWidget(self.toggle_button, alignment=Qt.AlignmentFlag.AlignTop)
+        main_layout.addWidget(self.toggle_button1, alignment=Qt.AlignmentFlag.AlignTop)
         main_layout.addLayout(panel2)
+        main_layout.addWidget(self.toggle_button2, alignment=Qt.AlignmentFlag.AlignTop)
         main_layout.addLayout(panel3)
 
 
@@ -74,11 +80,19 @@ class QCORR(QWidget):
         if checked:
             self.file_panel.hide()
             self.param_panel.hide()
-            self.toggle_button.setText(">")
+            self.toggle_button1.setText(">")
         else:
             self.file_panel.show()
             self.param_panel.show()
-            self.toggle_button.setText("<")
+            self.toggle_button1.setText("<")
+
+    def toggle_panel2(self, checked):
+        if checked:
+            self.view_panel.hide()
+            self.toggle_button2.setText(">")
+        else:
+            self.view_panel.show()
+            self.toggle_button2.setText("<")
 
     def run_qcorr(self):
         self.worker.run_qcorr()

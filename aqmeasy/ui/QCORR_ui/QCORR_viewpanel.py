@@ -26,6 +26,7 @@ class ViewPanel(QWidget):
         self.controller = ViewController(model, self)
         self.init_ui()
         self.update_ui()
+        self.setMinimumWidth(400)
 
     def init_ui(self):
         layout = QVBoxLayout()

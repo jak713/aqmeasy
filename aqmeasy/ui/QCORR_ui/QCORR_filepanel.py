@@ -35,7 +35,6 @@ class FilePanel(QWidget):
         self.init_ui()
         self.setAcceptDrops(True)
 
-
     def init_ui(self):
         layout = QVBoxLayout()
         self.setLayout(layout)
