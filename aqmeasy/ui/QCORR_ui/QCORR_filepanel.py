@@ -110,26 +110,28 @@ class FilePanel(QWidget):
         Format display name to show file location structure.
         
         Examples:
-            /path/QCORR_1/success/calc.log -> ✓ calc.log
-            /path/QCORR_1/failed/imag_freq/calc.log -> ✗ [imag_freq] calc.log
+            /path/QCORR_1/success/calc.log -> ✓ [success] calc.log
+            /path/QCORR_1/success/SP_calcs/calc.log -> ✓ [success/SP_calcs] calc.log
+            /path/QCORR_1/failed/run_1/error/calc.log -> ✗ [failed/run_1/error] calc.log
         """
         filename = os.path.basename(filepath)
         dirname = os.path.dirname(filepath)
+        normalized_dir = os.path.normpath(dirname)
+        parts = normalized_dir.split(os.sep)
         
-        # Check if it's in a success folder
-        if dirname.endswith('success'):
-            return f"✓ {filename}"
+        # Show exact folder under success (including nested ones such as SP_calcs)
+        if 'success' in parts:
+            success_idx = parts.index('success')
+            success_parts = ['success'] + parts[success_idx + 1:]
+            success_path = '/'.join(success_parts)
+            return f"✓ [{success_path}] {filename}"
         
-        # Check if it's in a failed subfolder
-        if 'failed' in dirname:
-            # Extract error type (last directory name before the file)
-            parts = dirname.split(os.sep)
-            if 'failed' in parts:
-                failed_idx = parts.index('failed')
-                if failed_idx < len(parts) - 1:
-                    error_type = parts[failed_idx + 1]
-                    return f"✗ [{error_type}] {filename}"
-            return f"✗ {filename}"
+        # Show exact folder under failed (e.g., failed/run_1/error)
+        if 'failed' in parts:
+            failed_idx = parts.index('failed')
+            failed_parts = ['failed'] + parts[failed_idx + 1:]
+            failed_path = '/'.join(failed_parts)
+            return f"✗ [{failed_path}] {filename}"
         
         # Original file (before QCORR)
         return filename
