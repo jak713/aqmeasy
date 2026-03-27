@@ -61,14 +61,18 @@ class FileModel(QObject):
         new_files = []
         self.file_statuses.clear()
         
-        # Scan success directory
+        # Scan success directory recursively (e.g., success/SP_calcs)
         success_dir = os.path.join(latest_qcorr, 'success')
         if os.path.isdir(success_dir):
-            for filepath in glob.glob(os.path.join(success_dir, '*')):
-                # ADDED: Skip json_files directory and non-output files
-                if os.path.isfile(filepath) and self._is_output_file(filepath):
-                    new_files.append(filepath)
-                    self.file_statuses[filepath] = 'success'
+            for root, dirs, files in os.walk(success_dir):
+                if 'json_files' in dirs:
+                    dirs.remove('json_files')
+
+                for filename in files:
+                    filepath = os.path.join(root, filename)
+                    if self._is_output_file(filepath):
+                        new_files.append(filepath)
+                        self.file_statuses[filepath] = 'success'
         
         # Scan failed directory and its subdirectories
         failed_dir = os.path.join(latest_qcorr, 'failed')
