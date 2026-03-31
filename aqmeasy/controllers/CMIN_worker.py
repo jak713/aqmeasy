@@ -5,6 +5,7 @@ import traceback
 import os
 import re
 import shutil
+import tempfile
 
 
 class CMINWorker(QObject):
@@ -36,6 +37,7 @@ class CMINWorker(QObject):
         """Execute CMIN with provided parameters"""
         self._is_running = True
         self.started.emit()
+        staging_dir = None
         
         try:
             normalized_files = self._normalize_files(self.files)
@@ -44,9 +46,9 @@ class CMINWorker(QObject):
             if not normalized_files:
                 raise ValueError("No valid input files were provided.")
 
-            # AQME currently infers/rewrites working paths from os.getcwd() and files.
-            # Running from the first input file directory avoids invalid path rewriting.
-            run_dir = os.path.dirname(normalized_files[0])
+            # AQME rewrites input paths relative to os.getcwd(); use a stable common
+            # root and relative file list to prevent malformed path concatenations.
+            aqme_files, run_dir, staging_dir = self._prepare_aqme_paths(normalized_files)
             output_dir = self.parameters.get('w_dir_main', '')
             output_dir = os.path.abspath(output_dir) if output_dir else ''
             
@@ -54,7 +56,7 @@ class CMINWorker(QObject):
             cmin_params = dict(self.parameters)
             cmin_params.pop('w_dir_main', None)
             cmin_kwargs = {
-                'files': normalized_files,
+                'files': aqme_files,
                 **cmin_params,
             }
 
@@ -86,6 +88,8 @@ class CMINWorker(QObject):
             error_msg = f"CMIN failed: {str(e)}\n{traceback.format_exc()}"
             self.error.emit(error_msg)
         finally:
+            if staging_dir:
+                shutil.rmtree(staging_dir, ignore_errors=True)
             self._is_running = False
     
     def _collect_results(self, output_dir, run_dir):
@@ -523,6 +527,66 @@ class CMINWorker(QObject):
                 seen.add(abs_path)
                 normalized.append(abs_path)
         return normalized
+
+    def _prepare_aqme_paths(self, normalized_files):
+        """Build AQME-compatible file arguments and execution directory.
+
+        AQME path and conversion helpers are more stable when files are flat
+        basenames in the current working directory.
+        """
+        if not normalized_files:
+            return [], os.getcwd(), None
+
+        basenames = [os.path.basename(path) for path in normalized_files]
+        duplicate_names = sorted({name for name in basenames if basenames.count(name) > 1})
+        if duplicate_names:
+            duplicate_list = ", ".join(duplicate_names)
+            raise ValueError(
+                "Selected files contain duplicate names from different folders. "
+                f"Rename one of these files and try again: {duplicate_list}"
+            )
+
+        staging_dir = tempfile.mkdtemp(prefix="aqmeasy_cmin_")
+        aqme_files = []
+        output_names = set()
+        for file_path in normalized_files:
+            staged_name = os.path.basename(file_path)
+            staged_path = os.path.join(staging_dir, staged_name)
+            shutil.copy2(file_path, staged_path)
+
+            ext = os.path.splitext(staged_name)[1].lower()
+            if ext == '.xyz':
+                sdf_name = f"{os.path.splitext(staged_name)[0]}.sdf"
+                if sdf_name in output_names:
+                    raise ValueError(
+                        "Selected files generate duplicate staged SDF names. "
+                        f"Rename one input and try again: {sdf_name}"
+                    )
+                self._convert_xyz_to_sdf(staged_path)
+                aqme_files.append(sdf_name)
+                output_names.add(sdf_name)
+            else:
+                if staged_name in output_names:
+                    raise ValueError(
+                        "Selected files contain duplicate names from different folders. "
+                        f"Rename one input and try again: {staged_name}"
+                    )
+                aqme_files.append(staged_name)
+                output_names.add(staged_name)
+
+        return aqme_files, staging_dir, staging_dir
+
+    def _convert_xyz_to_sdf(self, xyz_path):
+        """Convert one staged XYZ file to SDF using AQME/OpenBabel helper."""
+        try:
+            from aqme.csearch.utils import xyz_2_sdf
+            xyz_2_sdf(xyz_path)
+        except Exception as exc:
+            xyz_name = os.path.basename(xyz_path)
+            raise RuntimeError(
+                "Failed to convert XYZ input to SDF before CMIN run. "
+                f"File: {xyz_name}. Ensure OpenBabel is installed and the XYZ is valid."
+            ) from exc
 
     def _ensure_torchani_compatibility(self):
         """Patch TorchANI ANI models with species_to_tensor when missing.
