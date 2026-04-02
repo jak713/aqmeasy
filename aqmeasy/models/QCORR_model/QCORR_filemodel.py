@@ -124,7 +124,6 @@ class FileModel(QObject):
         if filename.startswith('.'):
             return False
         
-        # Common QM output extensions
 # Currently only support Gaussian (log) and Orca (out)
         output_extensions = ('.log', '.out')
         
