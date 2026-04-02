@@ -125,7 +125,8 @@ class FileModel(QObject):
             return False
         
         # Common QM output extensions
-        output_extensions = ('.log', '.out', '.output', '.xyz', '.sdf', '.mol')
+# Currently only support Gaussian (log) and Orca (out)
+        output_extensions = ('.log', '.out')
         
         # Accept if it has a known output extension
         if filename.endswith(output_extensions):
