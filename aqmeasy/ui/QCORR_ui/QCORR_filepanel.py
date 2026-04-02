@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QStyle
 )
 from PySide6.QtCore import  Qt
-from PySide6.QtGui import  QIcon
+from PySide6.QtGui import  QIcon, QBrush, QColor    
 from aqmeasy.ui.stylesheets import stylesheets
 from aqmeasy.ui.icons import Icons
 
@@ -34,6 +34,10 @@ class FilePanel(QWidget):
         self.controller = FileController(model, self)
         self.init_ui()
         self.setAcceptDrops(True)
+
+        self.model.filesChanged.connect(self._refresh_file_list)
+        self.model.fileStatusChanged.connect(self._update_all_colors)
+
 
     def init_ui(self):
         layout = QVBoxLayout()
@@ -68,7 +72,8 @@ class FilePanel(QWidget):
         # file list view
         self.file_view = QListWidget()
         # Selection updates model's currently selected file
-        self.file_view.itemSelectionChanged.connect(lambda: self._on_file_selection_changed(self.file_view.currentItem().toolTip()))
+        self.file_view.itemSelectionChanged.connect(self._on_file_selection_changed)
+
 
         layout.addWidget(self.file_view)
 
@@ -91,19 +96,98 @@ class FilePanel(QWidget):
 
 
     def _display_selected_files(self, filenames):
+        """Display files in the list widget."""
         for file in filenames:
             # check if file is already in the list
             if not any(item.toolTip() == file for item in self.file_view.findItems("*", Qt.MatchFlag.MatchWildcard)):
-                item = QListWidgetItem(os.path.basename(file))
+                item = QListWidgetItem(self._format_display_name(file))
                 item.setToolTip(file)
                 self.file_view.addItem(item)
+                self._update_item_color(item)
 
-    def _on_file_selection_changed(self, selected_item):
+    def _format_display_name(self, filepath):
+        """
+        Format display name to show file location structure.
+        
+        Examples:
+            /path/QCORR_1/success/calc.log -> ✓ [success] calc.log
+            /path/QCORR_1/success/SP_calcs/calc.log -> ✓ [success/SP_calcs] calc.log
+            /path/QCORR_1/failed/run_1/error/calc.log -> ✗ [failed/run_1/error] calc.log
+        """
+        filename = os.path.basename(filepath)
+        dirname = os.path.dirname(filepath)
+        normalized_dir = os.path.normpath(dirname)
+        parts = normalized_dir.split(os.sep)
+        
+        # Show exact folder under success (including nested ones such as SP_calcs)
+        if 'success' in parts:
+            success_idx = parts.index('success')
+            success_parts = ['success'] + parts[success_idx + 1:]
+            success_path = '/'.join(success_parts)
+            return f"✓ [{success_path}] {filename}"
+        
+        # Show exact folder under failed (e.g., failed/run_1/error)
+        if 'failed' in parts:
+            failed_idx = parts.index('failed')
+            failed_parts = ['failed'] + parts[failed_idx + 1:]
+            failed_path = '/'.join(failed_parts)
+            return f"✗ [{failed_path}] {filename}"
+        
+        # Original file (before QCORR)
+        return filename
+    
+    def _refresh_file_list(self, filenames):
+        """
+        Completely refresh the file list (called after QCORR reorganizes files).
+        """
+        # Clear existing items
+        self.file_view.clear()
+        
+        # Add all files from model
+        for filepath in filenames:
+            item = QListWidgetItem(self._format_display_name(filepath))
+            item.setToolTip(filepath)  # Store full path in tooltip
+            self.file_view.addItem(item)
+            self._update_item_color(item)
+    
+    def _update_item_color(self, item):
+        """Update list item color based on file status."""
+        filepath = item.toolTip()
+        status = self.model.get_file_status(filepath)
+        
+        if status == 'success':
+            item.setForeground(QBrush(QColor(0, 180, 0)))  # Green
+        elif status.startswith('failed'):
+            item.setForeground(QBrush(QColor(220, 50, 50)))  # Red
+        else:  
+            item.setForeground(QBrush(QColor(150, 150, 150)))  
+    
+    def _update_all_colors(self, statuses):
+        """Update colors for all items when statuses change."""
+        for i in range(self.file_view.count()):
+            item = self.file_view.item(i)
+            self._update_item_color(item)
+
+    def _on_file_selection_changed(self):
+        """Handle file selection change in the list widget."""
         if self.model.isSelectable == False:
             return
-        self.model.currently_selected_file = selected_item
-        self.model.currentlySelectedFileChanged.emit(selected_item)
-        print(self.model.__get__currently_selected_file__())
+        
+        current_item = self.file_view.currentItem()
+        if current_item is None:
+            return
+        
+        # Get full path from tooltip
+        full_path = current_item.toolTip()
+        
+        self.model.currently_selected_file = full_path
+        self.model.currentlySelectedFileChanged.emit(full_path)
+    
+    def _on_status_changed(self, statuses):
+        """Update all item colors when statuses change."""
+        for i in range(self.file_view.count()):
+            item = self.file_view.item(i)
+            self._update_item_color(item)
 
     def dragEnterEvent(self, event):
         urls = event.mimeData().urls()

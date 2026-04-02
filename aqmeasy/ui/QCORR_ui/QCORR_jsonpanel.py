@@ -14,11 +14,6 @@ class JSONpanel(QWidget):
         layout = QVBoxLayout()
         self.setLayout(layout)
         
-        # Button to load JSON file
-        load_button = QPushButton("Load QCORR JSON")
-        load_button.clicked.connect(self.load_json_file)
-        layout.addWidget(load_button)
-        
         # Analysis widget
         self.analysis_widget = QCORRAnalysisWidget()
         layout.addWidget(self.analysis_widget)

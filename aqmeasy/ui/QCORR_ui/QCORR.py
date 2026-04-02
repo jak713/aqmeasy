@@ -1,16 +1,3 @@
-"""
-JUST FOR ME TO LOOK OVER PHILOSOPHY:
-QCORR is a cclib-based module that detects issues and errors
-in QM output files, structures all output data, and creates ready-to-submit input files to correct those issues. User-
-specified criteria (i.e., spin contamination, isomerization, etc.) can be defined to filter output data. 
-
-Typically, a tedious manual search and correction for error terminations, convergence issues, and extra imaginary
-frequencies is necessary after running QM calculations. Based on our experience with structure optimizations and
-frequency calculations for large databases (i.e., many thousands) of organic compounds, such occurrences are relatively
-common. QCORR structures output data and automatically detects issues or errors, creating new input files that try to
-correct those issues, a cycle that can be repeated several times 
-"""
-
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import  QWidget, QVBoxLayout, QHBoxLayout, QPushButton
 from PySide6.QtCore import Qt
@@ -35,6 +22,7 @@ class QCORR(QWidget):
         self.file_model = FileModel()
         self.parameter_model = ParamModel()
         self.worker = QCORRWorker(self)
+        self.worker.file_model = self.file_model
         self.worker.result.connect(self.on_qcorr_result)
         
         self.view_panel = ViewPanel(self.file_model)
@@ -99,6 +87,9 @@ class QCORR(QWidget):
 
     def on_qcorr_result(self, result):
         self.view_panel.file_viewer.setText(result)
+        output_dir = self.file_panel.output_dir_label.text()
+        if output_dir:
+            self.file_model.update_files_after_qcorr(output_dir)
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self.parent.button_for_qcorr.setEnabled(True)
