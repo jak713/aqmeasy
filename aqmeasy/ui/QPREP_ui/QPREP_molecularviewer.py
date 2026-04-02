@@ -1,13 +1,14 @@
 import os
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel,  QComboBox, 
+    QLabel,  QComboBox,
+    QCheckBox,
     QMessageBox, QGroupBox,  QApplication, QSlider, QFormLayout, QSizePolicy, QTextBrowser
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtCore import  Qt
 from rdkit import Chem
-from rdkit.Chem import AllChem
+from rdkit.Chem import rdMolAlign
 import py3Dmol
 
 from aqmeasy.ui.stylesheets import stylesheets
@@ -80,6 +81,19 @@ class MoleculeViewer(QWidget):
 
         list_slider_row.addWidget(self.list_slider)
         display_layout.addLayout(list_slider_row)
+
+        overlay_row = QHBoxLayout()
+        self.ensemble_overlay_checkbox = QCheckBox("Overlay ensemble from selected file")
+        self.ensemble_overlay_checkbox.toggled.connect(self._on_overlay_toggled)
+        overlay_row.addWidget(self.ensemble_overlay_checkbox)
+        display_layout.addLayout(overlay_row)
+
+        order_row = QHBoxLayout()
+        self.order_by_rmsd_checkbox = QCheckBox("Order overlay by RMSD to reference")
+        self.order_by_rmsd_checkbox.setEnabled(False)
+        self.order_by_rmsd_checkbox.toggled.connect(self.render_selected_molecule)
+        order_row.addWidget(self.order_by_rmsd_checkbox)
+        display_layout.addLayout(order_row)
 
         display_group.setLayout(display_layout)
         options_layout.addWidget(display_group)
@@ -265,6 +279,9 @@ class MoleculeViewer(QWidget):
         self.loaded_files = []
         self.file_info_label.setText("No files selected")
         self.molecule_selector.clear()
+        self.ensemble_overlay_checkbox.setChecked(False)
+        self.order_by_rmsd_checkbox.setChecked(False)
+        self.order_by_rmsd_checkbox.setEnabled(False)
         self.web_view.setHtml("")
         self.web_view.setVisible(False)
         self.formula_label.setText("N/A")
@@ -346,6 +363,20 @@ class MoleculeViewer(QWidget):
 
         viewer = py3Dmol.view(width='100%', height='100%')
 
+        if self.ensemble_overlay_checkbox.isChecked() and not xyz:
+            ensemble = [entry for entry in self.molecules if entry['source_file'] == mol_data['source_file']]
+            ordered_ensemble = self._prepare_aligned_overlay(ensemble, mol)
+            rmsd_sorted = self.order_by_rmsd_checkbox.isChecked()
+            for model_idx, ensemble_entry in enumerate(ordered_ensemble):
+                model_block = Chem.MolToMolBlock(ensemble_entry['mol'])
+                viewer.addModel(model_block, 'mol')
+                style_spec = self._style_for_overlay_model(style, model_idx, rmsd_sorted)
+                viewer.setStyle({'model': model_idx}, style_spec)
+
+            viewer.zoomTo()
+            self.web_view.setHtml(viewer._make_html())
+            return
+
         if xyz:
             try:
                 xyz_block = Chem.MolToXYZBlock(mol)
@@ -370,3 +401,63 @@ class MoleculeViewer(QWidget):
         viewer.zoomTo()
         html = viewer._make_html()
         self.web_view.setHtml(html)
+
+    def _on_overlay_toggled(self, checked):
+        """Enable RMSD ordering only when overlay mode is active."""
+        self.order_by_rmsd_checkbox.setEnabled(checked)
+        if not checked and self.order_by_rmsd_checkbox.isChecked():
+            self.order_by_rmsd_checkbox.blockSignals(True)
+            self.order_by_rmsd_checkbox.setChecked(False)
+            self.order_by_rmsd_checkbox.blockSignals(False)
+        self.render_selected_molecule()
+
+    def _style_for_overlay_model(self, style, model_idx, rmsd_sorted=False):
+        """Return a py3Dmol style for one model in an ensemble overlay."""
+        if model_idx == 0:
+            stick_radius = 0.22
+            sphere_scale = 0.3
+            color = '#1f77b4'
+            opacity = 1.0
+        else:
+            stick_radius = 0.12
+            sphere_scale = 0.2
+            if rmsd_sorted:
+                palette = ['#2ecc71', '#27ae60', '#f1c40f', '#e67e22', '#e74c3c', '#8e44ad']
+                color = palette[(model_idx - 1) % len(palette)]
+            else:
+                color = '#95a5a6'
+            opacity = 0.45
+
+        if style == 'Stick':
+            return {'stick': {'radius': stick_radius, 'color': color, 'opacity': opacity}}
+        if style == 'Ball and Stick':
+            return {
+                'stick': {'radius': stick_radius, 'color': color, 'opacity': opacity},
+                'sphere': {'scale': sphere_scale, 'color': color, 'opacity': opacity},
+            }
+        if style == 'VdW Spheres':
+            return {'sphere': {'color': color, 'opacity': opacity}}
+        if style == 'Surface':
+            return {'stick': {'radius': stick_radius, 'color': color, 'opacity': opacity}}
+        return {'stick': {'radius': stick_radius, 'color': color, 'opacity': opacity}}
+
+    def _prepare_aligned_overlay(self, ensemble_entries, reference_mol):
+        """Align overlay molecules to the reference, and optionally sort by RMSD."""
+        if not ensemble_entries:
+            return []
+
+        overlay_entries = []
+        for entry in ensemble_entries:
+            entry_mol = Chem.Mol(entry['mol'])
+            rmsd = float('inf')
+            try:
+                rmsd = float(rdMolAlign.GetBestRMS(reference_mol, entry_mol))
+                rdMolAlign.AlignMol(entry_mol, reference_mol)
+            except Exception:
+                pass
+            overlay_entries.append({'mol': entry_mol, 'rmsd': rmsd})
+
+        if self.order_by_rmsd_checkbox.isChecked():
+            overlay_entries.sort(key=lambda item: item['rmsd'])
+
+        return overlay_entries
