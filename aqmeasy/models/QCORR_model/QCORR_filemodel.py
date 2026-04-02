@@ -118,7 +118,7 @@ class FileModel(QObject):
             return False
         
         # Skip new input files created by QCORR
-        if filename.endswith(('.com', '.inp', '.gjf', '.in')):
+        if filename.endswith(('.com', '.inp', '.gjf')):
             return False
         
         # Skip hidden files
