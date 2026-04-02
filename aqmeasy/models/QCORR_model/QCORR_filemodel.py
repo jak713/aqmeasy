@@ -47,7 +47,6 @@ class FileModel(QObject):
         Args:
             output_dir: Base output directory (contains QCORR_X folders)
         """
-        import glob
         
         # Find the latest QCORR_X directory
         qcorr_dirs = glob.glob(os.path.join(output_dir, 'QCORR*'))
