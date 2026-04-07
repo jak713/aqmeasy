@@ -209,19 +209,12 @@ class TestCSEARCHsetupUI:
         assert len(main_widget.csv_model["SMILES"]) == 4  # 4 entries in test.csv
         assert csv_table.get_row_count() == 4
 
-    def test_run_aqme_without_saving(self, csearch_widget, qtbot):
+    def test_run_aqme_without_saving(self, csearch_widget, qtbot, mock_dialogs):
         """Test that running AQME without saving shows an error message."""
-        # Capture the error signal
-        error_message = None
-        def capture_error(msg):
-            nonlocal error_message
-            error_message = msg
-        
-        csearch_widget.worker.error.connect(capture_error)
-        
-        # clear the command model input to simulate unsaved state
+        # Clear the command model input to simulate unsaved state.
         csearch_widget.worker.model.__setitem__("input", "")
-        csearch_widget.worker.run()
-        
-        qtbot.wait(100)
-        assert error_message == "Please save the CSV file before running AQME."
+
+        with qtbot.waitSignal(csearch_widget.worker.error, timeout=1000) as blocker:
+            csearch_widget.worker.run()
+
+        assert blocker.args[0] == "Please save the CSV file before running AQME."
