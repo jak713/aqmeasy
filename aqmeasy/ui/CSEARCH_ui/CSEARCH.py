@@ -5,6 +5,7 @@ from aqmeasy.ui.CSEARCH_ui.CSEARCH_widget import CSEARCHWidget
 from aqmeasy.controllers.CSEARCH_controller import CSEARCHThread
 from aqmeasy.models.CSEARCH_model.CSEARCH_model import csv_dictionary
 from aqmeasy.models.CSEARCH_model.CSEARCH_command import general_command_model
+from aqmeasy.utils import discover_aqme_result_files
 
 class CSEARCH(QWidget):
     def __init__(self, parent=None):
@@ -23,6 +24,23 @@ class CSEARCH(QWidget):
         self.setLayout(layout)
 
     def open_qprep_after_csearch(self, destination_folder: str):
-        """Open QPREP from parent (main_window) with the generated SDF files after CSEARCH run."""
-        QPREP = self.parent.new_qprep_widget() # type: ignore # 
-        QPREP.file_panel.get_files_from_csearch([f"{destination_folder}/{name}_{general_command_model['program']}.sdf" for name in self.model["code_name"] if name])
+        """Open QPREP with discovered CSEARCH SDF files."""
+        qprep_widget = self.parent.new_qprep_widget()  # type: ignore[attr-defined]
+        files = discover_aqme_result_files(
+            destination_folder,
+            source="csearch",
+            extensions=(".sdf",),
+            recursive=True,
+        )
+        qprep_widget.file_panel.get_files_from_csearch(files)
+
+    def open_cmin_after_csearch(self, destination_folder: str):
+        """Open CMIN with files discovered from CSEARCH output directories."""
+        cmin_widget = self.parent.new_cmin_widget()  # type: ignore[attr-defined]
+        cmin_widget.file_panel.controller.load_results_from_source(destination_folder, source="csearch")
+
+    def open_qdescp_after_csearch(self, destination_folder: str):
+        """Open QDESCP with SDF files discovered from CSEARCH output directories."""
+        qdescp_widget = self.parent.new_qdescp_widget()  # type: ignore[attr-defined]
+        files = discover_aqme_result_files(destination_folder, source="csearch", extensions=(".sdf",), recursive=True)
+        qdescp_widget.set_input_files(files)

@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import (
-    QVBoxLayout, QWidget, QHBoxLayout, QMessageBox, QStatusBar, QDialog, QPushButton
+    QVBoxLayout, QWidget, QHBoxLayout, QMessageBox, QStatusBar, QDialog, QPushButton,
+    QLabel, QCheckBox, QDialogButtonBox
 )
 from PySide6.QtCore import Slot, QThread
 from PySide6.QtGui import QCloseEvent, QPixmap, QIcon
@@ -12,6 +13,7 @@ from aqmeasy.ui.CMIN_ui.CMIN_parameters import ParameterPanel
 from aqmeasy.ui.CMIN_ui.CMIN_results import ResultsPanel
 from aqmeasy.controllers.CMIN_worker import CMINWorker
 from aqmeasy.models.CMIN_model import FileModel
+from aqmeasy.utils import discover_aqme_result_files
 
 
 class CMIN(QWidget):
@@ -167,6 +169,56 @@ class CMIN(QWidget):
                     f"Input conformers: {results.get('input_conformer_count', 0)}\n"
                     f"Output conformers: {results.get('output_conformer_count', 0)}"
                     f"{warning_text}")
+
+        self._prompt_follow_up_modules(results)
+
+    def _prompt_follow_up_modules(self, results):
+        """Ask whether CMIN results should be opened in QPREP and/or QDESCP."""
+        if self.parent_window is None:
+            return
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Open Follow-up Modules")
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel("Open follow-up modules with CMIN result files:"))
+
+        qprep_box = QCheckBox("Open QPREP")
+        qdescp_box = QCheckBox("Open QDESCP")
+        layout.addWidget(qprep_box)
+        layout.addWidget(qdescp_box)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        if not qprep_box.isChecked() and not qdescp_box.isChecked():
+            return
+
+        output_dir = results.get('output_dir') or self.file_panel.model.w_dir_main
+        cmin_sdf_files = discover_aqme_result_files(
+            output_dir,
+            source="cmin",
+            extensions=(".sdf",),
+            recursive=True,
+        )
+
+        if qprep_box.isChecked():
+            if cmin_sdf_files:
+                qprep_widget = self.parent_window.new_qprep_widget()
+                qprep_widget.file_panel.get_files_from_csearch(cmin_sdf_files)
+            else:
+                self.failure("No CMIN SDF result files were found to open in QPREP.")
+
+        if qdescp_box.isChecked():
+            if cmin_sdf_files:
+                qdescp_widget = self.parent_window.new_qdescp_widget()
+                qdescp_widget.set_input_files(cmin_sdf_files)
+            else:
+                self.failure("No CMIN SDF result files were found to open in QDESCP.")
 
     def _show_results_popup(self, results):
         """Show results in a dedicated dialog to keep main CMIN window compact."""

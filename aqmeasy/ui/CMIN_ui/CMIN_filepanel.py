@@ -60,6 +60,8 @@ class FilePanel(QWidget):
         clear_files.clicked.connect(self.controller.clear_file_list)
         selecting_layout.addWidget(clear_files)
 
+
+
         # file list view
         self.file_view = QListWidget()
         # Selection updates model's currently selected file
@@ -167,7 +169,7 @@ class FilePanel(QWidget):
 
         # Use load_molecules_from_files to load the selected file into the molecule viewer
         self.cmin_parent.molecule_viewer.load_molecules_from_files([selected_item])
-        
+
     def dragEnterEvent(self, event):
         urls = event.mimeData().urls()
         if not urls:

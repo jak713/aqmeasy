@@ -781,7 +781,7 @@ class CSEARCHThread(QThread):
             self.result.emit("CSEARCH completed successfully!")
             self.finished_signal.emit("CSEARCH run finished.")
             self.confirm.emit(
-                "Would you like to open QPREP with the generated SDF file(s)?",
+                "Select follow-up modules to open with CSEARCH result files:",
                 self.model["destination"]
             )
             

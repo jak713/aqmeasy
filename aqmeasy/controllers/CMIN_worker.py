@@ -11,6 +11,39 @@ import tempfile
 class CMINWorker(QObject):
     """Worker to run CMIN optimization in background"""
 
+    ANI_SUPPORTED_ATOMIC_NUMBERS = {
+        'ani1ccx': {1, 6, 7, 8},
+        'ani1x': {1, 6, 7, 8},
+        'ani2x': {1, 6, 7, 8, 9, 16, 17},
+    }
+    ATOMIC_NUMBER_TO_SYMBOL = {
+        1: 'H',
+        2: 'He',
+        3: 'Li',
+        4: 'Be',
+        5: 'B',
+        6: 'C',
+        7: 'N',
+        8: 'O',
+        9: 'F',
+        10: 'Ne',
+        11: 'Na',
+        12: 'Mg',
+        13: 'Al',
+        14: 'Si',
+        15: 'P',
+        16: 'S',
+        17: 'Cl',
+        18: 'Ar',
+        19: 'K',
+        20: 'Ca',
+        35: 'Br',
+        53: 'I',
+    }
+    ELEMENT_SYMBOL_TO_ATOMIC_NUMBER = {
+        symbol: atomic_number for atomic_number, symbol in ATOMIC_NUMBER_TO_SYMBOL.items()
+    }
+
     ENERGY_PROPERTY_KEYS = (
         "Energy",
         "energy",
@@ -69,6 +102,11 @@ class CMINWorker(QObject):
                     self.progress.emit("Applied TorchANI compatibility patch for ANI.")
 
             self._validate_backend_dependencies(str(cmin_kwargs.get('program', '')).lower())
+            self._validate_ani_input_elements(
+                str(cmin_kwargs.get('program', '')).lower(),
+                normalized_files,
+                cmin_kwargs.get('ani_method'),
+            )
             
             # Run CMIN
             previous_cwd = os.getcwd()
@@ -98,6 +136,10 @@ class CMINWorker(QObject):
         base_dir = output_dir if output_dir else run_dir
         run_program = str(self.parameters.get('program', '')).strip().lower()
         discovered_outputs = self._discover_output_files(output_dir, run_dir)
+        input_paths_set = {os.path.abspath(path) for path in normalized_inputs}
+        discovered_outputs = [
+            path for path in discovered_outputs if os.path.abspath(path) not in input_paths_set
+        ]
         outputs_by_input_key, unmatched_outputs = self._classify_cmin_outputs(discovered_outputs, run_program)
 
         input_records = []
@@ -549,6 +591,7 @@ class CMINWorker(QObject):
         staging_dir = tempfile.mkdtemp(prefix="aqmeasy_cmin_")
         aqme_files = []
         output_names = set()
+        generated_sdf_names = set()
         for file_path in normalized_files:
             staged_name = os.path.basename(file_path)
             staged_path = os.path.join(staging_dir, staged_name)
@@ -565,8 +608,14 @@ class CMINWorker(QObject):
                 self._convert_xyz_to_sdf(staged_path)
                 aqme_files.append(sdf_name)
                 output_names.add(sdf_name)
+                generated_sdf_names.add(sdf_name)
             else:
                 if staged_name in output_names:
+                    if staged_name in generated_sdf_names:
+                        raise ValueError(
+                            "Selected files generate duplicate staged SDF names. "
+                            f"Rename one input and try again: {staged_name}"
+                        )
                     raise ValueError(
                         "Selected files contain duplicate names from different folders. "
                         f"Rename one input and try again: {staged_name}"
@@ -634,6 +683,216 @@ class CMINWorker(QObject):
                     "xTB backend requires external binaries not found in PATH: "
                     f"{missing_list}. Install them and ensure PATH includes their location."
                 )
+
+    def _validate_ani_input_elements(self, program, input_files, ani_method):
+        """Validate ANI model element coverage before launching AQME/TorchANI."""
+        if program != 'ani':
+            return
+
+        model_key = self._normalize_ani_method(ani_method)
+        supported_atomic_numbers = self.ANI_SUPPORTED_ATOMIC_NUMBERS[model_key]
+        input_atomic_numbers = self._collect_input_atomic_numbers(input_files)
+        unsupported_atomic_numbers = sorted(input_atomic_numbers - supported_atomic_numbers)
+        if not unsupported_atomic_numbers:
+            return
+
+        unsupported_elements = self._format_atomic_numbers(unsupported_atomic_numbers)
+        supported_elements = self._format_atomic_numbers(sorted(supported_atomic_numbers))
+        model_label = self._format_ani_method_label(model_key)
+        raise ValueError(
+            f"Selected ANI method '{model_label}' does not support element(s): {unsupported_elements}. "
+            f"Supported elements for {model_label}: {supported_elements}. "
+            "Choose ANI2x or remove unsupported elements from the input."
+        )
+
+    def _normalize_ani_method(self, ani_method):
+        """Return canonical ANI method key from UI/AQME-style values."""
+        normalized = re.sub(r'[^a-z0-9]+', '', str(ani_method or 'ANI2x').lower())
+        aliases = {
+            'ani1ccx': 'ani1ccx',
+            'ani1x': 'ani1x',
+            'ani2x': 'ani2x',
+        }
+        canonical = aliases.get(normalized)
+        if canonical is None:
+            supported = ', '.join(self._format_ani_method_label(key) for key in sorted(aliases.values()))
+            raise ValueError(
+                f"Unknown ANI method '{ani_method}'. Supported methods are: {supported}."
+            )
+        return canonical
+
+    def _format_ani_method_label(self, method_key):
+        """Render a canonical ANI method key as a user-facing label."""
+        if method_key == 'ani1ccx':
+            return 'ANI1ccx'
+        if method_key == 'ani1x':
+            return 'ANI1x'
+        if method_key == 'ani2x':
+            return 'ANI2x'
+        return str(method_key)
+
+    def _collect_input_atomic_numbers(self, input_files):
+        """Collect all unique atomic numbers from selected SDF/XYZ input files."""
+        atomic_numbers = set()
+        for file_path in input_files or []:
+            ext = os.path.splitext(str(file_path))[1].lower()
+            if ext == '.sdf':
+                atomic_numbers.update(self._collect_atomic_numbers_from_sdf(file_path))
+            elif ext == '.xyz':
+                atomic_numbers.update(self._collect_atomic_numbers_from_xyz(file_path))
+        return atomic_numbers
+
+    def _collect_atomic_numbers_from_sdf(self, file_path):
+        """Collect atomic numbers from an SDF file using RDKit or text fallback."""
+        try:
+            from rdkit import Chem
+        except Exception:
+            return self._collect_atomic_numbers_from_sdf_text(file_path)
+
+        atomic_numbers = set()
+        try:
+            supplier = Chem.SDMolSupplier(file_path, removeHs=False, sanitize=False)
+            for mol in supplier:
+                if mol is None:
+                    continue
+                for atom in mol.GetAtoms():
+                    atomic_numbers.add(int(atom.GetAtomicNum()))
+        except Exception:
+            return self._collect_atomic_numbers_from_sdf_text(file_path)
+        return atomic_numbers
+
+    def _collect_atomic_numbers_from_sdf_text(self, file_path):
+        """Collect atomic numbers from SDF by parsing V2000/V3000 atom lines."""
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as handle:
+                lines = handle.readlines()
+        except Exception:
+            return set()
+
+        atomic_numbers = set()
+        index = 0
+        total_lines = len(lines)
+        while index < total_lines:
+            line = lines[index]
+            if 'V3000' in line:
+                index = self._parse_v3000_atom_block(lines, index, atomic_numbers)
+                continue
+
+            if index + 3 >= total_lines:
+                break
+
+            counts_line = lines[index + 3]
+            try:
+                atom_count = int(counts_line[:3])
+            except Exception:
+                index += 1
+                continue
+
+            atom_start = index + 4
+            atom_end = min(atom_start + atom_count, total_lines)
+            for atom_line in lines[atom_start:atom_end]:
+                self._add_atomic_number_from_symbol(self._extract_v2000_symbol(atom_line), atomic_numbers)
+
+            index = atom_end
+
+        return atomic_numbers
+
+    def _parse_v3000_atom_block(self, lines, start_index, atomic_numbers):
+        """Parse one V3000 atom block and add atomic numbers into the accumulator."""
+        index = start_index
+        total_lines = len(lines)
+        while index < total_lines:
+            line = lines[index].strip()
+            if line.startswith('M  V30 BEGIN ATOM'):
+                index += 1
+                while index < total_lines:
+                    atom_line = lines[index].strip()
+                    if atom_line.startswith('M  V30 END ATOM'):
+                        return index + 1
+                    if atom_line.startswith('M  V30'):
+                        parts = atom_line.split()
+                        if len(parts) >= 4:
+                            self._add_atomic_number_from_symbol(parts[3], atomic_numbers)
+                    index += 1
+                return total_lines
+            if line.startswith('$$$$'):
+                return index + 1
+            index += 1
+        return total_lines
+
+    def _extract_v2000_symbol(self, atom_line):
+        """Extract element symbol from one V2000 atom line."""
+        symbol = atom_line[31:34].strip() if len(atom_line) >= 34 else ''
+        if symbol:
+            return symbol
+        parts = atom_line.split()
+        if len(parts) >= 4:
+            return parts[3]
+        return ''
+
+    def _collect_atomic_numbers_from_xyz(self, file_path):
+        """Collect atomic numbers from XYZ symbols across all conformer blocks."""
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as handle:
+                lines = handle.readlines()
+        except Exception:
+            return set()
+
+        atomic_numbers = set()
+        index = 0
+        total_lines = len(lines)
+        while index < total_lines:
+            stripped = lines[index].strip()
+            if not stripped:
+                index += 1
+                continue
+            try:
+                atom_count = int(stripped)
+            except ValueError:
+                index += 1
+                continue
+
+            atom_start = index + 2
+            atom_end = min(atom_start + atom_count, total_lines)
+            for atom_line in lines[atom_start:atom_end]:
+                parts = atom_line.split()
+                if parts:
+                    self._add_atomic_number_from_symbol(parts[0], atomic_numbers)
+            index = atom_end
+
+        return atomic_numbers
+
+    def _add_atomic_number_from_symbol(self, symbol, atomic_numbers):
+        """Translate one element symbol and add it to the atomic-number set."""
+        normalized_symbol = self._normalize_symbol(symbol)
+        if not normalized_symbol:
+            return
+        atomic_number = self.ELEMENT_SYMBOL_TO_ATOMIC_NUMBER.get(normalized_symbol)
+        if atomic_number is not None:
+            atomic_numbers.add(atomic_number)
+
+    def _normalize_symbol(self, symbol):
+        """Normalize free-form atom symbol text to proper element symbol casing."""
+        text = str(symbol or '').strip()
+        if not text:
+            return ''
+        letters = ''.join(ch for ch in text if ch.isalpha())
+        if not letters:
+            return ''
+        if len(letters) == 1:
+            return letters.upper()
+        return letters[0].upper() + letters[1:].lower()
+
+    def _format_atomic_numbers(self, atomic_numbers):
+        """Format atomic numbers as sorted element labels with atomic numbers."""
+        labels = []
+        for atomic_number in sorted(atomic_numbers):
+            symbol = self.ATOMIC_NUMBER_TO_SYMBOL.get(atomic_number)
+            if symbol is None:
+                labels.append(f"Z={atomic_number}")
+            else:
+                labels.append(f"{symbol}(Z={atomic_number})")
+        return ', '.join(labels)
     
     def stop(self):
         """Request worker to stop (CMIN doesn't support interruption, but we can flag it)"""
