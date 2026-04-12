@@ -10,4 +10,10 @@ qt_api = "pyside6"
 addopts = [
     "-v",
     "--tb=short",
+    "-p", "no:qt",  # Disable qt plugin by default to avoid SIGABRT during collection
+]
+
+# Re-enable qt plugin only for GUI tests
+markers = [
+    "qt: marks tests as requiring Qt (deselect with '-m \"not qt\"')",
 ]

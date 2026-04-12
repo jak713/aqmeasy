@@ -11,6 +11,7 @@ from PySide6.QtCore import Qt
 import pubchempy as pcp
 import os
 import tempfile
+from typing import Iterable
 
 
 def smiles2pixmap(smiles:str) -> QPixmap:
@@ -253,3 +254,96 @@ def failure(self, message: str):
     else:
         msg.setIcon(QMessageBox.Icon.Critical)
     msg.exec()
+
+
+def discover_aqme_result_files(
+    base_dir: str,
+    source: str = "auto",
+    extensions: Iterable[str] = (".sdf",),
+    recursive: bool = True,
+) -> list[str]:
+    """Discover AQME output-like files under a base directory.
+
+    Args:
+        base_dir: Root directory to search.
+        source: One of auto/csearch/cmin/qprep/qdescp.
+        extensions: File extensions to keep.
+        recursive: Whether to recurse into subdirectories.
+    Returns:
+        Sorted list of absolute file paths.
+    """
+    if not base_dir:
+        return []
+
+    source_key = (source or "auto").strip().lower()
+    valid_sources = {"auto", "csearch", "cmin", "qprep", "qdescp"}
+    if source_key not in valid_sources:
+        source_key = "auto"
+
+    normalized_extensions = {
+        ext.lower() if str(ext).startswith(".") else f".{str(ext).lower()}"
+        for ext in extensions
+    }
+
+    base_abs = os.path.abspath(base_dir)
+    if not os.path.isdir(base_abs):
+        return []
+
+    if recursive:
+        walker = os.walk(base_abs)
+    else:
+        walker = [(base_abs, [], os.listdir(base_abs))]
+
+    def _score(path: str, src: str) -> int:
+        lower = path.lower()
+        name = os.path.splitext(os.path.basename(lower))[0]
+
+        # CSEARCH outputs commonly end with _rdkit or _crest.
+        if src == "csearch":
+            if ("/csearch/" in lower) or ("_rdkit" in name) or ("_crest" in name):
+                return 3
+            return 0
+
+        # CMIN outputs commonly end with _xtb/_ani and may include _all_confs.
+        if src == "cmin":
+            if ("/cmin/" in lower) or ("_xtb" in name) or ("_ani" in name):
+                return 3
+            return 0
+
+        if src == "qprep":
+            return 3 if "/qprep/" in lower else 0
+
+        if src == "qdescp":
+            return 3 if "/qdescp/" in lower else 0
+
+        # Auto: prefer known source tags first.
+        if any(tag in lower for tag in ("/csearch/", "/cmin/", "/qprep/", "/qdescp/")):
+            return 2
+        if any(tag in name for tag in ("_rdkit", "_crest", "_xtb", "_ani")):
+            return 1
+        return 0
+
+    scored: list[tuple[int, str]] = []
+    for root, _, files in walker:
+        for filename in files:
+            ext = os.path.splitext(filename)[1].lower()
+            if ext not in normalized_extensions:
+                continue
+            path = os.path.abspath(os.path.join(root, filename))
+            score = _score(path, source_key)
+            if source_key == "auto" and score < 0:
+                continue
+            if source_key != "auto" and score <= 0:
+                continue
+            scored.append((score, path))
+
+    # Keep higher-confidence files first, then stable alphabetical order.
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    deduped: list[str] = []
+    seen = set()
+    for _, path in scored:
+        if path in seen:
+            continue
+        seen.add(path)
+        deduped.append(path)
+    return deduped

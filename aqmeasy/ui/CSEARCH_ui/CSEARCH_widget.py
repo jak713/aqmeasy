@@ -1,6 +1,6 @@
 import logging
 
-from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QPlainTextEdit, QCheckBox, QMessageBox, QSizePolicy, QFileDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem, QFrame, QGridLayout, QDoubleSpinBox, QGroupBox, QProgressBar
+from PySide6.QtWidgets import  QLabel, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QTextBrowser,QLineEdit, QPlainTextEdit, QCheckBox, QMessageBox, QSizePolicy, QFileDialog, QTableWidget, QTableWidgetItem, QHeaderView, QApplication, QComboBox, QSpinBox, QStyle, QTableWidgetItem, QFrame, QGridLayout, QDoubleSpinBox, QGroupBox, QProgressBar, QDialog, QDialogButtonBox
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QPixmap, QKeySequence, QShortcut, QMouseEvent, QIcon, QDoubleValidator, QTextCursor, QIntValidator    
 
@@ -272,7 +272,7 @@ class CSEARCHWidget(QWidget):
         self.parent.worker.error.connect(self.failure)
         self.parent.worker.result.connect(self.shell_output.append)
         self.parent.worker.finished_signal.connect(self.success)
-        self.parent.worker.confirm.connect(lambda msg: self.handle_qprep_confirm(msg, self.parent.worker.model["destination"]))
+        self.parent.worker.confirm.connect(self.handle_post_run_open_prompt)
         self.parent.worker.finished.connect(self.on_thread_complete)
 
         self.aqme_setup_grid.addWidget(self.run_button, 4, 1, 2, 1)
@@ -794,10 +794,35 @@ class CSEARCHWidget(QWidget):
         # Ensure killer loop has stopped
         self.parent.worker._killer_active = False
 
-    def handle_qprep_confirm(self, message: str, destination: str) -> None:
-        """Ask user and open QPREP if they say yes."""
-        if self.yes_no_dialog(message):
+    @Slot(str, str)
+    def handle_post_run_open_prompt(self, message: str, destination: str) -> None:
+        """Ask which follow-up modules to open with CSEARCH results."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Open Follow-up Modules")
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel(message))
+
+        cmin_box = QCheckBox("Open CMIN")
+        qprep_box = QCheckBox("Open QPREP")
+        qdescp_box = QCheckBox("Open QDESCP")
+        layout.addWidget(cmin_box)
+        layout.addWidget(qprep_box)
+        layout.addWidget(qdescp_box)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        if cmin_box.isChecked():
+            self.parent.open_cmin_after_csearch(destination)
+        if qprep_box.isChecked():
             self.parent.open_qprep_after_csearch(destination)
+        if qdescp_box.isChecked():
+            self.parent.open_qdescp_after_csearch(destination)
 
     def on_thread_complete(self):
         """Called when thread finishes."""

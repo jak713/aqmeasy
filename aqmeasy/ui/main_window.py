@@ -241,6 +241,7 @@ class MainWindow(QMainWindow):
         self.cmin = CMIN(self)
         self.cmin.show()
         self.button_for_cmin.setEnabled(False)
+        return self.cmin
 
     def new_qprep_widget(self):
         self.qprep = QPREP(self)
@@ -258,6 +259,7 @@ class MainWindow(QMainWindow):
         self.qdescp = QDESCP(self)
         self.qdescp.show()
         self.button_for_qdescp.setEnabled(False)
+        return self.qdescp
 
     def closeEvent(self, event):
         event.accept()

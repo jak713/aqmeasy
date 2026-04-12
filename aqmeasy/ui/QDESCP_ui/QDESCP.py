@@ -86,16 +86,21 @@ class QDESCP(QWidget):
     def drop_event(self, event):
         urls = event.mimeData().urls()
         if urls:
-            self.file_paths = [url.toLocalFile() for url in urls]
-            self.file_input.setText(", ".join(self.file_paths))
+            self.set_input_files([url.toLocalFile() for url in urls])
 
     def browse_files(self):
         file_dialog = QFileDialog(self)
         file_dialog.setFileMode(QFileDialog.FileMode.ExistingFiles)
         file_dialog.setNameFilters(["SDF files (*.sdf)", "XYZ files (*.xyz)", "PDB files (*.pdb)"])
         if file_dialog.exec():
-            self.file_paths = file_dialog.selectedFiles()
-            self.file_input.setText(", ".join(self.file_paths))
+            self.set_input_files(file_dialog.selectedFiles())
+
+    def set_input_files(self, file_paths):
+        """Set QDESCP input files and update UI and viewer."""
+        cleaned = [str(Path(path).resolve()) for path in (file_paths or []) if path]
+        self.file_paths = cleaned
+        self.file_input.setText(", ".join(self.file_paths))
+        self.visualiser.load_molecules_from_files(self.file_paths)
 
     def open_csearch(self):
         """Open CSEARCH new CSEARCH window"""

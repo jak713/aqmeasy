@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QFileDialog
 from PySide6.QtCore import Signal, QObject, Slot, QRunnable
 from aqme.cmin import cmin
+from aqmeasy.utils import discover_aqme_result_files
 
 import os
 
@@ -70,3 +71,19 @@ class FileController(QObject):
         if file.endswith(('.sdf', '.xyz')):
             self.model.files.append(file)
             self.view.display_selected_files([file])
+
+    def load_results_from_source(self, base_dir, source="auto"):
+        """Load compatible CMIN inputs discovered from AQME result folders."""
+        discovered = discover_aqme_result_files(
+            base_dir,
+            source=source,
+            extensions=(".sdf", ".xyz"),
+            recursive=True,
+        )
+        if discovered:
+            self.model.files = discovered
+            self.model.filesChanged.emit(discovered)
+            self.view.display_selected_files(discovered)
+            self.model.w_dir_main = os.path.abspath(base_dir)
+            self.model.wdirChanged.emit(self.model.w_dir_main)
+        return discovered

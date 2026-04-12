@@ -156,7 +156,10 @@ class FilePanel(QWidget):
 
     def get_files_from_csearch(self, file_list):
         """Receive files from CSEARCH"""
-        self.selected_files = file_list
+        self._set_selected_files(file_list)
+
+    def _set_selected_files(self, files):
+        self.selected_files = [os.path.abspath(path) for path in (files or [])]
         self.update_file_list()
         self.display_files_info()
         self.filesSelected.emit(self.selected_files)
