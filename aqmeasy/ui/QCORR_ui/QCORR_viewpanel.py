@@ -11,11 +11,9 @@ from PySide6.QtWidgets import (
     QPushButton,
     QProgressBar,
     QHBoxLayout,
-    QLabel,
-    QTextEdit
     
 )
-from PySide6.QtCore import Qt, Signal, Slot, QObject, QThread, QTimer
+from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtGui import QTextOption, QTextCharFormat, QColor, QKeySequence, QShortcut, QTextCursor
 
 from aqmeasy.ui.icons import Icons
