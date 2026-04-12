@@ -26,6 +26,7 @@ general_command_default = {
     "input": None,
     "destination": "",
     "program": "",
+    "nprocs": 8,
     "stacksize": "1GB",
     "sample": 25,
     "auto_sample": "mid",

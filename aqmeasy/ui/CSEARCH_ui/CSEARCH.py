@@ -1,6 +1,4 @@
-from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QWidget, QVBoxLayout
-from PySide6.QtCore import Qt
 from aqmeasy.ui.stylesheets import stylesheets
 
 from aqmeasy.ui.CSEARCH_ui.CSEARCH_widget import CSEARCHWidget
@@ -28,5 +26,3 @@ class CSEARCH(QWidget):
         """Open QPREP from parent (main_window) with the generated SDF files after CSEARCH run."""
         QPREP = self.parent.new_qprep_widget() # type: ignore # 
         QPREP.file_panel.get_files_from_csearch([f"{destination_folder}/{name}_{general_command_model['program']}.sdf" for name in self.model["code_name"] if name])
-
-    

@@ -40,21 +40,12 @@ class Worker(QRunnable):
         4. Runs the qcorr command with the collected parameters and files
         """
         params = self.collect_qcorr_params()
-        print("QCORR parameters to be used:", params)
         w_dir_main  = self.set_up_files_in_wdir()
-        print("QCORR working directory:", w_dir_main)
-
-        # w_dir_main = w_dir_main.strip('/') # for some reason qcorr dislikes leading slash?
-        # files = w_dir_main+'/*.*'
-        # above does not work, hence we SET CURRENT WORKING DIRECTORY to w_dir_main and give files as '*.*'
-        # print("QCORR files to be processed:", files)
-
 
         files = '*.*'
         os.chdir(w_dir_main)
         # check files in files directory to see whether they exist:
         if not self.check_files_exist(files):
-            print("No files found in the specified working directory. Aborting QCORR run.")
             return
             
         buf_out = io.StringIO()
@@ -89,7 +80,6 @@ class Worker(QRunnable):
         Checks if there are files matching the given pattern.
         """
         matched_files = glob.glob(files_pattern)
-        print("Matched files:", matched_files)
         return len(matched_files) > 0
     
     def collect_qcorr_params(self):
