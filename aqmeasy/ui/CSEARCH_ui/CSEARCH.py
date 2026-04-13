@@ -1,5 +1,9 @@
+import os
+
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from aqmeasy.ui.stylesheets import stylesheets
+from aqmeasy.models.QDESCP_model.aqmetab_model import extract_qdescp_prefill_from_sdf
 
 from aqmeasy.ui.CSEARCH_ui.CSEARCH_widget import CSEARCHWidget
 from aqmeasy.controllers.CSEARCH_controller import CSEARCHThread
@@ -24,23 +28,35 @@ class CSEARCH(QWidget):
         self.setLayout(layout)
 
     def open_qprep_after_csearch(self, destination_folder: str):
-        """Open QPREP with discovered CSEARCH SDF files."""
-        qprep_widget = self.parent.new_qprep_widget()  # type: ignore[attr-defined]
-        files = discover_aqme_result_files(
-            destination_folder,
-            source="csearch",
-            extensions=(".sdf",),
-            recursive=True,
-        )
-        qprep_widget.file_panel.get_files_from_csearch(files)
+        """Open QPREP from parent (main_window) with the generated SDF files after CSEARCH run."""
+        QPREP = self.parent.new_qprep_widget() # type: ignore # 
+        QPREP.file_panel.get_files_from_csearch([f"{destination_folder}/{name}_{general_command_model['program']}.sdf" for name in self.model["code_name"] if name])
 
-    def open_cmin_after_csearch(self, destination_folder: str):
-        """Open CMIN with files discovered from CSEARCH output directories."""
-        cmin_widget = self.parent.new_cmin_widget()  # type: ignore[attr-defined]
-        cmin_widget.file_panel.controller.load_results_from_source(destination_folder, source="csearch")
+    @staticmethod
+    def _extract_qdescp_prefill_from_sdf(file_paths):
+        return extract_qdescp_prefill_from_sdf(file_paths)
 
-    def open_qdescp_after_csearch(self, destination_folder: str):
-        """Open QDESCP with SDF files discovered from CSEARCH output directories."""
-        qdescp_widget = self.parent.new_qdescp_widget()  # type: ignore[attr-defined]
-        files = discover_aqme_result_files(destination_folder, source="csearch", extensions=(".sdf",), recursive=True)
-        qdescp_widget.set_input_files(files)
+    def get_generated_sdf_paths(self):
+        destination = str(general_command_model.get("destination", "") or "").strip()
+        program = str(general_command_model.get("program", "") or "").strip()
+        if not destination or not program:
+            return []
+
+        paths = []
+        for name in self.model.get("code_name", []):
+            if not name:
+                continue
+            sdf_path = f"{destination}/{name}_{program}.sdf"
+            if os.path.exists(sdf_path):
+                paths.append(sdf_path)
+
+        deduped = []
+        seen = set()
+        for path in paths:
+            if path in seen:
+                continue
+            seen.add(path)
+            deduped.append(path)
+        return deduped
+
+    
