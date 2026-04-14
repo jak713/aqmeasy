@@ -1,11 +1,52 @@
 """Worker for running CMIN in background thread"""
-from PySide6.QtCore import QObject, Signal
-from aqme.cmin import cmin
-import traceback
 import os
 import re
 import shutil
+import select
+import sys
 import tempfile
+import threading
+import traceback
+
+from PySide6.QtCore import QObject, Signal
+from aqme.cmin import cmin
+
+
+class StreamCapture(threading.Thread):
+    """Capture text from a file descriptor and forward it to Qt."""
+
+    def __init__(self, fd, signal, stop_event):
+        super().__init__(daemon=True)
+        self.fd = fd
+        self.signal = signal
+        self.stop_event = stop_event
+
+    def run(self):
+        buffer = ""
+        while not self.stop_event.is_set():
+            try:
+                if not select.select([self.fd], [], [], 0.1)[0]:
+                    continue
+
+                data = os.read(self.fd, 4096)
+                if not data:
+                    break
+
+                text = data.decode('utf-8', errors='replace').replace('\r', '\n')
+                buffer += text
+                lines = buffer.split('\n')
+                buffer = lines.pop()
+
+                for line in lines:
+                    line = line.rstrip()
+                    if line:
+                        self.signal.emit(line)
+            except Exception:
+                break
+
+        tail = buffer.rstrip()
+        if tail:
+            self.signal.emit(tail)
 
 
 class CMINWorker(QObject):
@@ -57,6 +98,7 @@ class CMINWorker(QObject):
     # Signals
     started = Signal()
     progress = Signal(str)  # Progress message
+    result = Signal(str)  # Live output line
     finished = Signal(dict)  # Results dictionary
     error = Signal(str)  # Error message
     
@@ -71,6 +113,15 @@ class CMINWorker(QObject):
         self._is_running = True
         self.started.emit()
         staging_dir = None
+        stdout_pipe_read = None
+        stdout_pipe_write = None
+        stderr_pipe_read = None
+        stderr_pipe_write = None
+        original_stdout_fd = None
+        original_stderr_fd = None
+        capture_stop_event = threading.Event()
+        stdout_capture = None
+        stderr_capture = None
         
         try:
             normalized_files = self._normalize_files(self.files)
@@ -107,16 +158,55 @@ class CMINWorker(QObject):
                 normalized_files,
                 cmin_kwargs.get('ani_method'),
             )
-            
+
+            stdout_pipe_read, stdout_pipe_write = os.pipe()
+            stderr_pipe_read, stderr_pipe_write = os.pipe()
+            original_stdout_fd = os.dup(sys.stdout.fileno())
+            original_stderr_fd = os.dup(sys.stderr.fileno())
+
+            stdout_capture = StreamCapture(stdout_pipe_read, self.result, capture_stop_event)
+            stderr_capture = StreamCapture(stderr_pipe_read, self.result, capture_stop_event)
+            stdout_capture.start()
+            stderr_capture.start()
+
             # Run CMIN
             previous_cwd = os.getcwd()
             try:
+                os.dup2(stdout_pipe_write, sys.stdout.fileno())
+                os.dup2(stderr_pipe_write, sys.stderr.fileno())
                 os.chdir(run_dir)
                 _ = cmin(**cmin_kwargs)
             finally:
                 os.chdir(previous_cwd)
+                if original_stdout_fd is not None:
+                    os.dup2(original_stdout_fd, sys.stdout.fileno())
+                if original_stderr_fd is not None:
+                    os.dup2(original_stderr_fd, sys.stderr.fileno())
+                for fd in (stdout_pipe_write, stderr_pipe_write):
+                    if fd is not None:
+                        try:
+                            os.close(fd)
+                        except OSError:
+                            pass
+                if stdout_capture is not None:
+                    stdout_capture.join(timeout=1)
+                if stderr_capture is not None:
+                    stderr_capture.join(timeout=1)
+                capture_stop_event.set()
+                for fd in (
+                    original_stdout_fd,
+                    original_stderr_fd,
+                    stdout_pipe_read,
+                    stderr_pipe_read,
+                ):
+                    if fd is not None:
+                        try:
+                            os.close(fd)
+                        except OSError:
+                            pass
             
             # Collect results
+            self.progress.emit("CMIN calculation finished; collecting results...")
             results = self._collect_results(output_dir, run_dir)
             
             self.progress.emit("CMIN optimization complete")
@@ -279,7 +369,11 @@ class CMINWorker(QObject):
                 },
             )
 
-            output_count, output_energies, output_structures = self._parse_output_file(output_file)
+            include_structures = parse_info['kind'] == 'filtered'
+            output_count, output_energies, output_structures = self._parse_output_file(
+                output_file,
+                include_structures=include_structures,
+            )
 
             if parse_info['kind'] == 'filtered':
                 bucket['filtered_file'] = output_file
@@ -373,23 +467,21 @@ class CMINWorker(QObject):
 
         return best_index
 
-    def _parse_output_file(self, file_path):
+    def _parse_output_file(self, file_path, include_structures=False):
         """Return output conformer count and parsed energies for one output file."""
         ext = os.path.splitext(file_path)[1].lower()
         if ext == '.sdf':
-            count, energies = self._parse_sdf_file(file_path)
-            structures = self._parse_sdf_structures(file_path)
-            if not structures and energies:
-                # Fallback synthetic structure rows when detailed parsing is unavailable.
-                structures = [
-                    {
-                        'rank': index + 1,
-                        'name': f'Conformer {index + 1}',
-                        'energy': energy,
-                        'rmsd_to_best': 0.0 if index == 0 else None,
-                    }
-                    for index, energy in enumerate(sorted(energies))
-                ]
+            count, energies, structures = self._parse_sdf_summary(file_path)
+            if include_structures and count > 0:
+                enriched = self._enrich_structures_with_rdkit(file_path)
+                if enriched:
+                    if not energies:
+                        energies = [
+                            float(item['energy'])
+                            for item in enriched
+                            if item.get('energy') is not None
+                        ]
+                    return count, energies, enriched
             return count, energies, structures
         if ext == '.xyz':
             count = self._count_xyz_conformers(file_path)
@@ -398,39 +490,80 @@ class CMINWorker(QObject):
 
     def _parse_sdf_file(self, file_path):
         """Read conformer count and energies from an SDF file."""
-        structures = self._parse_sdf_structures(file_path)
-        energies = []
-        for structure in structures:
-            energy = structure.get('energy')
-            if energy is not None:
-                energies.append(float(energy))
-
-        if structures:
-            return len(structures), energies
-
-        try:
-            from rdkit import Chem
-        except Exception:
-            return 0, []
-
-        count = 0
-        energies = []
-        try:
-            supplier = Chem.SDMolSupplier(file_path, removeHs=False, sanitize=False)
-            for mol in supplier:
-                if mol is None:
-                    continue
-                count += 1
-                energy = self._extract_energy_from_mol(mol)
-                if energy is not None:
-                    energies.append(energy)
-        except Exception:
-            return 0, []
-
+        count, energies, _ = self._parse_sdf_summary(file_path)
         return count, energies
 
-    def _parse_sdf_structures(self, file_path):
-        """Return per-structure records including energy and RMSD to lowest-energy conformer."""
+    def _parse_sdf_summary(self, file_path):
+        """Read conformer count, energies, and lightweight structure rows from one SDF file.
+
+        This parser intentionally avoids RDKit conformer iteration and RMSD calculations,
+        which keeps result collection fast for large SDF outputs.
+        """
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as handle:
+                content = handle.read()
+        except Exception:
+            return 0, [], []
+
+        blocks = [block.strip() for block in content.split('$$$$')]
+        entries = []
+        for index, block in enumerate(blocks):
+            if not block:
+                continue
+
+            lines = [line.rstrip('\n') for line in block.splitlines()]
+            name = lines[0].strip() if lines and lines[0].strip() else f"Conformer {index + 1}"
+            energy = self._extract_energy_from_sdf_block(lines)
+            entries.append(
+                {
+                    'name': name,
+                    'energy': energy,
+                }
+            )
+
+        energies = [float(entry['energy']) for entry in entries if entry['energy'] is not None]
+        sortable_entries = [entry for entry in entries if entry['energy'] is not None]
+        unsorted_entries = [entry for entry in entries if entry['energy'] is None]
+        sortable_entries.sort(key=lambda item: item['energy'])
+        ordered_entries = sortable_entries + unsorted_entries
+
+        structures = []
+        for rank, entry in enumerate(ordered_entries, start=1):
+            structures.append(
+                {
+                    'rank': rank,
+                    'name': entry['name'],
+                    'energy': entry['energy'],
+                    'rmsd_to_best': 0.0 if rank == 1 else None,
+                }
+            )
+
+        return len(entries), energies, structures
+
+    def _extract_energy_from_sdf_block(self, lines):
+        """Extract an energy value from one SDF text block."""
+        energy_keys = {str(key).strip().lower() for key in self.ENERGY_PROPERTY_KEYS}
+        index = 0
+        total_lines = len(lines)
+        while index < total_lines:
+            line = lines[index].strip()
+            match = re.match(r'^>\s*<([^>]+)>\s*$', line)
+            if match:
+                property_name = match.group(1).strip().lower()
+                value_index = index + 1
+                while value_index < total_lines and not lines[value_index].strip():
+                    value_index += 1
+                if (property_name in energy_keys or 'energy' in property_name) and value_index < total_lines:
+                    try:
+                        return float(str(lines[value_index]).strip())
+                    except (TypeError, ValueError):
+                        pass
+            index += 1
+
+        return None
+
+    def _enrich_structures_with_rdkit(self, file_path):
+        """Build detailed structure rows (including RMSD) for filtered outputs only."""
         try:
             from rdkit import Chem
             from rdkit.Chem import rdMolAlign
@@ -447,7 +580,6 @@ class CMINWorker(QObject):
                 name = mol.GetProp('_Name') if mol.HasProp('_Name') else f"Conformer {index + 1}"
                 mol_entries.append(
                     {
-                        'index': index,
                         'name': str(name).strip() or f"Conformer {index + 1}",
                         'energy': energy,
                         'mol': mol,
@@ -459,18 +591,12 @@ class CMINWorker(QObject):
         if not mol_entries:
             return []
 
-        sortable_entries = []
-        unsorted_entries = []
-        for entry in mol_entries:
-            if entry['energy'] is None:
-                unsorted_entries.append(entry)
-            else:
-                sortable_entries.append(entry)
+        sortable = [entry for entry in mol_entries if entry['energy'] is not None]
+        unsorted = [entry for entry in mol_entries if entry['energy'] is None]
+        sortable.sort(key=lambda item: item['energy'])
+        ordered_entries = sortable + unsorted
 
-        sortable_entries.sort(key=lambda item: item['energy'])
-        ordered_entries = sortable_entries + unsorted_entries
-
-        reference_mol = sortable_entries[0]['mol'] if sortable_entries else ordered_entries[0]['mol']
+        reference_mol = sortable[0]['mol'] if sortable else ordered_entries[0]['mol']
         structures = []
         for rank, entry in enumerate(ordered_entries, start=1):
             rmsd_value = None
@@ -699,10 +825,21 @@ class CMINWorker(QObject):
         unsupported_elements = self._format_atomic_numbers(unsupported_atomic_numbers)
         supported_elements = self._format_atomic_numbers(sorted(supported_atomic_numbers))
         model_label = self._format_ani_method_label(model_key)
+        compatible_methods = self._find_compatible_ani_methods(input_atomic_numbers)
+        if compatible_methods:
+            compatibility_hint = (
+                f"Compatible ANI methods for this input: {', '.join(compatible_methods)}. "
+                "Choose one of them or remove unsupported elements from the input."
+            )
+        else:
+            compatibility_hint = (
+                "No ANI method in AQME supports this element set. Use xTB or remove "
+                "unsupported elements from the input."
+            )
         raise ValueError(
             f"Selected ANI method '{model_label}' does not support element(s): {unsupported_elements}. "
             f"Supported elements for {model_label}: {supported_elements}. "
-            "Choose ANI2x or remove unsupported elements from the input."
+            f"{compatibility_hint}"
         )
 
     def _normalize_ani_method(self, ani_method):
@@ -730,6 +867,14 @@ class CMINWorker(QObject):
         if method_key == 'ani2x':
             return 'ANI2x'
         return str(method_key)
+
+    def _find_compatible_ani_methods(self, input_atomic_numbers):
+        """Return ANI methods that support every element in the input set."""
+        compatible_methods = []
+        for method_key, supported_atomic_numbers in self.ANI_SUPPORTED_ATOMIC_NUMBERS.items():
+            if set(input_atomic_numbers).issubset(supported_atomic_numbers):
+                compatible_methods.append(self._format_ani_method_label(method_key))
+        return compatible_methods
 
     def _collect_input_atomic_numbers(self, input_files):
         """Collect all unique atomic numbers from selected SDF/XYZ input files."""

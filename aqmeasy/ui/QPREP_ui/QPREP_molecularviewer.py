@@ -3,16 +3,120 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QLabel,  QComboBox,
     QCheckBox,
-    QMessageBox, QGroupBox,  QApplication, QSlider, QFormLayout, QSizePolicy, QTextBrowser
+    QMessageBox, QGroupBox, QSlider, QFormLayout, QSizePolicy, QTextBrowser
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtCore import  Qt
+from PySide6.QtCore import Qt, Signal, Slot, QObject, QThread
 from rdkit import Chem
 from rdkit.Chem import rdMolAlign
 import py3Dmol
 
 from aqmeasy.ui.stylesheets import stylesheets
 from aqmeasy.utils import smiles2multiplicity
+
+
+def build_aligned_overlay_entries(ensemble_entries, reference_entry):
+    """Build aligned overlay blocks and RMSD values for one reference conformer."""
+    if not ensemble_entries:
+        return []
+
+    reference_mol = reference_entry['mol']
+    reference_atom_count = reference_mol.GetNumAtoms()
+    reference_symbols = [atom.GetSymbol() for atom in reference_mol.GetAtoms()]
+    atom_map = [(idx, idx) for idx in range(reference_atom_count)]
+    overlay_entries = []
+
+    for entry in ensemble_entries:
+        entry_mol = Chem.Mol(entry['mol'])
+        rmsd = float('inf')
+        try:
+            same_atom_order = entry_mol.GetNumAtoms() == reference_atom_count and [atom.GetSymbol() for atom in entry_mol.GetAtoms()] == reference_symbols
+            if same_atom_order:
+                rmsd = float(rdMolAlign.AlignMol(entry_mol, reference_mol, atomMap=atom_map))
+            else:
+                rmsd = float(rdMolAlign.GetBestRMS(reference_mol, entry_mol))
+                rdMolAlign.AlignMol(entry_mol, reference_mol)
+        except Exception:
+            pass
+
+        try:
+            model_block = Chem.MolToMolBlock(entry_mol)
+        except Exception:
+            model_block = Chem.MolToMolBlock(entry['mol'])
+
+        overlay_entries.append({'model_block': model_block, 'rmsd': rmsd})
+
+    return overlay_entries
+
+
+def compute_pairwise_average_rmsd(ensemble_entries):
+    """Compute the mean RMSD across all conformer pairs in an ensemble."""
+    if len(ensemble_entries) < 2:
+        return None
+
+    reference_mol = ensemble_entries[0]['mol']
+    atom_count = reference_mol.GetNumAtoms()
+    reference_symbols = [atom.GetSymbol() for atom in reference_mol.GetAtoms()]
+    atom_map = [(idx, idx) for idx in range(atom_count)]
+
+    rmsd_values = []
+    for left_index in range(len(ensemble_entries) - 1):
+        left_mol = ensemble_entries[left_index]['mol']
+        left_symbols = [atom.GetSymbol() for atom in left_mol.GetAtoms()]
+
+        for right_index in range(left_index + 1, len(ensemble_entries)):
+            right_mol = Chem.Mol(ensemble_entries[right_index]['mol'])
+            try:
+                same_atom_order = (
+                    left_mol.GetNumAtoms() == atom_count
+                    and right_mol.GetNumAtoms() == atom_count
+                    and left_symbols == reference_symbols
+                    and [atom.GetSymbol() for atom in right_mol.GetAtoms()] == reference_symbols
+                )
+                if same_atom_order:
+                    rmsd = float(rdMolAlign.AlignMol(right_mol, left_mol, atomMap=atom_map))
+                else:
+                    rmsd = float(rdMolAlign.GetBestRMS(left_mol, right_mol))
+                rmsd_values.append(rmsd)
+            except Exception:
+                continue
+
+    if not rmsd_values:
+        return None
+
+    return sum(rmsd_values) / len(rmsd_values)
+
+
+class OverlayPreparationWorker(QObject):
+    """Background worker that prepares overlay blocks and RMSD values."""
+
+    finished = Signal(int, object, object, object)
+    failed = Signal(int, object, str)
+
+    def __init__(self, request_id, cache_key, ensemble_entries, reference_entry):
+        super().__init__()
+        self.request_id = request_id
+        self.cache_key = cache_key
+        self.ensemble_entries = ensemble_entries
+        self.reference_entry = reference_entry
+
+    @Slot()
+    def run(self):
+        thread = self.thread()
+
+        try:
+            if thread and thread.isInterruptionRequested():
+                return
+
+            overlay_entries = build_aligned_overlay_entries(self.ensemble_entries, self.reference_entry)
+            pairwise_average_rmsd = compute_pairwise_average_rmsd(self.ensemble_entries)
+
+            if thread and thread.isInterruptionRequested():
+                return
+
+            self.finished.emit(self.request_id, self.cache_key, overlay_entries, pairwise_average_rmsd)
+        except Exception as error:
+            self.failed.emit(self.request_id, self.cache_key, str(error))
 
 
 class MoleculeViewer(QWidget):
@@ -26,9 +130,29 @@ class MoleculeViewer(QWidget):
         self.setWindowTitle("Molecule Viewer")
         self.molecules = []
         self.loaded_files = []  # Track which files are loaded
+        self._overlay_cache = {}
+        self._overlay_summary_cache = {}
+        self._syncing_selection = False
+        self._overlay_thread = None
+        self._overlay_worker = None
+        self._overlay_request_id = 0
+        self._overlay_pending_key = None
         self.setup_ui()
         # Initially hide the 3D viewer group
         self.web_view.setVisible(False)
+
+    def _stop_overlay_preparation(self, wait=False):
+        thread = self._overlay_thread
+        if thread is not None and thread.isRunning():
+            thread.requestInterruption()
+            thread.quit()
+            if wait:
+                thread.wait(1000)
+
+        if wait or thread is None or not thread.isRunning():
+            self._overlay_thread = None
+            self._overlay_worker = None
+            self._overlay_pending_key = None
 
     def setup_ui(self):
         self.options_container = QWidget()
@@ -88,12 +212,9 @@ class MoleculeViewer(QWidget):
         overlay_row.addWidget(self.ensemble_overlay_checkbox)
         display_layout.addLayout(overlay_row)
 
-        order_row = QHBoxLayout()
-        self.order_by_rmsd_checkbox = QCheckBox("Order overlay by RMSD to reference")
-        self.order_by_rmsd_checkbox.setEnabled(False)
-        self.order_by_rmsd_checkbox.toggled.connect(self.render_selected_molecule)
-        order_row.addWidget(self.order_by_rmsd_checkbox)
-        display_layout.addLayout(order_row)
+        self.overlay_summary_label = QLabel("Average pairwise RMSD: N/A")
+        self.overlay_summary_label.setWordWrap(True)
+        display_layout.addWidget(self.overlay_summary_label)
 
         display_group.setLayout(display_layout)
         options_layout.addWidget(display_group)
@@ -156,6 +277,8 @@ class MoleculeViewer(QWidget):
         try:
             self.molecules = []
             self.loaded_files = []
+            self._overlay_cache = {}
+            self._overlay_summary_cache = {}
             total_molecules = 0
 
             for filename in sdf_files:
@@ -170,7 +293,8 @@ class MoleculeViewer(QWidget):
                                 'mol': mol,
                                 'original_idx': i,
                                 'source_file': filename,
-                                'file_basename': os.path.basename(filename)
+                                    'file_basename': os.path.basename(filename),
+                                    'global_idx': len(self.molecules),
                             }
                             file_molecules.append(mol_data)
                             self.molecules.append(mol_data)
@@ -201,7 +325,8 @@ class MoleculeViewer(QWidget):
                                 'mol': mol,
                                 'original_idx': 0,
                                 'source_file': filename,
-                                'file_basename': os.path.basename(filename)
+                                'file_basename': os.path.basename(filename),
+                                'global_idx': len(self.molecules),
                             }
                             self.molecules.append(mol_data)
                             self.loaded_files.append({
@@ -275,15 +400,17 @@ class MoleculeViewer(QWidget):
 
 
     def clear_molecules(self):
+        self._stop_overlay_preparation()
         self.molecules = []
         self.loaded_files = []
+        self._overlay_cache = {}
+        self._overlay_summary_cache = {}
         self.file_info_label.setText("No files selected")
         self.molecule_selector.clear()
         self.ensemble_overlay_checkbox.setChecked(False)
-        self.order_by_rmsd_checkbox.setChecked(False)
-        self.order_by_rmsd_checkbox.setEnabled(False)
         self.web_view.setHtml("")
         self.web_view.setVisible(False)
+        self.overlay_summary_label.setText("Average pairwise RMSD: N/A")
         self.formula_label.setText("N/A")
         self.weight_label.setText("N/A")
         self.atoms_label.setText("N/A")
@@ -293,6 +420,9 @@ class MoleculeViewer(QWidget):
         self.source_file_label.setText("N/A")
 
     def on_molecule_change(self, index):
+        if self._syncing_selection:
+            return
+
         if index < 0 or not self.molecules or index >= len(self.molecules):
             self.formula_label.setText("N/A")
             self.weight_label.setText("N/A")
@@ -303,8 +433,16 @@ class MoleculeViewer(QWidget):
             self.source_file_label.setText("N/A")
             return
 
-        self.list_slider.setValue(index)
-        self.molecule_selector.setCurrentIndex(index)
+        self._syncing_selection = True
+        try:
+            self.list_slider.blockSignals(True)
+            self.molecule_selector.blockSignals(True)
+            self.list_slider.setValue(index)
+            self.molecule_selector.setCurrentIndex(index)
+        finally:
+            self.list_slider.blockSignals(False)
+            self.molecule_selector.blockSignals(False)
+            self._syncing_selection = False
 
         mol_data = self.molecules[index]
         mol = mol_data['mol']
@@ -332,8 +470,6 @@ class MoleculeViewer(QWidget):
             self.mult_label.setText(str(mult))
             self.source_file_label.setText(source_file)
 
-            QApplication.processEvents()
-
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error getting molecule details: {str(e)}")
             self.formula_label.setText("Error")
@@ -344,7 +480,8 @@ class MoleculeViewer(QWidget):
             self.mult_label.setText("Error")
             self.source_file_label.setText("Error")
 
-        self.render_selected_molecule()
+        if self.sender() is not self.list_slider:
+            self.render_selected_molecule()
 
     def render_selected_molecule(self):
         if not self.molecules:
@@ -361,21 +498,31 @@ class MoleculeViewer(QWidget):
         mol = mol_data['mol']
         style = self.style_selector.currentText()
 
-        viewer = py3Dmol.view(width='100%', height='100%')
-
         if self.ensemble_overlay_checkbox.isChecked() and not xyz:
             ensemble = [entry for entry in self.molecules if entry['source_file'] == mol_data['source_file']]
-            ordered_ensemble = self._prepare_aligned_overlay(ensemble, mol)
-            rmsd_sorted = self.order_by_rmsd_checkbox.isChecked()
-            for model_idx, ensemble_entry in enumerate(ordered_ensemble):
-                model_block = Chem.MolToMolBlock(ensemble_entry['mol'])
-                viewer.addModel(model_block, 'mol')
-                style_spec = self._style_for_overlay_model(style, model_idx, rmsd_sorted)
-                viewer.setStyle({'model': model_idx}, style_spec)
+            cache_key = self._overlay_cache_key(mol_data)
+            ordered_ensemble = self._overlay_cache.get(cache_key)
 
-            viewer.zoomTo()
-            self.web_view.setHtml(viewer._make_html())
+            if ordered_ensemble is None:
+                self._show_overlay_loading_message(mol_data)
+                self._start_overlay_preparation(cache_key, ensemble, mol_data)
+                return
+
+            source_file = mol_data['source_file']
+            pairwise_average_rmsd = self._overlay_summary_cache.get(source_file)
+            if pairwise_average_rmsd is not None:
+                self.overlay_summary_label.setText(f"Average pairwise RMSD: {pairwise_average_rmsd:.3f} Å")
+            else:
+                self.overlay_summary_label.setText("Average pairwise RMSD: N/A")
+
+            self._render_overlay_entries(ordered_ensemble, style)
             return
+
+        self.overlay_summary_label.setText("Average pairwise RMSD: N/A")
+        self._render_single_molecule(mol, style, xyz)
+
+    def _render_single_molecule(self, mol, style, xyz):
+        viewer = py3Dmol.view(width='100%', height='100%')
 
         if xyz:
             try:
@@ -402,62 +549,170 @@ class MoleculeViewer(QWidget):
         html = viewer._make_html()
         self.web_view.setHtml(html)
 
+    def _render_overlay_entries(self, overlay_entries, style):
+        viewer = py3Dmol.view(width='100%', height='100%')
+        ordered_entries = list(overlay_entries)
+
+        for model_idx, ensemble_entry in enumerate(ordered_entries):
+            viewer.addModel(ensemble_entry['model_block'], 'mol')
+            style_spec = self._style_for_overlay_model(style)
+            viewer.setStyle({'model': model_idx}, style_spec)
+
+        viewer.zoomTo()
+        self.web_view.setHtml(viewer._make_html())
+
+    def _show_overlay_loading_message(self, mol_data):
+        mol_name = mol_data['mol'].GetProp('_Name') if mol_data['mol'].HasProp('_Name') else 'selected molecule'
+        if not str(mol_name).strip():
+            mol_name = 'selected molecule'
+
+        html = f"""
+                <html>
+                    <head>
+                        <style>
+                            html, body {{
+                                margin: 0;
+                                width: 100%;
+                                height: 100%;
+                                background: #f7f7f9;
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                            }}
+                            .overlay-loading {{
+                                width: 100%;
+                                height: 100%;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                text-align: center;
+                                color: #222;
+                            }}
+                            .panel {{
+                                max-width: 28rem;
+                                padding: 1.25rem 1.5rem;
+                                border-radius: 14px;
+                                background: rgba(255, 255, 255, 0.92);
+                                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.10);
+                            }}
+                            .title {{
+                                font-size: 18px;
+                                font-weight: 600;
+                                margin-bottom: 0.45rem;
+                            }}
+                            .subtitle {{
+                                font-size: 13px;
+                                line-height: 1.45;
+                                color: #555;
+                            }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="overlay-loading">
+                            <div class="panel">
+                                <div class="title">Preparing overlay for {mol_name}</div>
+                                <div class="subtitle">This can take a moment for large conformer sets.</div>
+                            </div>
+                        </div>
+                    </body>
+                </html>
+                """
+        self.web_view.setHtml(html)
+
+    def _overlay_cache_key(self, mol_data):
+        return (mol_data['source_file'], mol_data.get('global_idx', mol_data['original_idx']))
+
+    def _start_overlay_preparation(self, cache_key, ensemble_entries, reference_entry):
+        if self._overlay_pending_key == cache_key:
+            return
+
+        if self._overlay_thread is not None and self._overlay_thread.isRunning():
+            self._overlay_thread.requestInterruption()
+
+        self._overlay_request_id += 1
+        request_id = self._overlay_request_id
+        self._overlay_pending_key = cache_key
+
+        thread = QThread()
+        worker = OverlayPreparationWorker(request_id, cache_key, ensemble_entries, reference_entry)
+        worker.moveToThread(thread)
+
+        thread.started.connect(worker.run)
+        worker.finished.connect(self._on_overlay_preparation_finished)
+        worker.failed.connect(self._on_overlay_preparation_failed)
+        worker.finished.connect(thread.quit)
+        worker.failed.connect(thread.quit)
+        thread.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+
+        self._overlay_thread = thread
+        self._overlay_worker = worker
+        thread.start()
+
+    def _on_overlay_preparation_finished(self, request_id, cache_key, overlay_entries, pairwise_average_rmsd):
+        if request_id != self._overlay_request_id:
+            return
+
+        self._overlay_cache[cache_key] = list(overlay_entries)
+        self._overlay_summary_cache[cache_key[0]] = pairwise_average_rmsd
+        if self._overlay_pending_key == cache_key:
+            self._overlay_pending_key = None
+
+        self._overlay_thread = None
+        self._overlay_worker = None
+
+        if not self.molecules:
+            return
+
+        index = self.list_slider.value()
+        if index < 0 or index >= len(self.molecules):
+            return
+
+        current_key = self._overlay_cache_key(self.molecules[index])
+        if current_key == cache_key and self.ensemble_overlay_checkbox.isChecked():
+            self.render_selected_molecule()
+
+    def _on_overlay_preparation_failed(self, request_id, cache_key, error_message):
+        if request_id != self._overlay_request_id:
+            return
+
+        if self._overlay_pending_key == cache_key:
+            self._overlay_pending_key = None
+
+        self._overlay_thread = None
+        self._overlay_worker = None
+        QMessageBox.critical(self, "Error", f"Failed to prepare overlay ensemble.\n\n{error_message}")
+
     def _on_overlay_toggled(self, checked):
-        """Enable RMSD ordering only when overlay mode is active."""
-        self.order_by_rmsd_checkbox.setEnabled(checked)
-        if not checked and self.order_by_rmsd_checkbox.isChecked():
-            self.order_by_rmsd_checkbox.blockSignals(True)
-            self.order_by_rmsd_checkbox.setChecked(False)
-            self.order_by_rmsd_checkbox.blockSignals(False)
+        """Render the overlay state when overlay mode changes."""
         self.render_selected_molecule()
 
-    def _style_for_overlay_model(self, style, model_idx, rmsd_sorted=False):
+    def _style_for_overlay_model(self, style):
         """Return a py3Dmol style for one model in an ensemble overlay."""
-        if model_idx == 0:
-            stick_radius = 0.22
-            sphere_scale = 0.3
-            color = '#1f77b4'
-            opacity = 1.0
-        else:
-            stick_radius = 0.12
-            sphere_scale = 0.2
-            if rmsd_sorted:
-                palette = ['#2ecc71', '#27ae60', '#f1c40f', '#e67e22', '#e74c3c', '#8e44ad']
-                color = palette[(model_idx - 1) % len(palette)]
-            else:
-                color = '#95a5a6'
-            opacity = 0.45
+        opacity = 0.85
 
         if style == 'Stick':
-            return {'stick': {'radius': stick_radius, 'color': color, 'opacity': opacity}}
+            return {'stick': {'opacity': opacity}}
         if style == 'Ball and Stick':
             return {
-                'stick': {'radius': stick_radius, 'color': color, 'opacity': opacity},
-                'sphere': {'scale': sphere_scale, 'color': color, 'opacity': opacity},
+                'stick': {'radius': 0.15, 'opacity': opacity},
+                'sphere': {'scale': 0.3, 'opacity': opacity},
             }
         if style == 'VdW Spheres':
-            return {'sphere': {'color': color, 'opacity': opacity}}
+            return {'sphere': {'opacity': opacity}}
         if style == 'Surface':
-            return {'stick': {'radius': stick_radius, 'color': color, 'opacity': opacity}}
-        return {'stick': {'radius': stick_radius, 'color': color, 'opacity': opacity}}
+            return {'stick': {'opacity': opacity}}
+        return {'stick': {'opacity': opacity}}
 
-    def _prepare_aligned_overlay(self, ensemble_entries, reference_mol):
+    def _prepare_aligned_overlay(self, ensemble_entries, reference_entry):
         """Align overlay molecules to the reference, and optionally sort by RMSD."""
         if not ensemble_entries:
             return []
 
-        overlay_entries = []
-        for entry in ensemble_entries:
-            entry_mol = Chem.Mol(entry['mol'])
-            rmsd = float('inf')
-            try:
-                rmsd = float(rdMolAlign.GetBestRMS(reference_mol, entry_mol))
-                rdMolAlign.AlignMol(entry_mol, reference_mol)
-            except Exception:
-                pass
-            overlay_entries.append({'mol': entry_mol, 'rmsd': rmsd})
+        cache_key = self._overlay_cache_key(reference_entry)
+        if cache_key not in self._overlay_cache:
+            self._overlay_cache[cache_key] = build_aligned_overlay_entries(ensemble_entries, reference_entry)
 
-        if self.order_by_rmsd_checkbox.isChecked():
-            overlay_entries.sort(key=lambda item: item['rmsd'])
+        return list(self._overlay_cache.get(cache_key, []))
 
-        return overlay_entries
+    def closeEvent(self, event):
+        self._stop_overlay_preparation(wait=True)
+        super().closeEvent(event)

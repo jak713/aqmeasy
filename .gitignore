@@ -3,7 +3,7 @@ dist/
 *.egg-info/
 
 run_app.py
-tests/test_files/
+tests/**
 .pytest_cache/
 .coverage
 htmlcov/
@@ -12,3 +12,4 @@ htmlcov/
 __pycache__/
 
 CSEARCH/
+QDESCP_data.dat
