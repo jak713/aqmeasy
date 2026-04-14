@@ -139,6 +139,11 @@ class ResultsPanel(QWidget):
         layout.addWidget(self.results_tabs)
         self.results_tabs.setVisible(False)
 
+        self.results_tabs.setSizePolicy(
+            self.results_tabs.sizePolicy().horizontalPolicy(),
+            self.results_tabs.sizePolicy().verticalPolicy(),
+        )
+
         table_tab = QWidget()
         table_layout = QVBoxLayout()
         table_tab.setLayout(table_layout)
@@ -212,7 +217,6 @@ class ResultsPanel(QWidget):
             self.hist_chart_view = QChartView(self.hist_chart)
             self.hist_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
             self.hist_chart_view.setMinimumHeight(300)
-            self.hist_chart_view.setMinimumWidth(380)
             energy_layout.addWidget(self.hist_chart_view)
 
             self.profile_chart = QChart()
@@ -221,7 +225,6 @@ class ResultsPanel(QWidget):
             self.profile_chart_view = QChartView(self.profile_chart)
             self.profile_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
             self.profile_chart_view.setMinimumHeight(300)
-            self.profile_chart_view.setMinimumWidth(380)
             energy_layout.addWidget(self.profile_chart_view)
             energy_layout.setStretch(0, 1)
             energy_layout.setStretch(1, 1)

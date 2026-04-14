@@ -1,8 +1,9 @@
 from PySide6.QtWidgets import (
     QVBoxLayout, QWidget, QHBoxLayout, QMessageBox, QStatusBar, QDialog, QPushButton,
-    QLabel, QCheckBox, QDialogButtonBox
+    QLabel, QCheckBox, QDialogButtonBox, QTabWidget, QGroupBox, QProgressBar, QFrame,
+    QGridLayout, QSizePolicy
 )
-from PySide6.QtCore import Slot, QThread
+from PySide6.QtCore import Slot, QThread, Qt
 from PySide6.QtGui import QCloseEvent, QPixmap, QIcon
 
 from aqmeasy.ui.stylesheets import stylesheets
@@ -22,8 +23,7 @@ class CMIN(QWidget):
         self.parent_window = parent if parent else None
         self.worker = None
         self.worker_thread = None
-        self.results_dialog = None
-        self.popup_results_panel = None
+        self.results_panel = None
         self.latest_results = None
         self.file_paths = []
         self.setWindowTitle("CMIN")
@@ -31,6 +31,11 @@ class CMIN(QWidget):
         self.setStyleSheet(stylesheets.QWidget)
 
         self.main_layout = QVBoxLayout()
+        self.root_tabs = QTabWidget()
+
+        self.main_tab = QWidget()
+        main_tab_layout = QVBoxLayout(self.main_tab)
+
         view_and_import_layout = QHBoxLayout()
 
         self.molecule_viewer = MoleculeViewer()
@@ -39,23 +44,59 @@ class CMIN(QWidget):
         self.file_panel = FilePanel(self, model=FileModel())
         self.file_panel.setMaximumWidth(400)
         view_and_import_layout.addWidget(self.file_panel)
-        
-        self.main_layout.addLayout(view_and_import_layout)
+        main_tab_layout.addLayout(view_and_import_layout)
 
-        # Parameters section
         self.parameters_panel = ParameterPanel(self)
-        self.main_layout.addWidget(self.parameters_panel)
-        
-        self.open_results_button = QPushButton("Open CMIN Results")
-        self.open_results_button.setEnabled(False)
-        self.open_results_button.clicked.connect(self._reopen_results_popup)
-        self.main_layout.addWidget(self.open_results_button)
-        
-        # Status bar
+        main_tab_layout.addWidget(self.parameters_panel)
+
+        self.execution_bar = QFrame(self)
+        self.execution_bar.setObjectName("executionBar")
+        self.execution_bar.setFixedHeight(34)
+        execution_bar_layout = QGridLayout(self.execution_bar)
+        execution_bar_layout.setContentsMargins(10, 4, 10, 4)
+        execution_bar_layout.setHorizontalSpacing(8)
+        execution_bar_layout.setVerticalSpacing(0)
+
+        self.execution_state_label = QLabel("Idle")
+        self.execution_state_label.setObjectName("executionStateLabel")
+        self.execution_state_label.setMinimumWidth(70)
+
+        self.execution_progress = QProgressBar(self)
+        self.execution_progress.setRange(0, 1)
+        self.execution_progress.setValue(1)
+        self.execution_progress.setTextVisible(False)
+        self.execution_progress.setMinimumHeight(22)
+
+        self.execution_message_label = QLabel("Ready")
+        self.execution_message_label.setObjectName("executionMessageLabel")
+        self.execution_message_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.execution_message_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        self.execution_message_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.execution_message_label.setMinimumWidth(0)
+        self.execution_message_label.setStyleSheet(
+            "background-color: transparent; color: #CAF0EF; padding-left: 12px;"
+        )
+
+        execution_bar_layout.addWidget(self.execution_state_label, 0, 0)
+        execution_bar_layout.addWidget(self.execution_progress, 0, 1)
+        execution_bar_layout.addWidget(self.execution_message_label, 0, 1)
+        execution_bar_layout.setColumnStretch(1, 1)
+        main_tab_layout.addWidget(self.execution_bar)
+
         self.status_bar = QStatusBar()
         self.status_bar.showMessage("Ready")
-        self.main_layout.addWidget(self.status_bar)
-        
+        main_tab_layout.addWidget(self.status_bar)
+
+        self.root_tabs.addTab(self.main_tab, "CMIN")
+
+        self.results_tab = QWidget()
+        results_layout = QVBoxLayout(self.results_tab)
+        self.results_panel = ResultsPanel(self.results_tab)
+        self.results_panel.clear()
+        results_layout.addWidget(self.results_panel)
+        self.root_tabs.addTab(self.results_tab, "Results")
+
+        self.main_layout.addWidget(self.root_tabs)
         self.setLayout(self.main_layout)
 
     def run_cmin(self):
@@ -79,9 +120,9 @@ class CMIN(QWidget):
         
         # Clear previous results
         self.latest_results = None
-        self.open_results_button.setEnabled(False)
-        if self.popup_results_panel is not None:
-            self.popup_results_panel.clear()
+        if self.results_panel is not None:
+            self.results_panel.clear()
+        self.root_tabs.setCurrentWidget(self.main_tab)
         
         # Create worker and thread
         self.worker = CMINWorker(self.file_panel.model.files, parameters)
@@ -92,6 +133,7 @@ class CMIN(QWidget):
         self.worker_thread.started.connect(self.worker.run)
         self.worker.started.connect(self.on_cmin_started)
         self.worker.progress.connect(self.on_cmin_progress)
+        self.worker.result.connect(self.on_cmin_output)
         self.worker.finished.connect(self.on_cmin_finished)
         self.worker.error.connect(self.on_cmin_error)
         self.worker.finished.connect(self.worker_thread.quit)
@@ -115,22 +157,40 @@ class CMIN(QWidget):
     def on_cmin_started(self):
         """Handle CMIN start"""
         self.file_panel.set_running(True)
+        self.execution_state_label.setText("Running")
+        self.execution_progress.setRange(0, 0)
+        self._set_execution_message("Starting CMIN...")
         self.status_bar.showMessage("CMIN running...")
     
     @Slot(str)
     def on_cmin_progress(self, message):
         """Handle progress updates"""
+        self.execution_state_label.setText("Running")
+        self._set_execution_message(message)
         self.status_bar.showMessage(message)
+
+    @Slot(str)
+    def on_cmin_output(self, message):
+        """Handle live stdout/stderr output from AQME."""
+        if message:
+            self.execution_state_label.setText("Running")
+            self._set_execution_message(message)
     
     @Slot(dict)
     def on_cmin_finished(self, results):
         """Handle successful completion"""
         self.file_panel.set_running(False)
+        self.execution_state_label.setText("Done")
+        self.execution_progress.setRange(0, 1)
+        self.execution_progress.setValue(1)
+        self._set_execution_message("CMIN completed successfully")
         self.status_bar.showMessage("CMIN completed successfully")
 
         self.latest_results = results
-        self.open_results_button.setEnabled(True)
-        self._show_results_popup(results)
+        if self.results_panel is not None:
+            self.results_panel.clear()
+            self.results_panel.update_results(results)
+        self.root_tabs.setCurrentWidget(self.results_tab)
         
         # Color input files by status and add generated output files
         for item in results.get('per_file_data', []):
@@ -220,37 +280,24 @@ class CMIN(QWidget):
             else:
                 self.failure("No CMIN SDF result files were found to open in QDESCP.")
 
-    def _show_results_popup(self, results):
-        """Show results in a dedicated dialog to keep main CMIN window compact."""
-        if self.results_dialog is None:
-            self.results_dialog = QDialog(self)
-            self.results_dialog.setWindowTitle("CMIN Results")
-            self.results_dialog.setMinimumSize(1000, 700)
-            dialog_layout = QVBoxLayout(self.results_dialog)
-            self.popup_results_panel = ResultsPanel(self.results_dialog)
-            dialog_layout.addWidget(self.popup_results_panel)
-
-        if self.popup_results_panel is None:
-            return
-
-        self.popup_results_panel.clear()
-        self.popup_results_panel.update_results(results)
-        self.results_dialog.show()
-        self.results_dialog.raise_()
-        self.results_dialog.activateWindow()
-
-    def _reopen_results_popup(self):
-        """Reopen the most recent results popup without rerunning CMIN."""
-        if self.latest_results is None:
-            return
-        self._show_results_popup(self.latest_results)
-    
     @Slot(str)
     def on_cmin_error(self, error_message):
         """Handle execution errors"""
         self.file_panel.set_running(False)
+        self.execution_state_label.setText("Error")
+        self.execution_progress.setRange(0, 1)
+        self.execution_progress.setValue(1)
+        self._set_execution_message(error_message)
         self.status_bar.showMessage("CMIN failed")
         self.failure(error_message)
+
+    def _set_execution_message(self, message):
+        """Update progress-bar overlay text without affecting window size hints."""
+        text = str(message or "")
+        if len(text) > 220:
+            text = text[:217] + "..."
+        self.execution_message_label.setText(text)
+        self.execution_message_label.setToolTip(str(message or ""))
     
     def cleanup_thread(self):
         """Clean up thread resources"""

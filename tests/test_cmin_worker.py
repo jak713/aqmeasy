@@ -32,6 +32,42 @@ M  CHG  0
     file_path.write_text(sdf_content, encoding="utf-8")
 
 
+def test_parse_sdf_summary_extracts_counts_and_energies(tmp_path):
+        CMINWorker = _import_cmin_worker()
+        sdf_path = tmp_path / "summary.sdf"
+        sdf_path.write_text(
+                """Mol 1
+    AQME  01011212003D
+
+    0  0  0  0  0  0            999 V2000
+M  END
+>  <Energy>
+1.5
+
+$$$$
+Mol 2
+    AQME  01011212003D
+
+    0  0  0  0  0  0            999 V2000
+M  END
+>  <Energy>
+0.5
+
+$$$$
+""",
+                encoding="utf-8",
+        )
+
+        worker = CMINWorker([], parameters={})
+        count, energies, structures = worker._parse_sdf_summary(str(sdf_path))
+
+        assert count == 2
+        assert energies == [1.5, 0.5]
+        assert len(structures) == 2
+        assert structures[0]["energy"] == 0.5
+        assert structures[0]["rank"] == 1
+
+
 def test_collect_results_reports_file_and_conformer_elimination_from_all_confs(tmp_path, monkeypatch):
     CMINWorker = _import_cmin_worker()
     input_a = tmp_path / "mol_a.sdf"
@@ -62,7 +98,7 @@ def test_collect_results_reports_file_and_conformer_elimination_from_all_confs(t
     def fake_parse(file_path):
         return fake_counts.get(str(file_path), (0, []))
 
-    monkeypatch.setattr(CMINWorker, "_parse_sdf_file", lambda self, p: fake_parse(p))
+    monkeypatch.setattr(CMINWorker, "_parse_sdf_summary", lambda self, p: (*fake_parse(p), []))
 
     worker = CMINWorker([str(input_a), str(input_b)], parameters={"program": "xtb"})
     results = worker._collect_results(output_dir="", run_dir=str(tmp_path))
@@ -104,8 +140,8 @@ def test_collect_results_excludes_unmatched_outputs_from_counts(tmp_path, monkey
 
     monkeypatch.setattr(
         CMINWorker,
-        "_parse_sdf_file",
-        lambda self, p: fake_counts.get(str(p), (0, [])),
+        "_parse_sdf_summary",
+        lambda self, p: (*fake_counts.get(str(p), (0, [])), []),
     )
 
     worker = CMINWorker([str(input_a)], parameters={"program": "ani"})
@@ -140,8 +176,8 @@ def test_collect_results_separates_failed_files_from_filtered_zero(tmp_path, mon
 
     monkeypatch.setattr(
         CMINWorker,
-        "_parse_sdf_file",
-        lambda self, p: fake_counts.get(str(p), (0, [])),
+        "_parse_sdf_summary",
+        lambda self, p: (*fake_counts.get(str(p), (0, [])), []),
     )
 
     worker = CMINWorker([str(input_a), str(input_b)], parameters={"program": "xtb"})
@@ -253,6 +289,24 @@ def test_validate_ani_input_elements_accepts_supported_elements(monkeypatch):
     )
 
     worker._validate_ani_input_elements("ani", ["dummy.sdf"], "ANI2x")
+
+
+def test_validate_ani_input_elements_reports_when_no_ani_method_can_handle_input(monkeypatch):
+    CMINWorker = _import_cmin_worker()
+    worker = CMINWorker([], parameters={})
+
+    monkeypatch.setattr(
+        CMINWorker,
+        "_collect_input_atomic_numbers",
+        lambda self, files: {1, 15, 35, 46, 77},
+    )
+
+    with pytest.raises(ValueError) as exc:
+        worker._validate_ani_input_elements("ani", ["dummy.sdf"], "ANI2x")
+
+    message = str(exc.value)
+    assert "No ANI method in AQME supports this element set" in message
+    assert "Choose ANI2x" not in message
 
 
 def test_validate_ani_input_elements_ignores_non_ani_program(monkeypatch):

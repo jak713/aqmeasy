@@ -27,10 +27,54 @@ class CSEARCH(QWidget):
         layout.addWidget(self.main_widget)
         self.setLayout(layout)
 
+    def _discover_csearch_sdf_paths(self, destination_folder: str):
+        discovered = discover_aqme_result_files(
+            destination_folder,
+            source="csearch",
+            extensions=(".sdf",),
+            recursive=True,
+        )
+        if discovered:
+            return discovered
+
+        # Fallback to deterministic naming used by CSEARCH outputs.
+        program = str(general_command_model.get("program", "") or "").strip()
+        fallback = []
+        if program:
+            for name in self.model.get("code_name", []):
+                if not name:
+                    continue
+                sdf_path = f"{destination_folder}/{name}_{program}.sdf"
+                if os.path.exists(sdf_path):
+                    fallback.append(sdf_path)
+        return fallback
+
+    def open_cmin_after_csearch(self, destination_folder: str):
+        """Open CMIN with generated CSEARCH structures as input."""
+        parent_window = getattr(self, "parent", None)
+        if parent_window is None or not hasattr(parent_window, "new_cmin_widget"):
+            return
+        cmin_widget = parent_window.new_cmin_widget()  # type: ignore
+        cmin_widget.file_panel.controller.load_results_from_source(destination_folder, source="csearch")
+
     def open_qprep_after_csearch(self, destination_folder: str):
-        """Open QPREP from parent (main_window) with the generated SDF files after CSEARCH run."""
-        QPREP = self.parent.new_qprep_widget() # type: ignore # 
-        QPREP.file_panel.get_files_from_csearch([f"{destination_folder}/{name}_{general_command_model['program']}.sdf" for name in self.model["code_name"] if name])
+        """Open QPREP from parent (main_window) with generated CSEARCH SDF files."""
+        parent_window = getattr(self, "parent", None)
+        if parent_window is None or not hasattr(parent_window, "new_qprep_widget"):
+            return
+        qprep_widget = parent_window.new_qprep_widget()  # type: ignore
+        qprep_widget.file_panel.get_files_from_csearch(self._discover_csearch_sdf_paths(destination_folder))
+
+    def open_qdescp_after_csearch(self, destination_folder: str):
+        """Open QDESCP from parent (main_window) with generated CSEARCH SDF files."""
+        parent_window = getattr(self, "parent", None)
+        if parent_window is None or not hasattr(parent_window, "new_qdescp_widget"):
+            return
+        qdescp_widget = parent_window.new_qdescp_widget()  # type: ignore
+        sdf_paths = self._discover_csearch_sdf_paths(destination_folder)
+        payload = {"files": sdf_paths}
+        payload.update(self._extract_qdescp_prefill_from_sdf(sdf_paths))
+        qdescp_widget.set_input_payload(payload)
 
     @staticmethod
     def _extract_qdescp_prefill_from_sdf(file_paths):

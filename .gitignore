@@ -3,7 +3,7 @@ dist/
 *.egg-info/
 
 run_app.py
-tests/test_files/
+tests/**
 .pytest_cache/
 .coverage
 htmlcov/
